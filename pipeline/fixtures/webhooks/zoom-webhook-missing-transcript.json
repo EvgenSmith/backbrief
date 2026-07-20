@@ -1,0 +1,39 @@
+{
+  "_fixture": "missing-transcript",
+  "_expected": "extract-metadata emits 1 item with has_transcript=false -> Phase 1 branch only (minimal Slack root + recording-state save). Zoom re-delivers when recording.transcript_completed fires; Phase 2 picks up the saved state.",
+  "event": "recording.completed",
+  "event_ts": 1770000300000,
+  "payload": {
+    "account_id": "FAKE_TENANT_ACCOUNT_ID",
+    "object": {
+      "uuid": "fixtureMissingTranscript==",
+      "id": 99911115555,
+      "host_email": "elena@acme.dev",
+      "topic": "Firmware release retro",
+      "start_time": "2026-05-19T16:00:00Z",
+      "duration": 25,
+      "share_url": "https://zoom.us/rec/share/FAKE_NO_VTT",
+      "participant_user_names": [
+        "Elena Novak",
+        "Andrei Petrov"
+      ],
+      "recording_files": [
+        {
+          "id": "rec-mp4-4",
+          "file_type": "MP4",
+          "status": "completed",
+          "download_url": "https://zoom.us/rec/download/FAKE_MP4_NO_VTT",
+          "file_size": 123456789
+        },
+        {
+          "id": "rec-timeline-4",
+          "file_type": "TIMELINE",
+          "status": "completed",
+          "download_url": "https://zoom.us/rec/download/FAKE_TIMELINE",
+          "file_size": 1024
+        }
+      ]
+    }
+  },
+  "download_token": "FAKE_ZOOM_DOWNLOAD_TOKEN_NO_VTT"
+}

@@ -1,0 +1,189 @@
+# SPDX-License-Identifier: MIT
+# =============================================================================
+# Backbrief tenant configuration — golden-path example (fictional company)
+# =============================================================================
+# Schema:   plugin/templates/tenant.schema.json  (schema_version: 1)
+# Validate: node plugin/scripts/validate-tenant.js path/to/tenant.yaml
+#
+# Lifecycle: born minimal at A0 (init-vault.js), completed at B1
+# (generate-tenant.js). Edit by conversation with your agent (it shows a diff
+# before writing) or by hand — either way the validator runs before any deploy.
+#
+# This example is the golden path for a <10-person team on the supported
+# default stack: Zoom + Slack + Linear + GitHub. A0 only asks about deltas
+# from this file — pressing Enter should always be a sane choice.
+#
+# *** NO SECRETS EVER. *** Tokens and API keys live in .backbrief/secrets.env
+# (gitignored) — never here. The validator hard-fails on token-shaped values.
+#
+# YAML subset note: the kit's zero-dependency parser reads plain block maps,
+# block lists, single-line inline [arrays] / {objects}, quoted scalars, and
+# comments. Do not use anchors (& / *), multi-line scalars (| >), or
+# multi-document markers (---).
+# =============================================================================
+
+schema_version: 1
+
+tenant:
+  name: Acme Robotics              # display name — appears in digests and Slack posts
+  about: Builds warehouse robots and the SkyDock fleet-management platform for mid-size logistics operators.
+                                   # 2-3 sentences max — rendered into every pipeline LLM prompt
+                                   # (B1 fills it from docs/company.md when you leave it out)
+  persona: company_lead            # whose calls the vault holds (A0 fork): solo | team_lead | company_lead
+  internal_domains: [acme.dev]     # emails outside these domains => external participant (frontmatter)
+  languages: [en]                  # ISO-639-1; conversation and digests mirror the call's language
+  primary_language: en             # first of tenant.languages; explicit for clarity
+  timezone: America/New_York       # transcript filenames use call start in this timezone
+
+vault:
+  repo: null                       # GitHub "owner/repo"; stays null until B4 (local-only vault is fine)
+  branch: main
+  teams:                           # taxonomy: one entry per team folder; description feeds the classifier
+    - tag: product
+      folder: product
+      description: Product management, specs, pricing, roadmap
+      keywords: [roadmap, spec, pricing, launch]     # optional classifier hints
+    - tag: engineering
+      folder: engineering
+      description: Backend, firmware, infra, releases
+      keywords: [deploy, bug, api, firmware]
+    - tag: growth
+      folder: growth
+      description: Marketing, sales, partnerships, community
+      keywords: [campaign, lead, partnership, funnel]
+      # subteams:                                    # optional two-level routing (folder may nest)
+      #   - tag: sales
+      #     folder: growth/sales
+      #     description: Outbound and deals
+      #     aliases: [sales team]
+  mixed_folder: general            # route when a call spans teams / team unresolved
+  profiles_folder: team            # flat folder of <Lastname>.md profiles — never nested
+  summarizer_skill_path: docs/skills/summarizer.md
+  company_profile_path: docs/company.md   # company profile (born at A0) injected, size-capped,
+                                   #   into summarizer/taskcrafter context
+  dlq_folder: pipeline/dlq         # dead-letter artifacts (recoverable via redrive-dlq.js)
+  training_data_path: .backbrief/training/feedback.jsonl
+
+roster:                            # one entry per person; lastname is THE canonical token everywhere
+  - lastname: Novak                # (filenames, participants, task assignees, private/1on1/<Lastname>/)
+    first_name: Elena
+    email: elena@acme.dev
+    role: CEO & co-founder
+    aliases: [El, Elena N]         # everything transcripts call this person (nicknames, ASR variants)
+    home_team: PRD                 # tracker team key — default routing for this person's tasks
+    is_owner: true                 # exactly one owner: receives DLQ DMs + 1:1 routing target
+  - lastname: Chen
+    first_name: Wei
+    email: wei@acme.dev
+    role: Product lead
+    aliases: [W, Wei C]
+    home_team: PRD
+  - lastname: Petrov
+    first_name: Andrei
+    email: andrei@acme.dev
+    role: Engineering lead
+    aliases: [Andy, Andrei P]
+    home_team: ENG
+  - lastname: Ivanova
+    first_name: Maria
+    email: maria@acme.dev
+    role: Growth lead
+    aliases: [Masha, Maria I]
+    home_team: GRW
+  - lastname: Okafor
+    first_name: Sam
+    email: sam@acme.dev
+    role: Sales
+    aliases: [Sammy]
+    home_team: GRW
+  # slack_user_id / tracker_user_id: leave unset — auto-resolved at deploy (B3/B5)
+  # and cached in .backbrief/pipeline-state.json; set manually only to override.
+
+glossary:                          # ASR mis-hearings -> canonical spelling (compiled to regexes at render)
+  - canonical: SkyDock
+    variants: [sky dock, skydoc, sky-doc]
+  - canonical: FluxAPI
+    variants: [flux api, flex api]
+  - canonical: RoverOS
+    variants: [rover o s, rover us]
+
+# Privacy routing (auto-routing 1:1/board/legal calls into private slices, DM
+# delivery, confidential handling) is deliberately NOT part of v0.1 — every call
+# files into team folders and posts to the digest channel. If your team needs
+# it, say so (waitlist interest: privacy) — it exists in the reference
+# production deployment and ships when demand shows.
+
+extraction:
+  voice:
+    wake_words: [backbrief]        # bot names that trigger voice directives ("backbrief, task for Chen...")
+
+features:                          # every optional component: one object, one enabled boolean —
+  # turning a component off is one flag; pipeline and procedures read the same object and no-op cleanly.
+
+  slack:
+    enabled: true
+    digest_channel: "#call-digests"   # root posts + digests + task buttons (channel name or ID);
+                                   # the kit-wide default — deploy (B3) offers to create it
+    # per_team_channels:           # optional per-team overrides (team tag -> channel)
+    #   product: "#product-calls"
+
+  raw_retention: vtt               # none = digest .md only | vtt = .vtt sibling committed |
+                                   # vtt_mp4 = also archive the MP4 (requires drive.enabled)
+
+  drive:
+    enabled: false                 # MP4 archive to Google Drive — off on the golden path
+    # folder_id: your-drive-folder-id    # required when enabled
+    domain_restricted: true
+
+  tracker:
+    enabled: true
+    kind: linear                   # linear | other (other = file-only tasks + connector waitlist)
+    team_mapping:                  # team tag -> tracker team; unmapped teams fall back to file-only tasks
+      - team_tag: product
+        tracker_team_key: PRD
+        default_assignee: Novak
+      - team_tag: engineering
+        tracker_team_key: ENG
+        default_assignee: Petrov
+      - team_tag: growth
+        tracker_team_key: GRW
+        default_assignee: Ivanova
+    provenance_label: backbrief    # label on every pipeline-created issue (in-tracker provenance marker)
+    autonomy_level: L0             # L0 all-buttons -> L2 autopilot; unlocks at >=50 logged decisions
+    thresholds:                    # dedup/matcher decision thresholds — defaults are prod-calibrated
+      comment: 0.75
+      flag_discovery: 0.55
+      flag_planning: 0.35
+      dedup_confirmed_days: 14
+      dedup_pending_hours: 48
+    # discriminator_overrides:     # tune the deterministic duplicate discriminator
+    #   disable: []
+    #   extra_tokens: {}
+
+  history_import:
+    enabled: false                 # B7: replay past Zoom Cloud recordings through the pipeline
+    days: 30
+
+  telemetry:
+    enabled: false                 # OPT-IN — the A0 consent question sets this; consent can never
+                                   # default to yes. false = zero outbound calls from the kit.
+    endpoint: https://backbrief-telemetry.backbrief.workers.dev
+    # install_id: generated locally (random UUIDv4) at consent — never set by hand
+
+llm:                               # BYO Anthropic models per stage (B6); test-creds.js anthropic
+  # probes each distinct model with the tenant's exact thinking/effort params.
+  # NOTE: model ids below are the defaults at kit release and will age — run
+  # `test-creds.js anthropic` to verify yours and swap in current ids freely.
+  summarizer: {model: claude-sonnet-4-6, max_tokens: 16384}
+  normalizer: {model: claude-sonnet-4-6, max_tokens: 8192}
+  matcher: {model: claude-opus-4-8, max_tokens: 32000, thinking: adaptive, effort: high}
+  composer: {model: claude-haiku-4-5, max_tokens: 8192}
+  feedback: {model: claude-sonnet-4-6, max_tokens: 4096}
+
+pipeline:
+  knobs:                           # scalar knobs — defaults are prod-proven; change with care
+    min_duration_min: 5            # calls shorter than this are skipped
+    replay_window_sec: 900         # webhook HMAC replay window
+    transcript_char_cap: 60000     # transcript truncation cap for LLM calls
+    vault_cache_ttl_listing_h: 1   # vault folder-listing cache TTL (hours)
+    vault_cache_ttl_file_h: 12     # vault file-content cache TTL (hours)

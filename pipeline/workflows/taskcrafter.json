@@ -1,0 +1,1002 @@
+{
+  "backbrief_skeleton_version": "0.1.0",
+  "name": "Backbrief: TaskCrafter (sub-workflow)",
+  "nodes": [
+    {
+      "id": "bb-webhook-trigger",
+      "name": "Webhook trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "backbrief-taskcrafter",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "bb-normalize-webhook-payload",
+      "name": "Normalize webhook payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/00-normalize-webhook-payload.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-normalizer-body",
+      "name": "Build normalizer body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/01-build-normalizer-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-anthropic-api-call",
+      "name": "Anthropic API call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.anthropic_body) }}",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_ANTHROPIC__",
+          "name": "backbrief-anthropic"
+        }
+      }
+    },
+    {
+      "id": "bb-parse-normalizer-response",
+      "name": "Parse normalizer response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/02-parse-normalizer-response.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-rerank-body",
+      "name": "Build rerank body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/04-build-semantic-rerank-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-skip-rerank",
+      "name": "IF skip rerank",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "skip-rerank-check",
+              "leftValue": "={{ $json.__skip_anthropic_rerank }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bb-anthropic-rerank-call",
+      "name": "Anthropic rerank call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.anthropic_body) }}",
+        "options": {
+          "timeout": 240000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_ANTHROPIC__",
+          "name": "backbrief-anthropic"
+        }
+      }
+    },
+    {
+      "id": "bb-matcher-decide",
+      "name": "Matcher decide",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/05-matcher-decide.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-team-queries",
+      "name": "Build team queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/03a-build-team-queries.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-linear-search",
+      "name": "Linear search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({query: $json.query, variables: $json.variables}) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_LINEAR__",
+          "name": "backbrief-linear"
+        }
+      }
+    },
+    {
+      "id": "bb-aggregate-linear-results",
+      "name": "Aggregate Linear results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/03c-aggregate-linear-results.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-router",
+      "name": "Router",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/06-router.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-composer-body",
+      "name": "Build composer body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/07-build-composer-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-skip-composer",
+      "name": "IF skip composer",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2600,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "skip-composer-check",
+              "leftValue": "={{ $json.__skip_anthropic_composer }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bb-anthropic-composer-call",
+      "name": "Anthropic composer call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2800,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.anthropic_body) }}",
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_ANTHROPIC__",
+          "name": "backbrief-anthropic"
+        }
+      }
+    },
+    {
+      "id": "bb-parse-composer-response",
+      "name": "Parse composer response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/08-parse-composer-response.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-slack-blockkit",
+      "name": "Build Slack BlockKit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/09b-build-slack-blockkit.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-preview-post",
+      "name": "Slack preview post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3400,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  channel: $json.slack_preview_channel,\n  text: $json.slack_fallback_text,\n  blocks: $json.slack_blocks,\n  thread_ts: $json.slack_preview_thread_ts || undefined,\n  unfurl_links: false,\n  unfurl_media: false,\n  mrkdwn: true\n}) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bb-save-pending-state",
+      "name": "Save pending state",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/10-save-pending-state.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-interactivity-webhook",
+      "name": "Interactivity webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        700
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "backbrief-taskcrafter-interaction",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true,
+          "responseCode": {
+            "values": {
+              "responseCode": 200
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bb-parse-slack-action",
+      "name": "Parse Slack action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/11-parse-slack-action.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-linear-mutation",
+      "name": "Build Linear mutation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/12-build-linear-mutation.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-has-linear-mutation",
+      "name": "IF has Linear mutation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-mut",
+              "leftValue": "={{ $json.__linear_mutation }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bb-linear-mutation-call",
+      "name": "Linear mutation call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linear.app/graphql",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({query: $json.query, variables: $json.variables}) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_LINEAR__",
+          "name": "backbrief-linear"
+        }
+      }
+    },
+    {
+      "id": "bb-merge-linear-paths",
+      "name": "Merge Linear paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1280,
+        700
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "bb-handle-result",
+      "name": "Handle result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/taskcrafter/13-handle-result-and-reply.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-thread-reply-result",
+      "name": "Slack thread reply (result)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1680,
+        700
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.channel }}"
+        },
+        "messageType": "text",
+        "text": "={{ $json.thread_text || $json.ephemeral_text || '_no message_' }}",
+        "otherOptions": {
+          "mrkdwn": true,
+          "unfurl_links": false,
+          "unfurl_media": false,
+          "includeLinkToWorkflow": false,
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts || $json.message_ts }}"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize webhook payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build normalizer body": {
+      "main": [
+        [
+          {
+            "node": "Anthropic API call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic API call": {
+      "main": [
+        [
+          {
+            "node": "Parse normalizer response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse normalizer response": {
+      "main": [
+        [
+          {
+            "node": "Build team queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build rerank body": {
+      "main": [
+        [
+          {
+            "node": "IF skip rerank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF skip rerank": {
+      "main": [
+        [
+          {
+            "node": "Matcher decide",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Anthropic rerank call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic rerank call": {
+      "main": [
+        [
+          {
+            "node": "Matcher decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build team queries": {
+      "main": [
+        [
+          {
+            "node": "Linear search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear search": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Linear results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Linear results": {
+      "main": [
+        [
+          {
+            "node": "Build rerank body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Matcher decide": {
+      "main": [
+        [
+          {
+            "node": "Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Router": {
+      "main": [
+        [
+          {
+            "node": "Build composer body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build composer body": {
+      "main": [
+        [
+          {
+            "node": "IF skip composer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF skip composer": {
+      "main": [
+        [
+          {
+            "node": "Parse composer response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Anthropic composer call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic composer call": {
+      "main": [
+        [
+          {
+            "node": "Parse composer response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse composer response": {
+      "main": [
+        [
+          {
+            "node": "Build Slack BlockKit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize webhook payload": {
+      "main": [
+        [
+          {
+            "node": "Build normalizer body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack BlockKit": {
+      "main": [
+        [
+          {
+            "node": "Slack preview post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack preview post": {
+      "main": [
+        [
+          {
+            "node": "Save pending state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interactivity webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Slack action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Slack action": {
+      "main": [
+        [
+          {
+            "node": "Build Linear mutation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Linear mutation": {
+      "main": [
+        [
+          {
+            "node": "IF has Linear mutation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF has Linear mutation": {
+      "main": [
+        [
+          {
+            "node": "Linear mutation call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Linear paths",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Linear mutation call": {
+      "main": [
+        [
+          {
+            "node": "Merge Linear paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Linear paths": {
+      "main": [
+        [
+          {
+            "node": "Handle result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle result": {
+      "main": [
+        [
+          {
+            "node": "Slack thread reply (result)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all"
+  }
+}

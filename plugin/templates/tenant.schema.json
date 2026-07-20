@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backbrief.dev/schemas/tenant-1.schema.json",
+  "title": "Backbrief tenant configuration",
+  "description": "Canonical tenant.yaml schema, version 1 (all optional fields carry defaults; schema_version stays 1). No field in this file may ever hold a credential - secrets live in .backbrief/secrets.env; validate-tenant.js additionally hard-fails on token-shaped values. Privacy routing (sensitivity block, private slices, DM policies) is deliberately not part of v0.1 - removed pre-release; demand is captured via the waitlist (interest: privacy).",
+  "type": "object",
+  "required": ["schema_version", "tenant", "vault", "roster", "features"],
+  "additionalProperties": false,
+  "properties": {
+
+    "schema_version": { "const": 1 },
+
+    "tenant": {
+      "type": "object",
+      "required": ["name", "internal_domains"],
+      "additionalProperties": false,
+      "properties": {
+        "name":             { "type": "string", "minLength": 1 },
+        "about":            { "type": "string", "maxLength": 600,
+                              "description": "2-3 plain sentences: what the company does, for whom. Rendered into every pipeline LLM prompt (COMPANY_CONTEXT) — the TaskCrafter flow never fetches the vault, so this is the only company fact its prompts see. B1 (generate-tenant.js) fills it from the company profile doc when absent." },
+        "persona":          { "type": "string", "enum": ["solo", "team_lead", "company_lead"],
+                              "default": "company_lead",
+                              "description": "A0 persona fork: whose calls the vault holds — shapes the survey and the team-folder layout (solo skips team folders). Written at A0/B1; an existing value always wins and is never re-defaulted." },
+        "internal_domains": { "type": "array",
+                              "items": { "type": "string", "pattern": "^[a-z0-9.-]+\\.[a-z]{2,}$" },
+                              "description": "empty [] is valid in the A0-minimal tenant (completed at B1); emails outside these domains mark external participants in frontmatter" },
+        "languages":        { "type": "array", "items": { "type": "string", "pattern": "^[a-z]{2}$" },
+                              "default": ["en"] },
+        "primary_language": { "type": "string", "pattern": "^[a-z]{2}$", "default": "en",
+                              "description": "first of tenant.languages; explicit for clarity" },
+        "timezone":         { "type": "string", "default": "UTC" }
+      }
+    },
+
+    "vault": {
+      "type": "object",
+      "required": ["teams"],
+      "additionalProperties": false,
+      "properties": {
+        "repo":   { "type": ["string", "null"], "pattern": "^[\\w.-]+/[\\w.-]+$",
+                    "description": "GitHub owner/repo; null until B4 (local-only vault)" },
+        "branch": { "type": "string", "default": "main" },
+        "teams": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "required": ["tag", "folder"], "additionalProperties": false,
+            "properties": {
+              "tag":     { "type": "string", "pattern": "^[a-z0-9-]+$",
+                           "description": "LLM classification token, e.g. product" },
+              "folder":  { "type": "string", "pattern": "^[^/].*[^/]$",
+                           "description": "vault-root-relative, e.g. product" },
+              "description": { "type": "string",
+                           "description": "one line for the classifier prompt: what this team does" },
+              "keywords": { "type": "array", "items": { "type": "string" },
+                           "description": "optional; feeds guessFolder + classifier hints" },
+              "subteams": {
+                "type": "array",
+                "description": "optional two-level routing: team + sub_tag",
+                "items": {
+                  "type": "object", "required": ["tag", "folder"], "additionalProperties": false,
+                  "properties": {
+                    "tag":         { "type": "string", "pattern": "^[a-z0-9-]+$" },
+                    "folder":      { "type": "string", "pattern": "^[^/].*[^/]$",
+                                     "description": "may nest under the team folder, e.g. product/mobile" },
+                    "description": { "type": "string" },
+                    "aliases":     { "type": "array", "items": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "mixed_folder":  { "type": "string", "default": "general",
+                           "description": "route when call spans teams / team unresolved" },
+        "profiles_folder":      { "type": "string", "default": "team",
+                                  "description": "flat folder of <Lastname>.md profiles — never nested (the pipeline finds a profile by listing this folder)" },
+        "summarizer_skill_path": { "type": "string", "default": "docs/skills/summarizer.md",
+                                  "description": "vault-relative path of the summarizer skill file the pipeline reads" },
+        "company_profile_path": { "type": "string", "default": "docs/company.md",
+                                  "description": "vault-relative company profile (type: company, born at A0) injected size-capped into summarizer/taskcrafter context" },
+        "dlq_folder":           { "type": "string", "default": "pipeline/dlq",
+                                  "description": "vault-relative DLQ artifact folder" },
+        "training_data_path":   { "type": "string", "default": ".backbrief/training/feedback.jsonl",
+                                  "description": "Phase-B feedback training log (A3 decisions live in .backbrief/training/task-decisions.jsonl)" }
+      }
+    },
+
+    "roster": {
+      "type": "array",
+      "description": "empty [] is valid in the A0-minimal tenant (filled at A2/B1); S4 warns until an owner exists — required before Phase-B deploy",
+      "items": {
+        "type": "object", "required": ["lastname"], "additionalProperties": false,
+        "properties": {
+          "lastname":  { "type": "string", "pattern": "^[A-Z][A-Za-z'-]+$",
+                         "description": "canonical Latin lastname - filename & assignee token" },
+          "first_name":{ "type": "string" },
+          "email":     { "type": "string", "format": "email" },
+          "role":      { "type": "string" },
+          "aliases":   { "type": "array", "items": { "type": "string" },
+                         "description": "everything speech/transcripts call this person: Cyrillic spellings, declensions, nicknames, Zoom display names" },
+          "slack_user_id":   { "type": "string", "pattern": "^U[A-Z0-9]{6,}$" },
+          "tracker_user_id": { "type": "string" },
+          "home_team": { "type": "string",
+                         "description": "tracker team key; feeds USER_HOME_TEAM + LASTNAME_TO_TEAM" },
+          "is_owner":  { "type": "boolean", "default": false,
+                         "description": "pipeline owner: receives DLQ DMs" }
+        }
+      }
+    },
+
+    "glossary": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["canonical", "variants"], "additionalProperties": false,
+        "properties": {
+          "canonical": { "type": "string" },
+          "variants":  { "type": "array", "minItems": 1, "items": { "type": "string" },
+                         "description": "ASR mis-hearings & spellings to normalize to the canonical form" }
+        }
+      }
+    },
+
+    "extraction": {
+      "type": "object", "additionalProperties": false,
+      "description": "extraction knobs beyond the summarizer defaults",
+      "properties": {
+        "voice": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "wake_words": { "type": "array", "items": { "type": "string" }, "default": ["backbrief"],
+                            "description": "per-tenant bot names that trigger voice-directive extraction" }
+          }
+        }
+      }
+    },
+
+    "features": {
+      "type": "object", "additionalProperties": false,
+      "required": ["raw_retention", "telemetry"],
+      "properties": {
+
+        "slack": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "enabled":        { "type": "boolean", "default": true },
+            "digest_channel": { "type": "string", "pattern": "^[#C][A-Za-z0-9_-]+$",
+                                "description": "root posts + digests + task buttons" },
+            "per_team_channels": { "type": "object",
+                                   "additionalProperties": { "type": "string" },
+                                   "description": "team tag -> channel override (optional)" }
+          },
+          "if":   { "properties": { "enabled": { "const": true } } },
+          "then": { "required": ["digest_channel"] }
+        },
+
+        "raw_retention": {
+          "type": "string", "enum": ["none", "vtt", "vtt_mp4"], "default": "vtt",
+          "description": "none = digest .md only, raw transcript discarded after processing; vtt = .vtt committed as sibling of .md; vtt_mp4 = additionally archive the MP4 (requires drive.enabled)"
+        },
+
+        "drive": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "enabled":   { "type": "boolean", "default": false },
+            "folder_id": { "type": "string" },
+            "domain_restricted": { "type": "boolean", "default": true }
+          },
+          "if":   { "properties": { "enabled": { "const": true } } },
+          "then": { "required": ["folder_id"] }
+        },
+
+        "tracker": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "kind":    { "type": "string", "enum": ["linear", "other"], "default": "linear",
+                         "description": "'other' = file-only mode + connector waitlist entry (Linear is the only shipped connector in v0.1)" },
+            "team_mapping": {
+              "type": "array",
+              "items": { "type": "object", "required": ["team_tag", "tracker_team_key"],
+                         "additionalProperties": false,
+                         "properties": {
+                           "team_tag":         { "type": "string" },
+                           "tracker_team_key": { "type": "string",
+                                                 "description": "Linear team key (the ENG in ENG-142)" },
+                           "default_assignee": { "type": "string",
+                                                 "description": "roster lastname fallback" } } }
+            },
+            "provenance_label": { "type": "string", "default": "backbrief",
+                                  "description": "tracker label applied to every pipeline-created issue — in-tracker provenance marker" },
+            "thresholds": {
+              "type": "object", "additionalProperties": false,
+              "description": "dedup/matcher decision thresholds",
+              "properties": {
+                "comment":              { "type": "number", "minimum": 0, "maximum": 1, "default": 0.75 },
+                "flag_discovery":       { "type": "number", "minimum": 0, "maximum": 1, "default": 0.55 },
+                "flag_planning":        { "type": "number", "minimum": 0, "maximum": 1, "default": 0.35 },
+                "dedup_confirmed_days": { "type": "integer", "minimum": 1, "default": 14 },
+                "dedup_pending_hours":  { "type": "integer", "minimum": 1, "default": 48 }
+              }
+            },
+            "discriminator_overrides": {
+              "type": "object", "additionalProperties": false,
+              "description": "tune the deterministic duplicate discriminator",
+              "properties": {
+                "disable":      { "type": "array", "items": { "type": "string" },
+                                  "description": "discriminator rule names to switch off" },
+                "extra_tokens": { "type": "object",
+                                  "additionalProperties": { "type": "array", "items": { "type": "string" } },
+                                  "description": "category -> extra discriminator tokens" }
+              }
+            },
+            "autonomy_level": { "type": "string", "enum": ["L0", "L1", "L2"], "default": "L0",
+                                "description": "PRD §12: L0 all-buttons -> L2 autopilot (parsed, not enforced in v0.1 — ships L0); unlockable at >=50 logged decisions" }
+          }
+        },
+
+        "history_import": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "days":    { "type": "integer", "minimum": 1, "maximum": 90, "default": 30 }
+          }
+        },
+
+        "telemetry": {
+          "type": "object", "additionalProperties": false, "required": ["enabled"],
+          "properties": {
+            "enabled":    { "type": "boolean",
+                            "description": "OPT-IN, asked once at A0; false = zero outbound calls" },
+            "install_id": { "type": "string", "format": "uuid",
+                            "description": "random v4, generated locally at consent; not derived from anything identifying" },
+            "endpoint":   { "type": "string", "format": "uri",
+                            "default": "https://backbrief-telemetry.backbrief.workers.dev" }
+          }
+        }
+      }
+    },
+
+    "llm": {
+      "type": "object", "additionalProperties": false,
+      "description": "BYO Anthropic models per pipeline stage; test-creds.js anthropic probes each distinct model with the tenant's exact params",
+      "properties": {
+        "summarizer": { "$ref": "#/$defs/llm_stage" },
+        "normalizer": { "$ref": "#/$defs/llm_stage" },
+        "matcher":    { "$ref": "#/$defs/llm_stage" },
+        "composer":   { "$ref": "#/$defs/llm_stage" },
+        "feedback":   { "$ref": "#/$defs/llm_stage" }
+      }
+    },
+
+    "pipeline": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "knobs": {
+          "type": "object",
+          "description": "scalar pipeline knobs; unknown scalar knobs are allowed for forward compatibility",
+          "properties": {
+            "min_duration_min":          { "type": "integer", "minimum": 0, "default": 5 },
+            "replay_window_sec":         { "type": "integer", "minimum": 1, "default": 900 },
+            "transcript_char_cap":       { "type": "integer", "minimum": 1000, "default": 60000 },
+            "vault_cache_ttl_listing_h": { "type": "number", "minimum": 0, "default": 1 },
+            "vault_cache_ttl_file_h":    { "type": "number", "minimum": 0, "default": 12 }
+          },
+          "additionalProperties": { "type": ["number", "integer", "boolean"] }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "llm_stage": {
+      "type": "object", "additionalProperties": false,
+      "description": "per-stage model config; kit-release defaults (summarizer/normalizer/feedback: claude-sonnet-4-6, matcher: claude-opus-4-8, composer: claude-haiku-4-5)",
+      "properties": {
+        "model":      { "type": "string", "minLength": 1 },
+        "max_tokens": { "type": "integer", "minimum": 1 },
+        "thinking":   { "type": "string", "description": "passed through to the Anthropic call, e.g. adaptive" },
+        "effort":     { "type": "string", "description": "passed through to the Anthropic call, e.g. high" }
+      }
+    }
+  }
+}

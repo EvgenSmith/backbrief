@@ -1,0 +1,296 @@
+{
+  "meta": {
+    "pack_format": 1,
+    "language": "ru",
+    "language_name": "Russian",
+    "kit_component": "backbrief pipeline language pack",
+    "spdx_license_identifier": "BUSL-1.1",
+    "source": "Mechanical extraction from the reference production pipeline v1.8. Linguistic lists are production-verbatim (RU stop-words, RU-EN domain bridge, inflection suffixes, generic Cyrillic-to-Latin transliteration table, discriminator token lists tuned on a 349-row labeled set). Strings that were English in production stay English here on purpose — this pack reproduces production behavior verbatim for the dogfood-equivalence check.",
+    "notes": [
+      "Every pack for every language MUST carry the identical key set; the tenant renderer (tenant-render.js) selects ui_strings by tenant.primary_language and UNIONS the list-valued linguistic fields across all tenant.languages.",
+      "Keys prefixed with an underscore are annotations for humans; the renderer ignores them.",
+      "transliteration is the generic BGN/PCGN Cyrillic-to-Latin table — it is language data, NOT tenant data. Tenant rosters/surnames never live in a pack.",
+      "domain_bridge values are space-separated expansion strings (production dictGet/expandToken format): looking up a token yields extra search tokens in the other language. The dictionary is intentionally bidirectional (RU keys expand to EN, EN keys expand to RU).",
+      "sensitivity_patterns are the RU CONTRIBUTIONS to the schema-default English detectors; the renderer unions them. Values are regex sources compiled with the Cyrillic-safe boundary helper for one_on_one_titles and plain substring semantics for the stem lists (production semantics).",
+      "voice directive phrases use the literal token [TRACKER-ID] where the production prompt used a tracker-specific issue-identifier token; the prompt renderer replaces it with the tenant's tracker identifier example.",
+      "Single deliberate deviation from verbatim: the tracker brand name in production ui_strings was neutralized ('Linear' -> 'трекер'/'Tracker') to match the kit-wide tracker abstraction (features.tracker.kind). The tuned RU phrasing around it is unchanged. feedback_patterns keep the brand-name exemplar verbatim because it is a phrase humans actually type."
+    ]
+  },
+
+  "stop_words": [
+    "и", "в", "на", "с", "по", "за", "для", "к", "о", "об", "от", "до", "из", "при", "без", "под",
+    "над", "между", "через", "перед", "около", "после", "что", "как", "где", "когда", "если",
+    "это", "этот", "эта", "эти", "тот", "та", "те", "такой", "такая", "такие",
+    "был", "была", "были", "есть", "нет", "не", "да", "же", "бы", "ли", "уже", "ещё",
+    "или", "либо", "а", "но", "чтобы", "тоже", "только", "очень", "можно", "нужно", "надо",
+    "сделать", "подготовить", "согласовать", "провести", "выслать", "разобраться", "починить",
+    "обновить", "запустить",
+    "задача", "задачу", "сделано", "готово"
+  ],
+
+  "domain_bridge": {
+    "линт": "eslint lint", "линти": "eslint lint", "линтер": "eslint lint",
+    "линтинг": "eslint lint linting", "eslint": "линт линти линтер",
+    "тестировщик": "qa tester testing", "тестировщики": "qa tester testing",
+    "тестировщиков": "qa tester testing", "qa": "тестировщик тестировщики",
+    "тест": "test testing", "тесты": "test testing tests",
+    "верстка": "layout markup", "вёрстка": "layout markup",
+    "верстку": "layout markup", "вёрстку": "layout markup",
+    "верстки": "layout markup", "layout": "верстка вёрстка",
+    "сборка": "build builds", "сборку": "build builds", "сборки": "build builds",
+    "build": "сборка сборку сборки",
+    "миграция": "migration migrate", "миграции": "migration migrate",
+    "мигрировать": "migrate migration", "migration": "миграция миграции",
+    "обновление": "update upgrade", "обновления": "update upgrade",
+    "обновить": "update upgrade", "update": "обновление обновления обновить",
+    "upgrade": "обновление обновления",
+    "релиз": "release", "релиза": "release", "релизе": "release",
+    "release": "релиз релиза",
+    "деплой": "deploy deployment", "деплоя": "deploy deployment",
+    "deploy": "деплой деплоя",
+    "кэш": "cache caching", "кэша": "cache", "cache": "кэш кэша",
+    "фронт": "frontend fe", "фронтенд": "frontend fe",
+    "frontend": "фронт фронтенд", "fe": "фронт фронтенд",
+    "бэк": "backend be", "бэкенд": "backend be",
+    "backend": "бэк бэкенд", "be": "бэк бэкенд",
+    "мобилка": "mobile", "мобильный": "mobile", "мобильная": "mobile",
+    "mobile": "мобилка мобильный мобильная",
+    "десктоп": "desktop", "desktop": "десктоп",
+    "пуш": "push", "пуша": "push", "push": "пуш пуша",
+    "уведомление": "notification notifications", "уведомления": "notification notifications",
+    "notification": "уведомление уведомления", "notifications": "уведомления",
+    "аутентификация": "authentication auth", "авторизация": "authentication auth",
+    "auth": "аутентификация авторизация", "authentication": "аутентификация авторизация",
+    "кнопка": "button", "кнопки": "button buttons", "кнопок": "buttons",
+    "button": "кнопка кнопки", "buttons": "кнопки кнопок",
+    "страница": "page", "страницы": "page pages", "страниц": "pages",
+    "page": "страница страницы", "pages": "страницы страниц",
+    "таб": "tab", "таба": "tab", "tab": "таб таба",
+    "дашборд": "dashboard", "дашборда": "dashboard", "dashboard": "дашборд дашборда",
+    "хук": "hook", "хуки": "hook hooks", "hook": "хук хуки", "hooks": "хуки",
+    "конфиг": "config", "конфига": "config", "config": "конфиг конфига",
+    "депенденси": "dependencies deps", "зависимости": "dependencies deps",
+    "зависимостей": "dependencies deps", "dependencies": "зависимости зависимостей",
+    "deps": "зависимости зависимостей",
+    "интеграция": "integration integrate", "интеграции": "integration integrate",
+    "integration": "интеграция интеграции",
+    "вебмастер": "webmaster", "webmaster": "вебмастер",
+    "депозит": "deposit", "депозиты": "deposit deposits",
+    "deposit": "депозит депозиты",
+    "вывод": "withdraw withdrawal", "выводы": "withdraw withdrawal",
+    "withdraw": "вывод выводы"
+  },
+
+  "inflection_suffixes": [
+    "ами", "ями", "ого", "его", "ов", "ев", "ах", "ях", "ом", "ем", "ой", "ей",
+    "ую", "юю", "а", "я", "у", "ю", "ы", "и", "е", "о"
+  ],
+
+  "transliteration": {
+    "А": "A", "Б": "B", "В": "V", "Г": "G", "Д": "D", "Е": "E", "Ё": "E", "Ж": "Zh", "З": "Z",
+    "И": "I", "Й": "Y", "К": "K", "Л": "L", "М": "M", "Н": "N", "О": "O", "П": "P", "Р": "R",
+    "С": "S", "Т": "T", "У": "U", "Ф": "F", "Х": "Kh", "Ц": "Ts", "Ч": "Ch", "Ш": "Sh", "Щ": "Shch",
+    "Ъ": "", "Ы": "Y", "Ь": "", "Э": "E", "Ю": "Yu", "Я": "Ya",
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e", "ж": "zh", "з": "z",
+    "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r",
+    "с": "s", "т": "t", "у": "u", "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
+    "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"
+  },
+
+  "discriminator": {
+    "_confidence": "high",
+    "_note": "Production-verbatim token lists (patterns A-I), adversarially tuned: 0 false fires on the 349-row master good set. The token 'notion-страницa' (Latin trailing 'a') is a deliberate ASR-typo variant — keep verbatim.",
+    "recurring_tokens": [
+      "подготовить отчёт", "подготовить отчет", "провести синк", "обновить контент",
+      "проверить", "уточнить", "забрать задачу", "зарезолвить конфликт", "зарезолвить",
+      "протестировать", "провести аудит", "собрать", "доработать макет", "доработать"
+    ],
+    "continuation_phrases": [
+      "задача по", "механика", "процесс", "работа над", "доделать", "довести", "закончить"
+    ],
+    "generic_artifacts": [
+      "лендинг", "репозиторий", "материалы", "документ", "фронт", "бэк",
+      "инфраструктура", "процесс", "архитектура", "интеграция", "макет",
+      "дашборд", "таблица", "отчёт", "отчет", "справка", "чарт", "график",
+      "исследование", "анализ"
+    ],
+    "specific_artifacts": [
+      "слайд", "zip", "pdf", "notion-страница", "notion-страницa", "notion",
+      "таблица в excel", "таблица в sheets", "mock", "прототип", "csv", "json",
+      "формы", "голосовое в telegram", "ссылка", "диаграмма", "комментарий",
+      "email", "фрейм", "компонент"
+    ],
+    "time_markers": [
+      "сегодня", "завтра", "к встрече", "до пятницы", "до конца недели",
+      "к демо", "перед запуском", "к релизу", "срочно", "немедленно"
+    ],
+    "infra_keywords": [
+      "n8n", "workflow", "cron", "credentials", "api-ключ", "api-key"
+    ],
+    "call_schedule_tokens": [
+      "созвониться", "созвон", "собрать звонок", "собрать созвон", "встретиться"
+    ],
+    "decide_tokens": [
+      "принять решение", "принять коллективное решение", "коллективное решение",
+      "принять итоговое решение", "решение по"
+    ],
+    "chat_resolve_tokens": [
+      "решить в чате", "решить в чат", "обсудить в чате",
+      "решить в слаке", "решить в слэке", "в чате:"
+    ]
+  },
+
+  "voice_directives": {
+    "_note": "Production-verbatim RU directive phrases (summarizer + normalizer prompts, union). Wake words are tenant config (extraction.voice.wake_words), not pack data.",
+    "explicit_task": [
+      "в задачу", "поставь задачу", "запиши задачу", "новая задача",
+      "давай поставим", "в работу", "забери в задачу"
+    ],
+    "explicit_skip": [
+      "не в задачу", "не задача", "уже сделали", "уже исправили"
+    ],
+    "explicit_comment": [
+      "в [TRACKER-ID]", "комментарий в [TRACKER-ID]", "дополни [TRACKER-ID]", "в [TRACKER-ID] добавь"
+    ]
+  },
+
+  "status_markers": {
+    "_note": "Production-verbatim RU verb cues from the summarizer prompt's action_items.status detection rules.",
+    "done_on_call": [
+      "уже сделали", "поправили", "выгрузили", "починили на звонке"
+    ],
+    "post_call": [
+      "сделаю", "нужно будет", "отправлю", "возьму"
+    ],
+    "monitoring": [
+      "надо посмотреть", "следить за", "отслеживать"
+    ],
+    "in_progress": []
+  },
+
+  "feedback_patterns": {
+    "_note": "Phrase exemplars per feedback verdict class. already_exists / already_done / duplicate_in_batch exemplars are production-verbatim (feedback-parser prompt); the wrong_* and good classes had no listed production phrases ('obvious' in the taxonomy) — those exemplars are authored.",
+    "good": [
+      "ок", "всё верно", "хорошо", "норм"
+    ],
+    "already_exists": [
+      "задача есть", "уже есть в Linear", "уже есть в трекере"
+    ],
+    "already_done": [
+      "уже готово", "уже сделано", "done"
+    ],
+    "duplicate_in_batch": [
+      "дубль п.", "повтор задачи"
+    ],
+    "wrong_owner": [
+      "не тот исполнитель", "переназначь на", "это не его задача"
+    ],
+    "wrong_team": [
+      "не та команда", "это к другой команде"
+    ],
+    "wrong_title": [
+      "неправильное название", "переименуй", "название не о том"
+    ],
+    "wrong_priority": [
+      "не срочно", "приоритет не тот"
+    ]
+  },
+
+  "task_block_headers": {
+    "_note": "Production-verbatim RU 4-block headers (composer prompt «Контекст/Задача/Ожидаемый результат/Доп. информация»). Selected by tenant.primary_language like ui_strings. Keys are fixed (context / task / result / extra).",
+    "context": "📌 Контекст",
+    "task": "✅ Задача",
+    "result": "🎯 Ожидаемый результат",
+    "extra": "📎 Дополнительная информация"
+  },
+
+  "ui_strings": {
+    "_note": "Production-verbatim strings. Strings that production emitted in English (main-pipeline thread replies, buttons, DLQ DM, feedback digest) stay English here — the production digest channel mixed RU narrative with EN chrome, and this pack reproduces that exactly for tenant-zero equivalence.",
+
+    "main.participants_line": "> *Participants:* {names}",
+    "main.summary_header": ":speech_balloon: *Summary*",
+    "main.transcript_download_failed": "> :warning:  _Transcript download failed (status {status}). Summary built from metadata only._",
+    "main.summary_truncated": "⚠️ Summary truncated by Anthropic max_tokens cap (output_tokens={output_tokens}). Some action items / decisions may be missing. Bump max_tokens in build-anthropic-body.js if recurring.",
+    "main.decisions_header": ":white_check_mark: *Decisions ({count})*",
+    "main.insights_header": ":bulb: *Key insights ({count})*",
+    "main.monitoring_header": ":eyes: *Monitoring ({count})* — _ongoing observation_",
+    "main.vault_link": ":file_folder: Vault: <{url}|{filename}>",
+    "main.digest_footer": "_via Backbrief_",
+    "main.already_in_vault": ":information_source: Already in vault: <{url}|{filename}> (GitHub 422)",
+    "main.commit_failed": ":x: *Vault commit failed* — GitHub status `{status}`",
+    "main.upstream_failed": ":x: *Processing failed before vault commit* — an upstream step (transcript download / AI summary / parse) errored, so nothing was committed.",
+    "main.no_thread_root_header": ":rotating_light: *Pipeline failure — no Slack thread root*",
+    "main.no_thread_root_topic": "*Topic:* {topic}",
+    "main.no_thread_root_branch": "*Branch:* {branch}",
+    "main.no_thread_root_vault_ok": ":white_check_mark: Vault commit SUCCEEDED ({path}) — only the Slack posts are missing.",
+    "main.no_thread_root_vault_unknown": ":x: Vault commit state unknown — check the n8n execution / DLQ entry.",
+
+    "tasks.header": "🛠 Backbrief · tasks — {count} предложений",
+    "tasks.fallback_text": "Backbrief · tasks — {count} предложений ({counts})",
+    "tasks.meta_mode": "Mode: `{mode}`",
+    "tasks.meta_filtered": "Filtered: {count}",
+    "tasks.meta_triage": "⚠️ Triage: {count}",
+    "tasks.planning_banner": "⚠️ _Planning mode_ — на этих звонках команда обычно идёт по уже существующим задачам в трекере. Проверь каждую кнопку **CREATE** глазами — велик шанс что задача уже есть и нужен COMMENT, а не CREATE. Bulk-approve отключён.",
+    "tasks.all_create_tripwire": "🚨 *0 совпадений на {count} предложений* — дедуп почти наверняка промахнулся (recall-дыра матчера). НЕ создавай массово: проверь в трекере, что задач ещё нет, и где есть — комментируй вручную.",
+    "tasks.truncation_note": "⚠️ +{count} предложений не показаны (лимит Slack — 50 блоков). Обработай показанные (или «Skip all remaining»); полный список — в треде/волте.",
+    "tasks.footer": "_Click Approve → real write to the tracker (idempotent). Skip → log only._",
+    "tasks.unassigned": "⚠️ _<UNASSIGNED — team lead pick>_",
+    "tasks.voice_trigger_line": "🎤 _voice trigger: {marker}_",
+    "tasks.quote_line": "_quote: «{quote}»{ts}_",
+    "tasks.triage_line": "⚠️ _triage: {reason}_",
+    "tasks.new_context_line": "New context: «{title}»",
+    "tasks.discriminator_line": ":warning: discriminator ({confidence}): {concerns}",
+    "tasks.skip_match_done_note": "_уже done/canceled_",
+    "tasks.intra_batch_dup_note": "_дубль задачи #{task_id} в этом батче_",
+    "tasks.same_target_dup_note": "_оба proposal-а целятся в эту issue, выбран task #{task_id}_",
+    "tasks.btn_create_issue": "✅ Create issue",
+    "tasks.btn_add_comment": "💬 Add comment",
+    "tasks.btn_apply_update": "🔄 Apply update",
+    "tasks.btn_comment_existing": "💬 Comment on existing",
+    "tasks.btn_create_instead": "➕ Create new instead",
+    "tasks.btn_skip": "⏸ Skip",
+    "tasks.btn_create_anyway": "➕ Create anyway",
+    "tasks.btn_bulk_approve": "✅ Approve all safe ({count})",
+    "tasks.btn_bulk_skip": "⏸ Skip all remaining",
+    "tasks.skipped": "⏸ Пропущено: «{title}»",
+    "tasks.already_executed": "_Already {outcome}: <{url}|{identifier}>_ (by <@{user_id}>)",
+    "tasks.already_executed_short": "_Уже выполнено ранее._",
+    "tasks.bulk_noop": "_Ничего не осталось для выполнения — все задачи уже обработаны._",
+    "tasks.nothing_left": "_Ничего не осталось._",
+    "tasks.created_confirm": "✅ Создано <{url}|{identifier}>: «{title}»{assignee_suffix}",
+    "tasks.assigned_to_suffix": " · назначена на {mention}",
+    "tasks.unassigned_suffix": " · ⚠️ без исполнителя — team lead, назначьте",
+    "tasks.comment_added": "💬 Комментарий добавлен в <{url}|{identifier}>",
+    "tasks.updated_confirm": "🔄 Обновлено <{url}|{identifier}>: {state}",
+    "tasks.tracker_forbidden_member": "⚠️ Трекер отказал: `{assignee}` не член нужной team. \nВарианты: (а) добавь `{assignee}` в эту team в трекере → ретрай; (б) скажи мне создать задачу вручную в team где `{assignee}` состоит; (в) создай вручную в трекере с правильной team.",
+    "tasks.tracker_failed": "❌ Tracker {mutation} failed ({code}): {message}",
+    "tasks.tracker_no_success": "❌ Tracker {mutation} returned no success: {payload}",
+    "tasks.unknown_action_kind": "❌ Unknown action kind: {kind}",
+    "tasks.cannot_create_no_team": "Не могу создать новую задачу: router не разрешил team для «{title}». Возможные причины: assignee_hint='{owner}' не состоит в одной из известных команд, либо matcher не дал alt-payload. Создай задачу руками или скажи мне team явно.",
+    "tasks.cannot_create_no_team_short": "⚠️ Не могу создать «{title}» — нет team для assignee_hint='{owner}'.",
+    "tasks.update_not_applied": "⚠️ Не удалось применить update: {warnings}. Обнови статус вручную в трекере.",
+
+    "disc.planning_score_token": "Planning + score {score} + «{token}» — возможно existing",
+    "disc.planning_score": "Planning + score {score} — возможно existing",
+    "disc.title_generalized": "Title generalize — quote: «{specific}», title: «{generic}»",
+    "disc.owner_unresolved": "Owner не определён → triage",
+    "disc.long_planning": "Длинный planning — risk дублей среди CREATE",
+    "disc.urgent_no_deadline": "urgent priority без deadline в title",
+    "disc.flag_uncertain": "FLAG со score {score} — matcher не уверен",
+    "disc.create_without_match": "Долгий dev-sync — CREATE без матча подозрителен",
+    "disc.call_to_decide": "Созвон ради решения («{sched}»+«{decide}») — не трек-задача",
+    "disc.chat_resolve": "«{token}» — решается в чате, не отдельная задача",
+
+    "dlq.header": "🚨 *Backbrief pipeline failure* — exec `{exec_id}`",
+    "dlq.topic": "*Topic:* {topic}",
+    "dlq.failed_node": "*Failed node:* `{node}`",
+    "dlq.zoom_uuid": "*Zoom UUID:* `{uuid}`",
+    "dlq.http_status": "*HTTP:* `{status}`",
+    "dlq.error_label": "*Error:*",
+    "dlq.retry_hint": "_Run redrive-dlq.js on this DLQ entry — restores the artifact. Or n8n UI → \"Retry from failed node\"._",
+
+    "feedback.digest_header": ":bar_chart: *Backbrief · tasks feedback digest* (auto-collected from thread replies)",
+    "feedback.global_signals": "*Global signals:*",
+    "feedback.replies_parsed": "_{count} human replies parsed_"
+  }
+}

@@ -1,0 +1,1830 @@
+{
+  "backbrief_skeleton_version": "0.1.0",
+  "name": "Backbrief: transcripts (Zoom webhook -> Slack + vault)",
+  "nodes": [
+    {
+      "id": "bb-zoom-webhook",
+      "name": "Zoom webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "backbrief-zoom",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      }
+    },
+    {
+      "id": "bb-verify-zoom-signature",
+      "name": "Verify Zoom signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/verify-zoom-webhook.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-respond-200-ok",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        600,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.__validation ? { plainToken: $json.plainToken, encryptedToken: $json.encryptedToken } : { ok: true } }}"
+      }
+    },
+    {
+      "id": "bb-extract-metadata",
+      "name": "Extract metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        400
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/extract-metadata.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-download-vtt",
+      "name": "Download .vtt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.transcript_download_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.transcript_access_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "neverError": true,
+              "fullResponse": true
+            }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true
+            }
+          }
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000
+    },
+    {
+      "id": "bb-attach-vtt-to-item",
+      "name": "Attach .vtt to item",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// V1.4 — Graceful fallback when Download .vtt fails (4xx/5xx after retries, neverError=true).\n// Without this, an expired transcript_download_url (24h Zoom limit) would crash the exec\n// and orphan the Phase 1 Slack post forever.\nconst meta = { ...$('Recording state lookup').first().json };\ndelete meta.transcript_access_token;\ndelete meta.transcript_download_url;\n\nconst resp = $input.first().json || {};\nconst statusCode = resp.statusCode || resp.status || (resp.body ? 200 : null);\nconst bodyText   = typeof resp.body === 'string' ? resp.body :\n                   typeof resp.data === 'string' ? resp.data :\n                   typeof resp === 'string'      ? resp :\n                   '';\nconst okStatus = statusCode === null || (statusCode >= 200 && statusCode < 300);\nconst hasText  = bodyText && bodyText.length > 0 && bodyText.includes('WEBVTT');\n\nif (!okStatus || !hasText) {\n  console.log(`[attach-vtt] download failed: status=${statusCode}, body length=${bodyText.length}, hasWEBVTT=${hasText}. Continuing with empty transcript.`);\n  return [{ json: {\n    ...meta,\n    vtt_content                : '',\n    vtt_download_failed        : true,\n    vtt_download_failed_status : statusCode || 'unknown',\n  } }];\n}\nreturn [{ json: { ...meta, vtt_content: bodyText } }];\n"
+      }
+    },
+    {
+      "id": "bb-apply-glossary",
+      "name": "Apply glossary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/apply-glossary.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-anthropic-body",
+      "name": "Build Anthropic body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-anthropic-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-anthropic-classify-summary-actions",
+      "name": "Anthropic classify+summary+actions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.anthropic_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 180000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_ANTHROPIC__",
+          "name": "backbrief-anthropic"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-parse-anthropic-response",
+      "name": "Parse Anthropic response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/parse-anthropic-response.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-build-commit-payload",
+      "name": "Build commit payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-commit-payload-v2.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-slack-root-phase-2",
+      "name": "Build Slack root (Phase 2)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2600,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-slack-root-minimal.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-root-post",
+      "name": "Slack root post",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        2800,
+        500
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ JSON.stringify($json.blocks) }}",
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-capture-root-ts",
+      "name": "Capture root ts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/capture-root-ts.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-github-body",
+      "name": "Build GitHub body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-github-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-merge-github-response",
+      "name": "Merge GitHub response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4500,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// Carry the FINAL Git Data step (update-ref) status onto the payload so the\n// downstream Switch + thread builder read $json fields. Atomic commit ⇒ a single\n// status for the whole call (both .md and .vtt landed, or neither did).\nconst ref  = $input.first().json;            // GH update ref (fullResponse) OR continueOnFail error item\nconst prev = $('Build GitHub body').first().json;\nlet sc = ref.statusCode ?? ref.status ?? null;\nif (sc == null && ref.error) sc = 0;         // continueOnFail error item ⇒ failure\nreturn [{ json: {\n  ...prev,\n  github_statusCode    : sc,\n  github_body_response : ref.body ?? ref,\n  github_commit_sha    : (ref.body && ref.body.object && ref.body.object.sha) || null,\n} }];"
+      }
+    },
+    {
+      "id": "bb-switch-on-status",
+      "name": "Switch on status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        4700,
+        500
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.github_statusCode }}",
+                    "rightValue": 200,
+                    "operator": {
+                      "type": "number",
+                      "operation": "gte"
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.github_statusCode }}",
+                    "rightValue": 300,
+                    "operator": {
+                      "type": "number",
+                      "operation": "lt"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "created"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.github_statusCode }}",
+                    "rightValue": 422,
+                    "operator": {
+                      "type": "number",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "duplicate"
+            }
+          ]
+        },
+        "fallbackOutput": "extra",
+        "options": {}
+      }
+    },
+    {
+      "id": "bb-mark-created",
+      "name": "Mark created",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4900,
+        400
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map(it => ({ json: { ...it.json, __branch: 'created' } }));"
+      }
+    },
+    {
+      "id": "bb-mark-duplicate",
+      "name": "Mark duplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4900,
+        500
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map(it => ({ json: { ...it.json, __branch: 'duplicate' } }));"
+      }
+    },
+    {
+      "id": "bb-mark-error",
+      "name": "Mark error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4900,
+        600
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().map(it => ({ json: { ...it.json, __branch: 'error' } }));"
+      }
+    },
+    {
+      "id": "bb-build-thread-reply",
+      "name": "Build thread reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5100,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-slack-thread-reply.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-thread-reply",
+      "name": "Slack thread reply",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        5300,
+        500
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "messageType": "text",
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "thread_ts": {
+            "replyValues": {
+              "thread_ts": "={{ $json.thread_ts }}",
+              "reply_broadcast": false
+            }
+          },
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-if-owner-dm-required",
+      "name": "IF owner DM required",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5500,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.__dm_owner_required }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bb-dm-owner-error-diagnostics",
+      "name": "DM owner (error diagnostics)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        5700,
+        400
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "user",
+        "user": "__BACKBRIEF_OWNER_SLACK_USER_ID__",
+        "text": "={{ $json.dlq_dm_text || ':rotating_light: Vault commit error. Thread root: ' + ($json.thread_ts || 'unknown') + '. See the digest channel.' }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": false
+    },
+    {
+      "id": "bb-stub-c-vault-context",
+      "name": "STUB-C vault context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/stub-C-vault-context.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-dlq-writer",
+      "name": "DLQ writer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3000,
+        600
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/dlq-writer.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-recording-state-lookup",
+      "name": "Recording state lookup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        380
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/recording-state-lookup.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-has-transcript",
+      "name": "IF has_transcript",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        380
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ String($json.has_transcript) }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bb-build-slack-root-minimal",
+      "name": "Build Slack root minimal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        280
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-slack-root-minimal.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-recording-state-save-phase-1",
+      "name": "Recording state save (Phase 1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        200
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/recording-state-save.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-should-post-root",
+      "name": "IF should post root",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.__pipeline_mode }}",
+              "rightValue": "run_full_oneshot",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bb-recording-state-save-phase-2-oneshot",
+      "name": "Recording state save (Phase 2 oneshot)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        380
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/recording-state-save.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-root-post-phase-1",
+      "name": "Slack root post (Phase 1)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1900,
+        280
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "messageType": "block",
+        "blocksUi": "={{ JSON.stringify($json.blocks) }}",
+        "text": "={{ $json.text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-capture-root-ts-phase-1",
+      "name": "Capture root ts (Phase 1)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2050,
+        280
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/capture-root-ts.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-recording-state-finalize",
+      "name": "Recording state finalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3400,
+        400
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/recording-state-finalize.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "__BACKBRIEF_N8N_BASE_URL__/webhook/backbrief-drive",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify((() => {\n  const sl = $(\"Recording state lookup\").first().json;\n  let capture = null; try { capture = $(\"Capture root ts (Phase 1)\").first().json; } catch(e) {}\n  return {\n    zoom_meeting_uuid:      sl.zoom_meeting_uuid || null,\n    topic:                  sl.topic || \"\",\n    start_time:             sl.start_time || \"\",\n    duration_min:           sl.duration_min || null,\n    participants_lastnames: sl.participants_lastnames || [],\n    mp4_present:            sl.mp4_present === true,\n    mp4_download_url:       sl.mp4_download_url || null,\n    mp4_access_token:       sl.mp4_access_token || \"\",\n    mp4_file_size_bytes:    sl.mp4_file_size_bytes || 0,\n    mp4_recording_file_id:  sl.mp4_recording_file_id || null,\n    slack_root_ts:          (capture && capture.slack_root_ts) || sl.prior_slack_root_ts || null,\n    slack_channel_id:       (capture && (capture.slack_root_channel || capture.slack_channel_id)) || sl.prior_slack_channel || \"__BACKBRIEF_DIGEST_CHANNEL_ID__\",\n    zoom_share_url:         sl.zoom_share_url || \"\",\n    host_email:             sl.host_email || \"\"\n  };\n})()) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5500,
+        700
+      ],
+      "id": "bb-trigger-drive-uploader-sub",
+      "name": "Trigger Drive uploader (sub)",
+      "onError": "continueRegularOutput",
+      "executeOnce": true
+    },
+    {
+      "id": "bb-trigger-taskcrafter-sub",
+      "name": "Trigger TaskCrafter (sub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5500,
+        800
+      ],
+      "executeOnce": true,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "__BACKBRIEF_N8N_BASE_URL__/webhook/backbrief-taskcrafter",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  zoom_meeting_uuid:      $json.zoom_meeting_uuid || null,\n  topic:                  $json.topic || \"\",\n  start_time:             $json.start_time || \"\",\n  duration_min:           $json.duration_min || null,\n  participants_lastnames: $json.participants_lastnames || [],\n  classification:         $json.classification || null,\n  action_items:           $json.action_items || [],\n  transcript_excerpts:    ($json.vtt_text || $json.vtt_content || \"\").slice(0, 40000),\n  slack_root_ts:          $json.slack_root_ts || $json.prior_slack_root_ts || (() => { try { return $('Capture root ts').first().json.slack_root_ts || null } catch (e) { return null } })() || null,\n  slack_channel_id:       $json.slack_root_channel || $json.slack_channel_id || $json.prior_slack_channel || (() => { try { return $('Capture root ts').first().json.slack_root_channel || null } catch (e) { return null } })() || \"__BACKBRIEF_DIGEST_CHANNEL_ID__\",\n  vault_url:              $json.vault_url || $json.github_url || null\n}) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bb-gh-get-base",
+      "name": "GH get base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3340,
+        500
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/__BACKBRIEF_VAULT_REPO__/commits/__BACKBRIEF_VAULT_BRANCH__",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "backbrief-pipeline"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "continueOnFail": false,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_GITHUB__",
+          "name": "backbrief-github"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-build-tree-body",
+      "name": "Build tree body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3480,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-tree-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-gh-create-tree",
+      "name": "GH create tree",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3620,
+        500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/__BACKBRIEF_VAULT_REPO__/git/trees",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "backbrief-pipeline"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.github_tree_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "continueOnFail": false,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_GITHUB__",
+          "name": "backbrief-github"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-build-commit-body",
+      "name": "Build commit body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3760,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-commit-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-gh-create-commit",
+      "name": "GH create commit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3900,
+        500
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/__BACKBRIEF_VAULT_REPO__/git/commits",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "backbrief-pipeline"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.github_commit_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "continueOnFail": false,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_GITHUB__",
+          "name": "backbrief-github"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "bb-build-ref-body",
+      "name": "Build ref body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4040,
+        500
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-ref-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-gh-update-ref",
+      "name": "GH update ref",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4180,
+        500
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.github.com/repos/__BACKBRIEF_VAULT_REPO__/git/refs/heads/__BACKBRIEF_VAULT_BRANCH__",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "backbrief-pipeline"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.github_ref_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "continueOnFail": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_GITHUB__",
+          "name": "backbrief-github"
+        }
+      }
+    },
+    {
+      "id": "bb-ai-fallback-stub-summary",
+      "name": "AI fallback (stub summary)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        700
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/ai-fallback-stub.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-recording-state-mark-committed",
+      "name": "Recording state mark committed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4600,
+        360
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/recording-state-mark-committed.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-dlq-persist-github",
+      "name": "DLQ persist (GitHub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4920,
+        720
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ 'https://api.github.com/repos/__BACKBRIEF_VAULT_REPO__/contents/' + $json.__dlq_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "backbrief-pipeline"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $json.__dlq_commit_message, content: $json.__dlq_body_b64, branch: '__BACKBRIEF_VAULT_BRANCH__' }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_GITHUB__",
+          "name": "backbrief-github"
+        }
+      }
+    },
+    {
+      "id": "bb-if-thread-postable",
+      "name": "IF thread postable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5250,
+        410
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.__skip_thread_post || false }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bb-mark-thread-post-failed",
+      "name": "Mark thread post failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5480,
+        700
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/mark-thread-post-failed.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-vtt-failed",
+      "name": "IF vtt failed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.vtt_download_failed || false }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bb-build-vtt-fail-dm",
+      "name": "Build vtt-fail DM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        700
+      ],
+      "parameters": {
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/transcripts/build-vtt-fail-dm.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-dm-owner-vtt-fail",
+      "name": "Digest alert (vtt fail)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        700
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $json.channel }}",
+          "mode": "id"
+        },
+        "messageType": "text",
+        "text": "={{ $json.dm_text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Zoom webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify Zoom signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Zoom signature": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 OK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract metadata": {
+      "main": [
+        [
+          {
+            "node": "Recording state lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download .vtt": {
+      "main": [
+        [
+          {
+            "node": "Attach .vtt to item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach .vtt to item": {
+      "main": [
+        [
+          {
+            "node": "Apply glossary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF vtt failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply glossary": {
+      "main": [
+        [
+          {
+            "node": "STUB-C vault context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Anthropic body": {
+      "main": [
+        [
+          {
+            "node": "Anthropic classify+summary+actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic classify+summary+actions": {
+      "main": [
+        [
+          {
+            "node": "Parse Anthropic response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI fallback (stub summary)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Anthropic response": {
+      "main": [
+        [
+          {
+            "node": "Build commit payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build commit payload": {
+      "main": [
+        [
+          {
+            "node": "Build GitHub body",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger TaskCrafter (sub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack root post": {
+      "main": [
+        [
+          {
+            "node": "Capture root ts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture root ts": {
+      "main": [
+        [
+          {
+            "node": "Recording state save (Phase 2 oneshot)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build GitHub body": {
+      "main": [
+        [
+          {
+            "node": "GH get base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge GitHub response": {
+      "main": [
+        [
+          {
+            "node": "Recording state mark committed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch on status": {
+      "main": [
+        [
+          {
+            "node": "Mark created",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark created": {
+      "main": [
+        [
+          {
+            "node": "IF should post root",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark duplicate": {
+      "main": [
+        [
+          {
+            "node": "Build thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark error": {
+      "main": [
+        [
+          {
+            "node": "DLQ writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build thread reply": {
+      "main": [
+        [
+          {
+            "node": "IF thread postable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack thread reply": {
+      "main": [
+        [
+          {
+            "node": "IF owner DM required",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Recording state finalize",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark thread post failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF owner DM required": {
+      "main": [
+        [
+          {
+            "node": "DM owner (error diagnostics)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "STUB-C vault context": {
+      "main": [
+        [
+          {
+            "node": "Build Anthropic body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DLQ writer": {
+      "main": [
+        [
+          {
+            "node": "Build thread reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DLQ persist (GitHub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recording state lookup": {
+      "main": [
+        [
+          {
+            "node": "IF has_transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF has_transcript": {
+      "main": [
+        [
+          {
+            "node": "Download .vtt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Slack root minimal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack root minimal": {
+      "main": [
+        [
+          {
+            "node": "Slack root post (Phase 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack root post (Phase 1)": {
+      "main": [
+        [
+          {
+            "node": "Capture root ts (Phase 1)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture root ts (Phase 1)": {
+      "main": [
+        [
+          {
+            "node": "Recording state save (Phase 1)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Drive uploader (sub)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF should post root": {
+      "main": [
+        [
+          {
+            "node": "Build Slack root (Phase 2)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recording state save (Phase 2 oneshot)": {
+      "main": [
+        [
+          {
+            "node": "Build thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recording state finalize": {
+      "main": [
+        []
+      ]
+    },
+    "Build Slack root (Phase 2)": {
+      "main": [
+        [
+          {
+            "node": "Slack root post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GH get base": {
+      "main": [
+        [
+          {
+            "node": "Build tree body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build tree body": {
+      "main": [
+        [
+          {
+            "node": "GH create tree",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GH create tree": {
+      "main": [
+        [
+          {
+            "node": "Build commit body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build commit body": {
+      "main": [
+        [
+          {
+            "node": "GH create commit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GH create commit": {
+      "main": [
+        [
+          {
+            "node": "Build ref body",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build ref body": {
+      "main": [
+        [
+          {
+            "node": "GH update ref",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GH update ref": {
+      "main": [
+        [
+          {
+            "node": "Merge GitHub response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI fallback (stub summary)": {
+      "main": [
+        [
+          {
+            "node": "Parse Anthropic response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recording state mark committed": {
+      "main": [
+        [
+          {
+            "node": "Switch on status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF thread postable": {
+      "main": [
+        [
+          {
+            "node": "Slack thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF owner DM required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark thread post failed": {
+      "main": [
+        [
+          {
+            "node": "DM owner (error diagnostics)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF vtt failed": {
+      "main": [
+        [
+          {
+            "node": "Build vtt-fail DM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build vtt-fail DM": {
+      "main": [
+        [
+          {
+            "node": "Digest alert (vtt fail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all"
+  }
+}

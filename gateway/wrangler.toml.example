@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# Backbrief telemetry gateway — wrangler config TEMPLATE.
+#
+# Copy to `wrangler.toml`, fill in the KV namespace id from
+# `wrangler kv namespace create TELEMETRY`, and keep YOUR copy out of git —
+# the id is account-specific (deploy guide: README.md steps 1-4).
+
+name = "backbrief-telemetry"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+kv_namespaces = [
+  { binding = "TELEMETRY", id = "<id from `wrangler kv namespace create TELEMETRY`>" }
+]
+
+# Custom domain (optional — the shipped client defaults to the hosted
+# workers.dev URL; set this only if you run your own fork on your own domain).
+# Requires the zone to be on this Cloudflare account.
+# routes = [
+#   { pattern = "api.<your-domain>", custom_domain = true }
+# ]
+
+# Optional secret (NOT set here — use `wrangler secret put WAITLIST_WEBHOOK`):
+# a webhook URL notified on new waitlist rows. The payload carries
+# interest/tool/step — never the email.

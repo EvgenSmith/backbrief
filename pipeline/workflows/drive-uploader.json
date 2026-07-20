@@ -1,0 +1,446 @@
+{
+  "backbrief_skeleton_version": "0.1.0",
+  "name": "Backbrief: Drive uploader (sub-workflow)",
+  "nodes": [
+    {
+      "id": "bb-drive-upload-webhook",
+      "name": "Drive upload webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "backbrief-drive",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "bb-normalize-webhook-payload",
+      "name": "Normalize webhook payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/drive/normalize-webhook-payload.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-drive-metadata",
+      "name": "Build Drive metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/drive/build-drive-metadata.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-build-root-post-update",
+      "name": "Build root post update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/drive/build-root-post-update.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-thread-reply",
+      "name": "Slack thread reply",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "update",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.slack_root_channel }}"
+        },
+        "ts": "={{ $json.slack_root_ts }}",
+        "text": "={{ $json.slack_root_text }}",
+        "otherOptions": {
+          "mrkdwn": true,
+          "linkNames": false,
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      }
+    },
+    {
+      "id": "bb-init-drive-session",
+      "name": "Init Drive session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/drive/v3/files",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "uploadType",
+              "value": "resumable"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Upload-Content-Type",
+              "value": "video/mp4"
+            },
+            {
+              "name": "X-Upload-Content-Length",
+              "value": "={{ $json.mp4_file_size_bytes }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.drive_file_metadata) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "__BACKBRIEF_CREDENTIAL_GOOGLE_DRIVE__",
+          "name": "backbrief-google-drive"
+        }
+      }
+    },
+    {
+      "id": "bb-build-chunk-plan",
+      "name": "Build chunk plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/drive/build-chunk-plan.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-split-chunks-1-at-a-time",
+      "name": "Split chunks (1 at a time)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "bb-download-chunk",
+      "name": "Download chunk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        400
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.download_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Range",
+              "value": "={{ $json.range_header }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "chunk_data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bb-upload-chunk",
+      "name": "Upload chunk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1780,
+        400
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $(\"Split chunks (1 at a time)\").item.json.session_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Range",
+              "value": "={{ $(\"Split chunks (1 at a time)\").item.json.content_range }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "chunk_data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "bb-capture-final-upload-body",
+      "name": "Capture final upload body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        400
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/drive/capture-final-upload-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-chunk-is-final",
+      "name": "IF chunk is final",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2220,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "sc-check",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 250,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            },
+            {
+              "id": "sc-not-308",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 308,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Drive upload webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize webhook payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize webhook payload": {
+      "main": [
+        [
+          {
+            "node": "Build Drive metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Drive metadata": {
+      "main": [
+        [
+          {
+            "node": "Init Drive session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build root post update": {
+      "main": [
+        [
+          {
+            "node": "Slack thread reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build chunk plan": {
+      "main": [
+        [
+          {
+            "node": "Split chunks (1 at a time)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split chunks (1 at a time)": {
+      "main": [
+        [
+          {
+            "node": "Build root post update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download chunk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download chunk": {
+      "main": [
+        [
+          {
+            "node": "Upload chunk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload chunk": {
+      "main": [
+        [
+          {
+            "node": "Capture final upload body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture final upload body": {
+      "main": [
+        [
+          {
+            "node": "IF chunk is final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Drive session": {
+      "main": [
+        [
+          {
+            "node": "Build chunk plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF chunk is final": {
+      "main": [
+        [
+          {
+            "node": "Build root post update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Split chunks (1 at a time)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

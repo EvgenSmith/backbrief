@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: BUSL-1.1
+# =============================================================================
+# Test fixture: acme-en — golden-path EN-only tenant (fictional company).
+# Mirrors plugin/templates/tenant.yaml.example (T0: "EN-only golden
+# path"); pipeline/tests/{smoke,e2e}.test.js render every node against this
+# fixture and parameterize their assertions off it. Keep it schema-valid:
+#   node plugin/scripts/validate-tenant.js pipeline/fixtures/tenants/acme-en.yaml
+# =============================================================================
+
+schema_version: 1
+
+tenant:
+  name: Acme Robotics
+  about: Builds warehouse robots and the SkyDock fleet-management platform for mid-size logistics operators.
+  persona: company_lead
+  internal_domains: [acme.dev]
+  languages: [en]
+  primary_language: en
+  timezone: America/New_York
+
+vault:
+  repo: null
+  branch: main
+  teams:
+    - tag: product
+      folder: product
+      description: Product management, specs, pricing, roadmap
+      keywords: [roadmap, spec, pricing, launch]
+    - tag: engineering
+      folder: engineering
+      description: Backend, firmware, infra, releases
+      keywords: [deploy, bug, api, firmware]
+    - tag: growth
+      folder: growth
+      description: Marketing, sales, partnerships, community
+      keywords: [campaign, lead, partnership, funnel]
+  mixed_folder: general
+  profiles_folder: team
+  summarizer_skill_path: docs/skills/summarizer.md
+  dlq_folder: pipeline/dlq
+  training_data_path: .backbrief/training/feedback.jsonl
+
+roster:
+  - lastname: Novak
+    first_name: Elena
+    email: elena@acme.dev
+    role: CEO & co-founder
+    aliases: [El, Elena N]
+    home_team: PRD
+    is_owner: true
+  - lastname: Chen
+    first_name: Wei
+    email: wei@acme.dev
+    role: Product lead
+    aliases: [W, Wei C]
+    home_team: PRD
+  - lastname: Petrov
+    first_name: Andrei
+    email: andrei@acme.dev
+    role: Engineering lead
+    aliases: [Andy, Andrei P]
+    home_team: ENG
+  - lastname: Ivanova
+    first_name: Maria
+    email: maria@acme.dev
+    role: Growth lead
+    aliases: [Masha, Maria I]
+    home_team: GRW
+  - lastname: Okafor
+    first_name: Sam
+    email: sam@acme.dev
+    role: Sales
+    aliases: [Sammy]
+    home_team: GRW
+
+glossary:
+  - canonical: SkyDock
+    variants: [sky dock, skydoc, sky-doc]
+  - canonical: FluxAPI
+    variants: [flux api, flex api]
+  - canonical: RoverOS
+    variants: [rover o s, rover us]
+
+extraction:
+  voice:
+    wake_words: [backbrief]
+
+features:
+  slack:
+    enabled: true
+    digest_channel: "#call-digests"
+  raw_retention: vtt
+  drive:
+    enabled: false
+    domain_restricted: true
+  tracker:
+    enabled: true
+    kind: linear
+    team_mapping:
+      - team_tag: product
+        tracker_team_key: PRD
+        default_assignee: Novak
+      - team_tag: engineering
+        tracker_team_key: ENG
+        default_assignee: Petrov
+      - team_tag: growth
+        tracker_team_key: GRW
+        default_assignee: Ivanova
+    provenance_label: backbrief
+    autonomy_level: L0
+    thresholds:
+      comment: 0.75
+      flag_discovery: 0.55
+      flag_planning: 0.35
+      dedup_confirmed_days: 14
+      dedup_pending_hours: 48
+  history_import:
+    enabled: false
+    days: 30
+  telemetry:
+    enabled: false
+    endpoint: https://backbrief-telemetry.backbrief.workers.dev
+
+llm:
+  summarizer: {model: claude-sonnet-4-6, max_tokens: 16384}
+  normalizer: {model: claude-sonnet-4-6, max_tokens: 8192}
+  matcher: {model: claude-opus-4-8, max_tokens: 32000, thinking: adaptive, effort: high}
+  composer: {model: claude-haiku-4-5, max_tokens: 8192}
+  feedback: {model: claude-sonnet-4-6, max_tokens: 4096}
+
+pipeline:
+  knobs:
+    min_duration_min: 5
+    replay_window_sec: 900
+    transcript_char_cap: 60000
+    vault_cache_ttl_listing_h: 1
+    vault_cache_ttl_file_h: 12

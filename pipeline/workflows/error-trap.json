@@ -1,0 +1,84 @@
+{
+  "backbrief_skeleton_version": "0.1.0",
+  "name": "Backbrief: error trap",
+  "nodes": [
+    {
+      "id": "bb-error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "bb-format-error-dm",
+      "name": "Format error DM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Error trap — format an unhandled workflow failure into an owner DM.\n// Error Trigger payload: { execution: {id, url, error, lastNodeExecuted, mode}, workflow: {id, name} }\nconst j = $input.first().json;\nconst ex = j.execution || {};\nconst wfMeta = j.workflow || {};\nconst err = ex.error || {};\nconst lines = [\n  ':rotating_light: *Unhandled pipeline failure* (error trap)',\n  '*Workflow:* ' + (wfMeta.name || wfMeta.id || '?'),\n  '*Execution:* `' + (ex.id || '?') + '`' + (ex.url ? ' — ' + ex.url : ''),\n  '*Last node:* `' + (ex.lastNodeExecuted || (err.node && err.node.name) || '?') + '`',\n  '',\n  '*Error:*',\n  '\\`\\`\\`',\n  String(err.message || JSON.stringify(err).slice(0, 600) || 'no message').slice(0, 900),\n  '\\`\\`\\`',\n  '',\n  '_Check n8n executions; if a transcript call — the durable DLQ entry (the dlq/ folder in the vault repo) + plugin/scripts/redrive-dlq.js can recover the artifact._',\n];\nreturn [{ json: { dm_text: lines.join('\\n') } }];"
+      }
+    },
+    {
+      "id": "bb-dm-owner-error-trap",
+      "name": "DM owner (error trap)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "select": "user",
+        "user": "__BACKBRIEF_OWNER_SLACK_USER_ID__",
+        "text": "={{ $json.dm_text }}",
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format error DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format error DM": {
+      "main": [
+        [
+          {
+            "node": "DM owner (error trap)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: MIT
+# =============================================================================
+# Backbrief Slack app manifest — paste-ready (step B3, ~5 minutes).
+#
+# Use: api.slack.com/apps -> Create New App -> "From a manifest" -> pick your
+# workspace -> paste this file (YAML tab) -> Create -> Install to Workspace ->
+# copy the Bot User OAuth Token (xoxb-...) into .backbrief/secrets.env as
+# SLACK_BOT_TOKEN, and the Signing Secret as SLACK_SIGNING_SECRET.
+# Walkthrough: docs/slack-app-setup.md. Verify: node plugin/scripts/test-creds.js slack
+# (it checks granted scopes against this manifest and posts a visible test
+# message to your digest channel).
+#
+# interactivity.request_url is a placeholder until B6 deploy prints your n8n
+# webhook URL — update it then (App settings -> Interactivity & Shortcuts).
+# Slack validates the URL's format only at creation, so the placeholder is
+# accepted. The /webhook/backbrief-taskcrafter-interaction path segment is
+# FIXED by pipeline/workflows/taskcrafter.json — if you edit the URL by hand,
+# replace only the host; the B6 deploy prints the exact full URL. No Events
+# API subscription is needed: buttons use interactivity; the feedback
+# collector polls channel history on a schedule.
+#
+# Keep the app named "Backbrief" — the bot identity is how every digest and
+# task post identifies itself to your team. Manifests cannot embed an icon:
+# upload one by hand (Basic Information -> Display Information -> App icon;
+# see docs/slack-app-setup.md step 1).
+# =============================================================================
+display_information:
+  name: Backbrief
+  description: "Call digests and task Approve/Skip buttons from your Backbrief pipeline."
+  background_color: "#2b2d31"
+features:
+  bot_user:
+    display_name: Backbrief
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write          # digest root posts, thread replies, owner DMs
+      - chat:write.public   # post to public channels the bot was not invited to
+      - im:write            # open DMs (1:1 digests to the owner, error alerts)
+      - users:read          # roster listing (profiles A2, assignee resolution)
+      - users:read.email    # users.lookupByEmail — auto-resolve slack_user_id from roster emails
+      - channels:read       # resolve public channel names to IDs at deploy
+      - groups:read         # resolve private channel names to IDs at deploy
+      - channels:history    # feedback collector reads the digest channel (public)
+      - groups:history      # feedback collector when the digest channel is private
+      - reactions:read      # feedback collector idempotency marker detection
+      - reactions:write     # feedback collector acknowledgment reaction
+settings:
+  interactivity:
+    is_enabled: true
+    # PLACEHOLDER host — set after B6 deploy prints your n8n webhook URL.
+    # Replace only the host: the path is fixed by pipeline/workflows/taskcrafter.json.
+    request_url: "https://YOUR-N8N-HOST/webhook/backbrief-taskcrafter-interaction"
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

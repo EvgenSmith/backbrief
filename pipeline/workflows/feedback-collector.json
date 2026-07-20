@@ -1,0 +1,450 @@
+{
+  "backbrief_skeleton_version": "0.1.0",
+  "name": "Backbrief: feedback collector",
+  "nodes": [
+    {
+      "id": "bb-schedule-every-6h",
+      "name": "Schedule (every 6h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bb-slack-conversations-history",
+      "name": "Slack conversations.history",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://slack.com/api/conversations.history",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "__BACKBRIEF_DIGEST_CHANNEL_ID__"
+            },
+            {
+              "name": "oldest",
+              "value": "={{ Math.floor((Date.now() - 72*3600*1000) / 1000) }}"
+            },
+            {
+              "name": "limit",
+              "value": "200"
+            },
+            {
+              "name": "include_all_metadata",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      }
+    },
+    {
+      "id": "bb-filter-tc-posts-needing-feedback",
+      "name": "Filter TC posts needing feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/feedback/01-filter-tc-posts.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-slack-conversations-replies",
+      "name": "Slack conversations.replies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://slack.com/api/conversations.replies",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $json.channel }}"
+            },
+            {
+              "name": "ts",
+              "value": "={{ $json.thread_ts }}"
+            },
+            {
+              "name": "limit",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      }
+    },
+    {
+      "id": "bb-build-feedback-parser-body",
+      "name": "Build feedback parser body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/feedback/02-build-feedback-parser-body.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-if-has-human-replies",
+      "name": "IF has human replies",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.__skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEqual"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "bb-anthropic-feedback-parser",
+      "name": "Anthropic feedback parser",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.anthropic_body) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "__BACKBRIEF_CREDENTIAL_ANTHROPIC__",
+          "name": "backbrief-anthropic"
+        }
+      }
+    },
+    {
+      "id": "bb-build-feedback-digest",
+      "name": "Build feedback digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        240
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/feedback/03-build-feedback-digest.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    },
+    {
+      "id": "bb-post-digest-to-tc-thread",
+      "name": "Post digest to TC thread",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({channel: $json.channel, text: $json.digest_text, thread_ts: $json.thread_ts, unfurl_links: false, unfurl_media: false}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      }
+    },
+    {
+      "id": "bb-mark-tc-post-processed",
+      "name": "Mark TC post processed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2220,
+        240
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/reactions.add",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({channel: $('Filter TC posts needing feedback').item.json.channel, name: 'bar_chart', timestamp: $('Filter TC posts needing feedback').item.json.tc_message_ts}) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "slackApi": {
+          "id": "__BACKBRIEF_CREDENTIAL_SLACK__",
+          "name": "backbrief-slack"
+        }
+      }
+    },
+    {
+      "id": "bb-append-training-entry",
+      "name": "Append training entry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        420
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// BACKBRIEF_SKELETON_PLACEHOLDER — this node body is DEPLOYED, not imported.\n// Source of truth: pipeline/code/feedback/04-append-training-entry.js (rendered per tenant + secrets injected\n// by plugin/scripts/deploy-pipeline.js). A skeleton import alone is not a\n// working pipeline — the throw below makes that loud instead of silent.\nthrow new Error('Backbrief skeleton not deployed — run: node plugin/scripts/deploy-pipeline.js --import');\n"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule (every 6h)": {
+      "main": [
+        [
+          {
+            "node": "Slack conversations.history",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack conversations.history": {
+      "main": [
+        [
+          {
+            "node": "Filter TC posts needing feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter TC posts needing feedback": {
+      "main": [
+        [
+          {
+            "node": "Slack conversations.replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack conversations.replies": {
+      "main": [
+        [
+          {
+            "node": "Build feedback parser body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build feedback parser body": {
+      "main": [
+        [
+          {
+            "node": "IF has human replies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF has human replies": {
+      "main": [
+        [
+          {
+            "node": "Anthropic feedback parser",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Anthropic feedback parser": {
+      "main": [
+        [
+          {
+            "node": "Build feedback digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build feedback digest": {
+      "main": [
+        [
+          {
+            "node": "Post digest to TC thread",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append training entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post digest to TC thread": {
+      "main": [
+        [
+          {
+            "node": "Mark TC post processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

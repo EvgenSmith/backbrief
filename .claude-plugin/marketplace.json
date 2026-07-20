@@ -1,0 +1,11 @@
+{
+  "name": "backbrief",
+  "owner": { "name": "Backbrief" },
+  "plugins": [
+    {
+      "name": "backbrief",
+      "source": "./plugin",
+      "description": "Calls → tasks → team memory in your own markdown vault — pre-wired for Zoom + Slack + Linear + GitHub + n8n."
+    }
+  ]
+}

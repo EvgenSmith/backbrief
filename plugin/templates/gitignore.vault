@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Backbrief vault .gitignore — shipped by init-vault.js as <vault>/.gitignore.
+# Only machine caches and secrets are excluded; training data
+# (.backbrief/training/) stays COMMITTED — it is this team's private asset.
+
+# credentials — never in git, never in tenant.yaml
+.backbrief/secrets.env
+.env
+
+# volatile machine state
+.backbrief/cache/
+.backbrief/snapshots/
+
+# NOT ignored on purpose: .backbrief/deploy/ (B0 environment report — infra
+# facts, no secrets; committed for support/debug) and .backbrief/roadmap.md
+# (deferred-steps roadmap — human-readable state you want in history).

@@ -1,0 +1,10 @@
+{
+  "name": "backbrief",
+  "version": "0.1.0",
+  "description": "Turn your team's call transcripts into tracked tasks and a company memory vault — plain markdown in your own git repo, tasks in your own tracker. Start manual in 15 minutes, graduate to a fully automatic pipeline. Pre-wired for a recommended stack: Zoom + Slack + Linear + GitHub + your own n8n (optional Google Drive archive).",
+  "author": { "name": "Backbrief", "url": "https://github.com/EvgenSmith/backbrief" },
+  "homepage": "https://github.com/EvgenSmith/backbrief",
+  "repository": "https://github.com/EvgenSmith/backbrief",
+  "license": "MIT",
+  "keywords": ["meetings", "transcripts", "tasks", "linear", "slack", "vault", "team-memory"]
+}

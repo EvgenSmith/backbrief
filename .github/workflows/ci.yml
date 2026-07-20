@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: MIT
+# Backbrief kit CI.
+# On every PR/push: offline tests (render golden + smoke + e2e, both tenant
+# fixtures) · sanitize scan · SPDX path lint · version consistency ·
+# telemetry client↔gateway allowlist parity · procedure-sync lint. Live probes
+# are user-side (deploy skill), not CI.
+
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  version-consistency:
+    name: VERSION == plugin.json == tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check VERSION / plugin.json / git tag agree
+        run: |
+          node -e '
+            const fs = require("fs");
+            const v = fs.readFileSync("VERSION", "utf8").trim();
+            const p = JSON.parse(fs.readFileSync("plugin/.claude-plugin/plugin.json", "utf8"));
+            const errs = [];
+            if (!/^\d+\.\d+\.\d+$/.test(v)) errs.push(`VERSION is not plain semver: "${v}"`);
+            if (p.version !== v) errs.push(`plugin.json version "${p.version}" != VERSION "${v}"`);
+            if (process.env.GITHUB_REF_TYPE === "tag" && process.env.GITHUB_REF_NAME !== `v${v}`)
+              errs.push(`tag "${process.env.GITHUB_REF_NAME}" != "v${v}"`);
+            if (errs.length) { console.error(errs.join("\n")); process.exit(1); }
+            console.log(`version OK: ${v}`);
+          '
+
+  tests:
+    name: render golden + smoke + e2e (offline, render-first, both tenants)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate tenant example + test fixtures against the schema
+        run: |
+          node plugin/scripts/validate-tenant.js plugin/templates/tenant.yaml.example
+          node plugin/scripts/validate-tenant.js pipeline/fixtures/tenants/acme-en.yaml
+          node plugin/scripts/validate-tenant.js pipeline/fixtures/tenants/vostok-ru.yaml
+      - name: Renderer golden files (per-region, shipped code == example render)
+        run: node pipeline/tests/render.test.js
+      - name: Smoke (T0 — rendered node bodies, acme-en + vostok-ru)
+        run: node pipeline/tests/smoke.test.js
+      - name: E2E offline (T1 — full Code-node graph, mocked HTTP boundaries)
+        run: node pipeline/tests/e2e.test.js
+
+  sanitize:
+    name: sanitize scan (generic secret/id shapes) + secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans history
+      # The shipped scanner is generic (secret token shapes, Slack-id shape,
+      # workflow-JSON hygiene). Maintainer-specific patterns live in an
+      # internal denylist file under design/ which never ships with the public
+      # kit — when present (internal repo), it is passed via --denylist; the
+      # public repo runs the generic scan only.
+      - name: Sanitize scan + workflow-JSON hygiene
+        run: |
+          # Public repo: generic scan only. Internal monorepo may point
+          # BACKBRIEF_DENYLIST at its private denylist (kept OUTSIDE the kit,
+          # never exported); the pre-export gate (plugin/scripts/check-release-ready.js)
+          # runs the same denylist scan before publishing.
+          ARGS=(--denylist-only)
+          if [ -n "$BACKBRIEF_DENYLIST" ] && [ -f "$BACKBRIEF_DENYLIST" ]; then
+            ARGS+=(--denylist "$BACKBRIEF_DENYLIST")
+          fi
+          bash plugin/scripts/sanitize-check.sh "${ARGS[@]}"
+      - name: gitleaks (secret shapes, full history)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  spdx-lint:
+    name: SPDX headers match path (MIT / pipeline=BUSL-1.1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: SPDX lint (exemptions per CONTRIBUTING.md)
+        run: bash plugin/scripts/sanitize-check.sh --spdx-only
+
+  telemetry-contract:
+    name: telemetry client↔gateway allowlist parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: worker.js and telemetry.js enforce one identical wire allowlist
+        run: node plugin/scripts/check-telemetry-contract.js
+
+  procedure-sync:
+    name: skills are thin wrappers over procedures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: SKILL.md ≤40 lines, references exactly one existing procedure
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const skillsDir = "plugin/skills";
+            const procDir = "plugin/procedures";
+            const errs = [];
+            if (!fs.existsSync(skillsDir)) {
+              console.log("no plugin/skills/ yet (WS-3 pending) — lint passes vacuously");
+              process.exit(0);
+            }
+            const skills = fs.readdirSync(skillsDir, { withFileTypes: true })
+              .filter((d) => d.isDirectory());
+            for (const d of skills) {
+              const f = path.join(skillsDir, d.name, "SKILL.md");
+              if (!fs.existsSync(f)) { errs.push(`${d.name}: SKILL.md missing`); continue; }
+              const text = fs.readFileSync(f, "utf8");
+              const lines = text.split("\n").length;
+              if (lines > 40) errs.push(`${f}: ${lines} lines (>40 — procedures are the SSOT)`);
+              const allRefs = [...new Set([...text.matchAll(/procedures\/([a-z0-9_-]+)\.md/g)].map((m) => m[1]))];
+              for (const shared of ["_conventions", "_capabilities"]) {
+                if (!allRefs.includes(shared)) errs.push(`${f}: must read procedures/${shared}.md first`);
+              }
+              // Shared _-prefixed files aside, a wrapper drives exactly ONE procedure.
+              const refs = allRefs.filter((r) => !r.startsWith("_"));
+              if (refs.length !== 1) {
+                errs.push(`${f}: must reference exactly ONE procedures/<name>.md, found [${refs.join(", ")}]`);
+              } else if (!fs.existsSync(path.join(procDir, refs[0] + ".md"))) {
+                errs.push(`${f}: referenced procedure ${refs[0]}.md does not exist`);
+              }
+              if (/^#{2,3}\s+(ASK|ARTIFACT)\b/mi.test(text)) {
+                errs.push(`${f}: carries ASK/ARTIFACT step blocks — those belong in the procedure`);
+              }
+            }
+            if (errs.length) { console.error(errs.join("\n")); process.exit(1); }
+            console.log(`procedure-sync OK: ${skills.length} skill wrapper(s) checked`);
+          '

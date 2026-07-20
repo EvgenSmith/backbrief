@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: BUSL-1.1
+# =============================================================================
+# Test fixture: vostok-ru — fully fictional RU+EN tenant (T0).
+# Exercises everything acme-en does not: Cyrillic aliases (name-map split +
+# transliteration), 2 subteams (incl. a routing alias), and RU
+# language-pack union (stop-words, domain bridge, ui_strings).
+# Zero real-company strings — this file must pass sanitize-check.sh.
+#   node plugin/scripts/validate-tenant.js pipeline/fixtures/tenants/vostok-ru.yaml
+# =============================================================================
+
+schema_version: 1
+
+tenant:
+  name: Vostok Labs
+  internal_domains: [vostok.example]
+  languages: [ru, en]
+  primary_language: ru
+  timezone: Europe/Belgrade
+
+vault:
+  repo: vostok-labs/team-vault
+  branch: main
+  teams:
+    - tag: product
+      folder: product
+      description: Product and platform work, releases, mobile app
+      keywords: [roadmap, platform, release]
+      subteams:
+        - tag: mobile
+          folder: product/mobile
+          description: Mobile app development
+          aliases: []
+        - tag: api
+          folder: product/api
+          description: Public API and integrations
+          # NOTE: tenant.schema.json types subteam aliases as strings while
+          # tenant-render.js subTagFolders() only consumes {team, sub} objects
+          # ("aliases:[{team,sub}]"). The schema wins by precedence
+          # — kept empty here until T2/T4 reconcile; gap reported by T8.
+          aliases: []
+    - tag: ops
+      folder: ops
+      description: Operations, finance, vendor management
+      keywords: [invoice, vendor, budget]
+  mixed_folder: general
+  profiles_folder: team
+
+roster:
+  - lastname: Sokolov
+    first_name: Pyotr
+    email: pyotr@vostok.example
+    role: CEO & founder
+    aliases: [Петя, Пётр, Соколов, Sokoloff]
+    home_team: PLT
+    is_owner: true
+  - lastname: Lebedeva
+    first_name: Anna
+    email: anna@vostok.example
+    role: Operations lead
+    aliases: [Аня, Анна, Лебедева]
+    home_team: OPS
+  - lastname: Zaytsev
+    first_name: Grigory
+    email: grisha@vostok.example
+    role: Platform engineer
+    aliases: [Гриша, Григорий, Зайцев, Zaitsev]
+    home_team: PLT
+
+glossary:
+  - canonical: OrbitaX
+    variants: [orbita x, орбита икс]
+  - canonical: TundraDB
+    variants: [tundra db, тундра дб]
+
+extraction:
+  voice:
+    wake_words: [vostokbot]
+
+features:
+  slack:
+    enabled: true
+    digest_channel: "#call-digests"
+  raw_retention: vtt
+  drive:
+    enabled: false
+    domain_restricted: true
+  tracker:
+    enabled: true
+    kind: linear
+    team_mapping:
+      - team_tag: product
+        tracker_team_key: PLT
+        default_assignee: Sokolov
+      - team_tag: ops
+        tracker_team_key: OPS
+        default_assignee: Lebedeva
+    provenance_label: backbrief
+    autonomy_level: L0
+    thresholds:
+      comment: 0.75
+      flag_discovery: 0.55
+      flag_planning: 0.35
+      dedup_confirmed_days: 14
+      dedup_pending_hours: 48
+  history_import:
+    enabled: false
+    days: 30
+  telemetry:
+    enabled: false
+    endpoint: https://backbrief-telemetry.backbrief.workers.dev
+
+llm:
+  summarizer: {model: claude-sonnet-4-6, max_tokens: 16384}
+  normalizer: {model: claude-sonnet-4-6, max_tokens: 8192}
+  matcher: {model: claude-opus-4-8, max_tokens: 32000, thinking: adaptive, effort: high}
+  composer: {model: claude-haiku-4-5, max_tokens: 8192}
+  feedback: {model: claude-sonnet-4-6, max_tokens: 4096}
+
+pipeline:
+  knobs:
+    min_duration_min: 5
+    replay_window_sec: 900
+    transcript_char_cap: 60000
