@@ -106,7 +106,10 @@
 
 - id: A0.Q4
   rung: A0
-  prompt: team names (persona-shaped; droppable)
+  prompt: team names (persona-shaped; droppable). The ASK carries a one-clause
+    why — "teams are how calls get routed: folder per team + tracker mapping" —
+    so the user knows what the answer buys before spending it (never expand it
+    into a paragraph; the question budget rules still apply)
   answers:
     - solo persona            -> QUESTION DROPPED (no team folders; general-only)
     - team_lead + Enter       -> --teams <team> (one named team folder)

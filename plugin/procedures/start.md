@@ -147,10 +147,14 @@ the user already rejected.
   routes through `general/`). Solo worst case is 4 questions.
 - **persona = team_lead** →
   ASK: *"What's the team called — one word, e.g. `product`? Any sub-areas worth their own
-  folders (design, qa), or Enter for just `<team>`?"* → `--teams <team>[,subareas]`.
+  folders (design, qa), or Enter for just `<team>`? (Teams are how calls get routed:
+  each call files into its team's folder, and tasks map to that team in your tracker.)"*
+  → `--teams <team>[,subareas]`.
 - **persona = company_lead** →
   ASK: *"Name the teams/functions calls usually belong to (e.g. product, marketing), or
-  Enter to start with just `general` — I'll suggest more once I've read your transcripts."*
+  Enter to start with just `general` — I'll suggest more once I've read your transcripts.
+  (Teams are how calls get routed: each call files into its team's folder, and tasks map
+  to that team in your tracker.)"*
   → default: `general` only (no team folders beyond the mixed route).
 - **Drop this question entirely** (any persona) if the user already listed teams in Q3's
   free text — that keeps the worst case at 5 questions with telemetry included.
