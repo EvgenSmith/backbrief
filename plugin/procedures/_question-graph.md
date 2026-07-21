@@ -124,7 +124,10 @@
 
 - id: A0.Q5
   rung: A0
-  prompt: telemetry opt-in
+  prompt: telemetry opt-in. Wording rule — purpose first ("help the authors see
+    where setup breaks"), then ONE plain example of a ping ("someone reached
+    step 3 — numbers only"); never lead with mechanics ("usage pings",
+    "event counters" — user-tested as incomprehensible)
   answers:
     - Enter / no  -> tenant:features.telemetry.enabled=false (all telemetry.js calls no-op)
     - yes         -> tenant:features.telemetry.enabled=true + install_id generated (UUIDv4, local)

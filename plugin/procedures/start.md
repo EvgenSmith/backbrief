@@ -161,10 +161,13 @@ the user already rejected.
 
 ### Step A0.7 — ASK (Q5): telemetry opt-in
 
-ASK: *"Last one: may I send anonymous usage pings — which setup step you reached and
-event counters, **never** call content, names, or task text? Helps us fix the rough
-edges. (Enter = no)"*
+ASK: *"Last one: help the authors see where setup breaks for people? If you agree,
+the plugin reports anonymous stats like «someone reached step 3» — numbers only.
+It can never send your calls, names, or tasks (the receiving API physically has no
+field for text). (Enter = no)"*
   → default: **no**. Consent can never default to yes (_conventions.md §7).
+  (Wording rule: purpose first, then ONE plain-words example of what a ping is —
+  never lead with mechanics like "usage pings" / "event counters".)
 
 ### Step A0.8 — build the skeleton                              [ARTIFACT gate]
 
