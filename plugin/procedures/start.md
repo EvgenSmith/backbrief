@@ -293,6 +293,13 @@ SAY: *"Now feed me your last 3–5 team calls and I'll show you what your memory
 like. I take `.vtt`, `.txt`, `.md`, Zoom exports, Fireflies exports — file paths, a
 folder, or just paste a transcript."*
 
+  - **Capability check first:** if THIS session has a tool that can reach the
+    user's recordings — a Zoom/Google Drive/Fireflies MCP connector, or any tool
+    listing meeting transcripts — OFFER to pull the last 3–5 yourself (read-only,
+    with their yes) instead of sending them to hunt files: *"I can see your
+    <tool> — want me to grab the recent call transcripts myself?"* No such tool →
+    ask for files as below. Never push the Zoom S2S/API setup here — that is
+    B2's job; A1 stays zero-integration.
   - Accept 1 file minimum (never block on "need 3"); gently note that 3+ makes the
     profiles rung (A2) and the before/after demo (A4) much better.
   - Pasted text → write it to a temp file (or pipe to stdin) so the script can run on it.
