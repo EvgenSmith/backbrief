@@ -243,13 +243,19 @@ A0.2 (git remote / user's words / transcripts pasted so far), using
     matching fields — **each site-sourced line suffixed `(from site — correct me)`**,
     `sources` gains `web`. No web access (offline Codex etc.) → one line: *"No web
     access in this session — skipping the site lookup; the profile stays
-    inference-only."* and move on. Site inference failed → `website: null`, no mention.
+    inference-only."* and move on. Site inference failed (no corp email domain, no
+    telling git remote) → `website: null` and use the invite variant of the SAY line
+    below — a personal-email user otherwise never learns the company profile exists.
   - **Every inferred line is suffixed `(inferred — correct me)`** — corrections are
     free, this step asks nothing.
   - Hard cap ≤60 lines — the file is prompt budget (it is injected into every digest
     and task-extraction context; A2 enriches it from real transcripts).
 SAY (one line): *"I also drafted `docs/company.md` — a 1-page company profile that makes
 digests and tasks smarter. Skim it later and correct anything marked as inferred."*
+  **Invite variant** (site inference failed): *"I also drafted `docs/company.md` — a
+  1-page company profile that makes digests and tasks smarter. I couldn't find your
+  company site — paste a URL or a one-line description and I'll enrich it (free, not
+  one of the questions; or just edit the file anytime)."*
 
 ERROR:
   - Path not writable → offer an alternate path (does not spend a question).
