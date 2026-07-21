@@ -15,7 +15,7 @@ The main artifact is not a summary. It is **team context**: what's happening, wh
 ## Quickstart (3 lines — pick one)
 
 ```bash
-claude plugin marketplace add EvgenSmith/backbrief && claude plugin install backbrief   # Claude Code → then: /backbrief:start
+claude plugin marketplace add EvgenSmith/backbrief && claude plugin install backbrief   # Claude Code → NEW session → /backbrief:start
 git clone https://github.com/EvgenSmith/backbrief && cd backbrief && codex             # Codex / any AGENTS.md agent → say "set up backbrief" (designed, not yet field-tested)
 git clone https://github.com/EvgenSmith/backbrief                                      # manual → follow plugin/procedures/start.md yourself
 ```
@@ -28,6 +28,8 @@ No terminal? The kit needs one (see [Where you can run it](#where-you-can-run-it
 claude plugin marketplace add EvgenSmith/backbrief
 claude plugin install backbrief
 ```
+
+Plugins load at session start — run the install from your shell, then launch `claude` (or, if you installed from inside a running session, open a **new** session first): `/backbrief:start` won't exist in the session you installed from.
 
 The plugin cache carries Phase A (skills, procedures, templates, scripts); the Phase B deploy tooling additionally needs the full kit checkout: `git clone https://github.com/EvgenSmith/backbrief`.
 
