@@ -134,6 +134,8 @@ Waitlist:
 Options:
   --tenant <path>   tenant.yaml to read (default: $TENANT, else walk up from
                     the current directory looking for tenant.yaml)
+  --vault <path>    vault root — shorthand for --tenant <path>/tenant.yaml
+                    (same convention as the sibling scripts)
   -h, --help        this text
 
 Environment:
@@ -548,6 +550,11 @@ async function main() {
   }
   const { flags, positional } = parseArgs(argv.slice(1));
   if (flags.help) { console.log(HELP); process.exit(0); }
+  // --vault <dir> = sibling-script convention (state.js etc.): alias for
+  // --tenant <dir>/tenant.yaml. Consume both here so neither ever reaches the
+  // event-prop allowlist (user-tested: --vault got "dropped — unknown prop").
+  if (flags.vault && !flags.tenant) flags.tenant = path.join(flags.vault, 'tenant.yaml');
+  delete flags.vault;
   if (sub === 'event') return cmdEvent(positional, flags);
   if (sub === 'waitlist') return cmdWaitlist(flags);
   return fail(`unknown subcommand "${sub}"`);

@@ -307,7 +307,11 @@ SKIP: `[SCRIPT: state.js set steps.a1 skipped]` +
   it: `[SCRIPT: telemetry.js event connector_demand --tool=<slug>]` +
   `[SCRIPT: state.js waitlist-observe <slug> --step A1]`. SAY (P3): *"Skipped — no transcripts filed yet.
   Concretely: profiles (A2) can still run from your tools, but digests and the demo need
-  at least one call. Come back with a file any time — `/backbrief start`."*
+  at least one call. Two ways forward that work TODAY, zero history required: turn on
+  Zoom cloud recording now — your very next call becomes the first transcript (Settings →
+  Recording → Cloud, `docs/zoom-s2s-setup.md` has the two clicks); and/or deploy the
+  pipeline (`/backbrief deploy`) — it needs no past calls and starts catching them from
+  day one. Come back with a file any time — `/backbrief start`."*
   → HANDOFF.
 
 ### Step A1.2 — normalize                                       [per input file]
