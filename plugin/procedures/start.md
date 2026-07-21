@@ -97,6 +97,14 @@ DO: [LLM] Infer and STATE (never ask):
     stamps `is_owner: true` (fixes the S4 hard-fail on fresh vaults). When genuinely
     unknowable at A0, skip silently — B1 confirms the owner once the roster exists.
 
+  **Non-negotiable:** voice the inferences in ONE combined line immediately before
+  Q1 — e.g. *"Setting this up for **<Company>**, call filenames in **<timezone>**,
+  vault owner: **you** — correct any of these."* An inference must never surface
+  for the FIRST time inside a question's default: a user installing for a
+  different company has to see the pick before answering anything. (User-tested:
+  without this rule agents compress the A0.2 SAYs away and the company/timezone
+  appear silently pre-decided.)
+
 ### Step A0.3 — ASK (Q1): vault location
 
 ASK: *"Where should the vault live? (Enter = `./<company>-vault` in the current folder —
@@ -209,7 +217,11 @@ DO:
      - `[SCRIPT: telemetry.js event step_completed A0 --team-size-bucket=<v> --stack-path=<golden|custom> --persona=<v>]`
      (All three silently no-op when consent was "no" — never mention pings again.)
 
-ARTIFACT (show, don't tell): the vault skeleton — render the tree.
+ARTIFACT (show, don't tell): the vault skeleton — render the tree, one WHY-clause
+per annotated entry. For `docs/conventions.md` the why is NOT "naming rules"
+(reads as bureaucracy) but what they buy: *the naming grammar is the vault's API —
+it's what lets any AI find, grep, and link calls by filename alone, no index and
+no database*.
 SAY: *"Done — your vault is at `<path>`. Open `AGENTS.md` to see how the memory is
 organized: every call becomes a markdown file with structured frontmatter any AI agent
 can read. Nothing leaves this folder."* (Pattern P5: *"Everything I make is plain
