@@ -150,8 +150,19 @@ DO:
   3. `[SCRIPT: state.js set steps.a2 completed]` and
      `[SCRIPT: state.js set counters.profiles <N>]`.
 
-ARTIFACT: `team/<Lastname>.md` profiles — the "it knows us" moment.
-SAY: *"<N> profiles written to `team/`. From now on, digests and tasks resolve
+ARTIFACT (show, don't tell — same weight as the A0 tree): `team/<Lastname>.md`
+profiles — the "it knows us" moment. Render a roster board, one row per profile,
+each name a CLICKABLE file link so the user can jump in and correct on the spot
+(user-tested: a single grey excerpt reads as "nothing much happened" after the
+rung that did the most work). Shape:
+
+  **<N> profiles → `team/`** (<R> rich — zones with call quotes · <T> thin — from <source>)
+  | | role | zones | aliases |
+  | [`team/Gurevich.md`](team/Gurevich.md) | CTO | fireblocks, n8n-infra +3 | Рома · Ром · Aaron +2 |
+  | … one row per profile; ⚠-suffix rows still pending (hypotheses / missing lastnames) |
+
+SAY: *"<N> profiles written — every name above is a file you can open and correct;
+edits win over anything I inferred. From now on, digests and tasks resolve
 'Masha' / 'М. Иванова' / '@maria' to the same person and her zone."*
 
 TELEMETRY: `[SCRIPT: telemetry.js event step_completed A2 --source=<slack|tracker|docs|survey> --count=<members>]`
