@@ -158,7 +158,7 @@ rung that did the most work). Shape:
 
   **<N> profiles → `team/`** (<R> rich — zones with call quotes · <T> thin — from <source>)
   | | role | zones | aliases |
-  | [`team/Gurevich.md`](team/Gurevich.md) | CTO | fireblocks, n8n-infra +3 | Рома · Ром · Aaron +2 |
+  | [`team/Rivera.md`](team/Rivera.md) | CTO | payments, infra +3 | Alex · Sasha · AR +2 |
   | … one row per profile; ⚠-suffix rows still pending (hypotheses / missing lastnames) |
 
 SAY: *"<N> profiles written — every name above is a file you can open and correct;

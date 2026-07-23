@@ -193,7 +193,7 @@ never narrate it to the user beyond one line ("validate: 0 errors"). Shape:
 
   **<N> tasks → [`tasks/<call-basename>.tasks.md`](tasks/…)** (per call)
   | | task (one line) | owner | prio | verdict |
-  | 1 | XP-экономика: зафиксировать стрики 7/30/90 | Yurkova | P2 | CREATE (file-only) |
+  | 1 | Ship the Q3 onboarding rework | Rivera | P2 | CREATE (file-only) |
   | … | … | … | … | CREATE / COMMENT→<issue URL> / FLAG ⚠ |
 
   Tracker connected → verdict column carries live issue URLs; file-only → say in

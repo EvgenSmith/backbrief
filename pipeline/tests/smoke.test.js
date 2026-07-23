@@ -384,6 +384,20 @@ forBothTenants('kit filename grammar: date-first, tenant-local time, " w " names
   if (/[^\x20-\x7E]/.test(f)) throw new Error(`filename not ASCII: ${f}`);
 });
 
+it('[acme-en] Summary (Quick brief) renders NON-EMPTY — prompt-shaped "### Topic" summary nests, no dead heading', () => {
+  // Regression guard for the composer dead-heading defect (prod audit 2026-07-23,
+  // 177/177 files): the prompt now opens slack_summary at "### <Topic>", buildBody
+  // wraps it under the stable "## Summary (Quick brief)" anchor. The section between
+  // that heading and "## Decisions" must contain the topic content, not be blank.
+  const summary = '### Launch discussion (12:34)\n- Decision on X made\n- **Action items** distributed';
+  const out = runCode(`${T}build-commit-payload-v2.js`, ACME, { all: () => [payloadItem(ACME, { summary })] });
+  const body = out[0].json.markdown_body;
+  const seg = body.split('## Summary (Quick brief)')[1].split('## Decisions')[0];
+  if (!seg.includes('### Launch discussion (12:34)')) throw new Error(`Summary section is empty/dead — topic did not nest under it:\n${seg}`);
+  // and no second top-level heading crept in between the wrapper and Decisions
+  if (/^## (?!Decisions)/m.test(seg.trim())) throw new Error(`duplicate top-level heading inside Summary section: ${seg}`);
+});
+
 it('[acme-en] 5+ participants → the whole " w " part is omitted (roster in frontmatter)', () => {
   const five = ACME.roster.map((p) => p.lastname); // 5 people in fixture
   const out = runCode(`${T}build-commit-payload-v2.js`, ACME, { all: () => [payloadItem(ACME, { participants_lastnames: five })] });

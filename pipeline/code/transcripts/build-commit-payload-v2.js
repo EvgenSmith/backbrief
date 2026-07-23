@@ -366,6 +366,15 @@ function buildBody({
     ? `_Full transcript: <./${encodeURI(transcript_filename)}> (${transcript_chars} chars, WebVTT)._`
     : '_(transcript unavailable)_';
 
+  // The summary ALWAYS nests under this stable section heading — validate-vault's
+  // PIPELINE_DIGEST_SECTIONS anchors on "Summary (Quick brief)", and the kit prompt
+  // (build-anthropic-body.js) now instructs slack_summary to open at "### <Topic>"
+  // (no competing top heading), so the section renders non-empty with no dead
+  // duplicate. NOTE: the production tenant fixed the equivalent dead-heading defect
+  // with an emitter guard that strips this wrapper when `summary` self-structures —
+  // do NOT port that guard here: the kit's strict validator requires this exact
+  // heading, so stripping it turns a cosmetic dead heading into a hard validation
+  // failure. The kit fixes the root cause in the prompt instead.
   return [
     `---`,
     fmYaml,

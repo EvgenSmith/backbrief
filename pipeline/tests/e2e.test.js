@@ -185,9 +185,12 @@ function mockAnthropicResponse(tenant, meta) {
           topic_slug: String(meta.topic || 'untitled call').toLowerCase()
             .replace(/[^a-z0-9\s-]/g, '').trim().split(/\s+/).slice(0, 4).join('-') || 'untitled-call',
           confidence: 'high',
+          // Prompt-shaped structured summary (opens at "### <Topic>", no top heading)
+          // so the cross-contract validator run below exercises the real emitter shape
+          // — the shape that surfaced the composer dead-heading defect (prod 2026-07-23).
           slack_summary: ru
-            ? 'Тестовое саммари. Приняты решения, задачи распределены.'
-            : 'Test summary. Decisions made, action items distributed.',
+            ? '### Итоги встречи (12:34)\n- Приняты решения\n- Задачи распределены'
+            : '### Meeting outcomes (12:34)\n- Decisions made\n- Action items distributed',
           action_items: [
             { title: 'Ship feature X', assignee_hint: assignee, priority_hint: 'high', transcript_quote: 'We need X by Monday.' },
           ],

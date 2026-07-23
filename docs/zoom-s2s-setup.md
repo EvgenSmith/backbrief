@@ -143,6 +143,15 @@ green.
 
 ## Rotation
 
+> ⚠️ **The Zoom app has TWO independent secrets — don't confuse them.**
+> `ZOOM_CLIENT_SECRET` lives on **App Credentials** (S2S OAuth — used to fetch the
+> participant roster). `ZOOM_WEBHOOK_SECRET_TOKEN` lives on **Feature → Event
+> Subscriptions** (HMAC — used to verify the webhook signature). They are different
+> values with different jobs. **Regenerating either one invalidates the old value
+> instantly**, so redeploy with the new env in the same sitting — a rotated secret
+> that isn't redeployed silently breaks that half of the pipeline (OAuth roster fetch,
+> or webhook signature verification). Rotate one at a time and confirm before the next.
+
 Rotate the webhook secret by regenerating the Secret Token in the Zoom app, updating
 `.backbrief/secrets.env`, and re-running `node plugin/scripts/deploy-pipeline.js`
 (secrets are injected at deploy; the repo never holds them). Same procedure for the
