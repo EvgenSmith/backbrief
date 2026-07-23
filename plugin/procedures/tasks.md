@@ -306,5 +306,16 @@ TELEMETRY: `[SCRIPT: telemetry.js event step_completed A4 --fork=<deploy|hosted_
 
 ARTIFACT: the regenerated v1 digest (in place) + the ROI line + a recorded fork choice.
 
-HANDOFF: per the fork — `deploy` procedure, or: *"Manual mode is yours: paste a
-transcript any time, `/backbrief status` shows the vault digest."*
+HANDOFF: per the fork — `deploy` procedure, or close with an explicit **"your plan
+from here"** (user-tested: the wrap-up must hand over a plan, not just a status):
+  1. **Correct the sources (~10 min, compounds forever):** skim `docs/company.md`
+     and `team/*.md`, fix anything marked `(inferred — correct me)` and fill the
+     pending ⚠ identities. Say WHY: these files are injected into every future
+     digest and task extraction — the more accurate the inputs, the sharper every
+     summary, owner call, and dedup verdict from now on.
+  2. **The road back to automation** (whenever the fork was not `deploy`):
+     *"When you want every call processed automatically — `/backbrief deploy`
+     (~60 min, your own n8n). The skip is recorded in `.backbrief/roadmap.md`,
+     nothing is lost."*
+  3. **Manual mode stays yours:** *"paste a transcript any time; `/backbrief status`
+     shows the vault state."*
