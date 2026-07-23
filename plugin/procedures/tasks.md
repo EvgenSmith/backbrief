@@ -271,10 +271,14 @@ ASK: *"Want this to happen **automatically for every call** — no pasting, ~1 m
 each recording ends? Three ways:
 1. **Self-host it now** — I walk you through the full pipeline (`/backbrief deploy`,
 ~60 min, your infra, your keys).
-2. **Hosted waitlist** — we run the infra, you keep the vault; leave an email.
-3. **Hands-on help** — we set it up with you, in exchange for weekly feedback.
+2. **Hosted waitlist** — the **Backbrief authors** (the plugin's developers — not me,
+not your company) would run the infra for you, you keep the vault. Pick this and I'll
+send them your email — email + interest, nothing else — so they ping you when it's ready.
+3. **Hands-on help** — the Backbrief authors set it up together with you, in exchange
+for weekly feedback; same email consent.
 Or stop here — manual mode already works: paste a transcript any time. (Enter = 1)"*
-  → default: 1.
+  → default: 1. (Wording rule: name WHO receives the email — an unattributed "we"
+  in an agent-rendered dialog is ambiguous three ways; user-tested.)
 
 DO per answer:
   - **1** → `[SCRIPT: state.js set fork deploy]` → HANDOFF to the `deploy` procedure.
@@ -282,7 +286,8 @@ DO per answer:
     `[SCRIPT: telemetry.js waitlist --interest=hosted --email=<typed> --source-step=A4]`
     + `[SCRIPT: state.js waitlist-observe hosted --step A4 --emailed]` →
     `[SCRIPT: state.js set fork hosted_waitlist]`.
-    Confirm: *"You're on the hosted list. Manual mode keeps working meanwhile."*
+    Confirm: *"Done — your email went to the Backbrief authors' waitlist (their API
+    stores email + interest, nothing else). Manual mode keeps working meanwhile."*
   - **3** → email →
     `[SCRIPT: telemetry.js waitlist --interest=hands_on --email=<typed> --source-step=A4]`
     + point at the contact channel (GitHub issue template / office-hours link in the
