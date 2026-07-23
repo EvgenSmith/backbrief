@@ -53,7 +53,7 @@ DO:
 ## Step B0 — hosting choice                                [REQUIRED for Phase B | flag: none | gate: none]
 
 PREFLIGHT: Phase B needs the **full kit checkout**
-  (`git clone https://github.com/EvgenSmith/backbrief`) — a marketplace
+  (`git clone https://github.com/BACKBRIEF_ORG/backbrief`) — a marketplace
   plugin-cache install carries `plugin/` only; every Phase-B script detects the
   missing `pipeline/` tree, says so, and exits 2. Get the checkout first.
 TELEMETRY: `step_started B0`
@@ -68,7 +68,8 @@ ASK (Q1): "1. **n8n Cloud** — fastest, free trial, no server needed (Enter) ·
 DO:
   1. Option 3 → waitlist capture per `_conventions.md` §8
      (`[SCRIPT: telemetry.js waitlist --interest=hosted --source-step=B0 --email=…]`
-     on an explicitly typed email). SAY Phase-A manual mode keeps working
+     on an explicitly typed email — prefill when known: *"Send your `<email>`?
+     (Enter = yes)"*; never background-send). SAY Phase-A manual mode keeps working
      exactly as-is. `[SCRIPT: state.js set steps.b0 skipped]` +
      `[SCRIPT: state.js set steps.b0_skip_reason no-infra]` → END deploy gracefully.
   2. User names **another orchestrator** (Make, Zapier, Pipedream, …) →

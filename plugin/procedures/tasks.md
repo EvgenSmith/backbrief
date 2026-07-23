@@ -282,7 +282,13 @@ Or stop here — manual mode already works: paste a transcript any time. (Enter 
 
 DO per answer:
   - **1** → `[SCRIPT: state.js set fork deploy]` → HANDOFF to the `deploy` procedure.
-  - **2** → ask for the email (optional, never auto-submit) →
+  - **2** → ask for the email — **prefill when known** (git config user.email / the
+    owner profile): *"Send your `<email>`? (Enter = yes / type another / no)"* — one
+    tap, but the yes is still explicit. NEVER background-send a known email and
+    never treat the option click as consent (user-tested both ways: the ask was
+    skipped entirely once, and auto-send was the user's first instinct — the
+    middle is prefill). Also: the send is `telemetry.js waitlist …` (the gateway
+    POST) — `state.js waitlist-observe` is only the LOCAL mirror, it reaches no one. →
     `[SCRIPT: telemetry.js waitlist --interest=hosted --email=<typed> --source-step=A4]`
     + `[SCRIPT: state.js waitlist-observe hosted --step A4 --emailed]` →
     `[SCRIPT: state.js set fork hosted_waitlist]`.
