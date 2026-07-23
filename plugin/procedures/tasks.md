@@ -186,7 +186,22 @@ DO:
      resolution both ways).
   4. `[SCRIPT: state.js set steps.a3 completed]`
 
-ARTIFACT: per-call `.tasks.md` + created/commented tracker issues (URLs shown inline).
+ARTIFACT (show, don't tell — same weight as the A0 tree and the A2 roster board):
+per-call `.tasks.md` + created/commented tracker issues. Render a task board, one
+row per task, the file names CLICKABLE; validator/counts arithmetic is plumbing —
+never narrate it to the user beyond one line ("validate: 0 errors"). Shape:
+
+  **<N> tasks → [`tasks/<call-basename>.tasks.md`](tasks/…)** (per call)
+  | | task (one line) | owner | prio | verdict |
+  | 1 | XP-экономика: зафиксировать стрики 7/30/90 | Yurkova | P2 | CREATE (file-only) |
+  | … | … | … | … | CREATE / COMMENT→<issue URL> / FLAG ⚠ |
+
+  Tracker connected → verdict column carries live issue URLs; file-only → say in
+  ONE line why (no tracker in this session) and where it upgrades (B5).
+
+SAY: *"<N> tasks extracted — each row lives in the linked file; edit words or files,
+either wins. <Dedup line: M matched existing issues / no live backlog to dedup
+against — first run creates only.>"*
 
 TELEMETRY: `[SCRIPT: telemetry.js event step_completed A3 --tracker=<linear|other|none>]`
 
