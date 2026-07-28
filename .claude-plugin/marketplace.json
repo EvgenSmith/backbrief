@@ -1,6 +1,9 @@
 {
   "name": "backbrief",
-  "owner": { "name": "Backbrief" },
+  "description": "Backbrief — turn your team's call transcripts into tracked tasks and a company memory vault you own: markdown in your git repo, tasks in your tracker, optional automatic pipeline on your own n8n.",
+  "owner": {
+    "name": "Backbrief"
+  },
   "plugins": [
     {
       "name": "backbrief",
