@@ -37,6 +37,39 @@ any Backbrief server (there are none).
 - Admin (or developer-role) access to the Zoom account — S2S OAuth apps are account-level.
 - 10 minutes.
 
+## The whole thing, as a click path
+
+Every click is at `marketplace.zoom.us` unless noted. The numbered steps below are the
+same path with the reasoning attached — read those if anything is unclear.
+
+```
+Zoom web portal → Admin → Account Settings → Recording
+  ☑ Cloud recording            ☑ Audio transcript          (step 0)
+
+marketplace.zoom.us → Develop → Build App → Server-to-Server OAuth
+  App Credentials  → copy Account ID, Client ID, Client Secret   (step 2)
+  Scopes → Add Scopes → meeting:read:list_past_participants:admin   (step 3)
+  Feature → Event Subscriptions → enable → copy Secret Token         (step 4)
+      + Add Event Subscription → Recording → All Recordings have completed
+      + ☑ Add download token          ← without it every transcript download 401s
+      ( endpoint URL: leave for later — it doesn't exist until deploy )
+  Activation → Activate your app                                     (step 5)
+
+your terminal
+  node plugin/scripts/test-creds.js zoom     → credentials work      (step 6)
+
+…deploy (B6) prints your webhook URL…
+
+  node plugin/scripts/deploy-pipeline.js --crc   → the handshake works
+marketplace.zoom.us → your app → Feature → Event Subscriptions
+  paste the webhook URL → Validate → Save → subscription enabled     (step 7)
+```
+
+Two of these are the ones people miss, and both fail *silently until the next real call*:
+**Add download token** (transcripts arrive empty) and the **endpoint URL + Validate**
+return trip (nothing arrives at all). `--crc` and `test-creds.js zoom` exist so you find
+out in seconds instead of tomorrow.
+
 ## Step 0 — enable cloud recording + audio transcript
 
 Zoom web portal → **Admin → Account Settings → Recording**:
@@ -94,13 +127,25 @@ Notes:
    (`recording.completed`). If your account also lists
    `recording.transcript_completed`, subscribe to it too — the pipeline handles both
    (that is exactly the two-phase state machine, see `PRD.md` §3).
-2. **Secret Token:** shown on the same Feature page. Copy it now:
+2. **☑ Add download token** — on the same subscription. **Not optional for Backbrief.**
+   This checkbox is what makes Zoom include a short-lived `download_token` in the event;
+   it is the pipeline's only way to fetch the `.vtt` and the MP4 (no OAuth scope grants
+   file downloads). Leave it off and everything *looks* fine — the webhook arrives, the
+   Slack root post appears, the summary commits — but the transcript download 401s on
+   **every** call and the digest is built from metadata alone. The pipeline detects this
+   exact case and says so in the failure alert; fixing the checkbox needs no redeploy,
+   the next call carries the token.
+3. **Secret Token:** shown on the same Feature page. Copy it now:
 
    ```bash
    ZOOM_WEBHOOK_SECRET_TOKEN=...
    ```
 
-3. **Event notification endpoint URL:** this is your pipeline's webhook URL —
+   ⚠️ This is **not** `ZOOM_CLIENT_SECRET` — that one lives on App Credentials and does a
+   different job (see Rotation at the bottom). Mixing them up is the single most common
+   way the validation handshake fails.
+
+4. **Event notification endpoint URL:** this is your pipeline's webhook URL —
    `https://<your-n8n-host>/webhook/backbrief-zoom`. **You won't have it until
    step B6 deploys the workflows.** Zoom validates the URL with a challenge
    (`endpoint.url_validation`) that only the *deployed, active* pipeline can answer, so:
@@ -111,6 +156,18 @@ Notes:
 
    If validation fails, the subscription is disabled and no events flow — the deploy
    procedure reminds you of this return-trip.
+
+   **Before you click Validate, run the same handshake yourself:**
+
+   ```bash
+   node plugin/scripts/deploy-pipeline.js --crc
+   ```
+
+   It POSTs Zoom's exact `endpoint.url_validation` challenge to your own webhook and
+   checks the answer. Green here means Zoom's button goes green. Red names which of the
+   three causes it is — unreachable URL, inactive workflow, or a secret in n8n that
+   doesn't match the one in the app — instead of Zoom's silent spinner. Read-only: it
+   creates no Slack posts, no commits, no vault files.
 
 ## Step 5 — activate
 
@@ -134,7 +191,9 @@ green.
 |---|---|
 | `invalid_client` on token grant | Client ID/Secret mismatch, or Account ID from a different account. Re-copy all three from the same app's Credentials page. |
 | API error `4711` / "Invalid access token, does not contain scopes" | Missing scope. Add it (Step 3); takes effect immediately, then re-run `test-creds.js zoom`. |
-| URL validation fails in Step 4 | Pipeline not deployed/active yet (do B6 first), wrong `ZOOM_WEBHOOK_SECRET_TOKEN` in n8n, or a typo in the URL. |
+| URL validation fails in Step 4 | Pipeline not deployed/active yet (do B6 first), wrong `ZOOM_WEBHOOK_SECRET_TOKEN` in n8n, or a typo in the URL. Run `deploy-pipeline.js --crc` — it tells you which of the three. |
+| Digest is thin and the alert says *"Zoom sent no download token"* | **Add download token** is unchecked on the event subscription (Step 4.2). Tick it, Save. No redeploy needed — the next call carries the token. Affects every call until fixed. |
+| `.vtt` downloads 401 on **every** call, all other steps green | Same cause as the row above. Distinguish from the 24 h expiry: expiry hits *old* recordings sporadically, a missing token hits *fresh* ones every time. |
 | Webhooks silently stop arriving | Zoom disables subscriptions that repeatedly fail validation or delivery. Re-validate the endpoint URL in the app settings. |
 | Live events rejected with "timestamp stale or skewed" | The pipeline enforces a **15-minute replay window** (`pipeline.knobs.replay_window_sec`, default 900) on the signed timestamp. If *every* webhook is rejected, your n8n host's clock is skewed — fix NTP. (Production incident: >5 min of host clock skew rejected 100% of webhooks, including Zoom's retries.) |
 | Digest never arrives, root post did | Transcript not ready yet (15–60 min lag), or Audio transcript is off (Step 0), or the call was shorter than `min_duration_min`. |

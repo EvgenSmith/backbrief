@@ -155,6 +155,9 @@ class Report {
   warn(msg) { this.lines.push({ level: 'warn', msg }); console.log(`  ⚠  ${msg}`); }
   fail(msg) { this.lines.push({ level: 'fail', msg }); this.failed = true; console.log(`  ✖  ${msg}`); }
   skip(msg) { this.lines.push({ level: 'skip', msg }); console.log(`  ⏭  ${msg}`); }
+  // Informational, never pass/fail: names what this probe provably CANNOT see,
+  // so a green report is not mistaken for "everything on that service is wired".
+  note(msg) { this.lines.push({ level: 'note', msg }); console.log(`  ℹ  ${msg}`); }
 }
 
 function missingEnv(names) {
@@ -224,6 +227,16 @@ async function testZoom(report) {
   else if (secret.length < 8 || /\s/.test(secret) || /PLACEHOLDER|^__.*__$/.test(secret)) {
     report.fail('ZOOM_WEBHOOK_SECRET_TOKEN looks wrong (too short / whitespace / placeholder)');
   } else report.ok('webhook secret shape ok (live HMAC verified at B6 self-test)');
+
+  // 5. State what this probe CANNOT see, so a green run isn't read as "Zoom is
+  //    fully wired". The event subscription — endpoint URL, selected events,
+  //    "Add download token" — is not exposed by any Zoom API for S2S apps: it
+  //    only exists in their UI. Silence here used to read as approval, and the
+  //    download-token miss then surfaced a day later as empty transcripts.
+  report.note('not checkable from here (no Zoom API exposes it) — on the event subscription: '
+    + 'endpoint URL registered + Validated, event "All Recordings have completed" selected, '
+    + '"Add download token" ticked. Verified at B6 by a real test call; '
+    + 'the URL half is pre-checked by `deploy-pipeline.js --crc`.');
 }
 
 /* ------------------------------------------------------------------ */

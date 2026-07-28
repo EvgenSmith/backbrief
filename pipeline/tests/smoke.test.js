@@ -1083,6 +1083,52 @@ it('[acme-en-noslack] Slack builders end their branch (return []) — root, thre
   eq(runCode(`${T}build-vtt-fail-dm.js`, NOSLACK, { all: () => [vttItem], first: () => vttItem }, { deployed: true }), [], 'vtt-fail alert builder must emit no items');
 });
 
+console.log('\n[Zoom download token — the checkbox that fails silently]');
+
+// The two .vtt-download failures have different fixes and the alert must not
+// guess: a missing "Add download token" checkbox breaks EVERY call until it is
+// ticked, the 24h URL expiry is a one-off you redrive. Before download_token_present
+// existed the alert always blamed the expiry — wrong advice on a fresh setup.
+it('[acme-en] vtt-fail alert names the cause: missing download token vs URL expiry', () => {
+  const build = (extra) => {
+    const item = { json: Object.assign({ topic: 'Weekly sync', vtt_download_failed: true, vtt_download_failed_status: 401 }, extra) };
+    const out = runCode(`${T}build-vtt-fail-dm.js`, ACME, { all: () => [item], first: () => item }, { deployed: true });
+    if (!out.length) throw new Error('Slack is on for acme-en — the alert builder must emit an item');
+    return out[0].json.dm_text;
+  };
+
+  const noToken = build({ download_token_present: false });
+  if (!/no download token/i.test(noToken)) throw new Error('missing-token alert must say Zoom sent no download token');
+  if (!/Add download token/.test(noToken)) throw new Error('missing-token alert must name the exact Zoom checkbox');
+  if (/24h|expiry/i.test(noToken)) throw new Error('missing-token alert must NOT blame the 24h expiry — wrong fix');
+
+  const expired = build({ download_token_present: true });
+  if (!/expiry/i.test(expired)) throw new Error('token-present alert should still point at the 24h expiry');
+  if (/Add download token/.test(expired)) throw new Error('token-present alert must not send the user to the checkbox');
+
+  // Absent flag (older recording-state entries replayed after an upgrade) must
+  // read as "unknown", i.e. the pre-existing expiry wording — never as a
+  // confident "your checkbox is off".
+  const legacy = build({});
+  if (/Add download token/.test(legacy)) throw new Error('unknown token state must not assert the checkbox is off');
+});
+
+it('[acme-en] extract-metadata reports download-token presence', () => {
+  const fixture = JSON.parse(fs.readFileSync(path.join(KIT, 'pipeline', 'fixtures', 'webhooks', 'zoom-webhook-public-team-weekly.json'), 'utf8'));
+  const body = fixture.body || fixture;
+  const run = (b) => {
+    const item = { json: b };
+    return runCode(`${T}extract-metadata.js`, ACME, { all: () => [item], first: () => item }, { deployed: true })[0].json;
+  };
+  eq(run(body).download_token_present, true, 'fixture carries a download_token → flag true');
+  const stripped = JSON.parse(JSON.stringify(body));
+  delete stripped.download_token;
+  if (stripped.payload && stripped.payload.object) delete stripped.payload.object.download_token;
+  eq(run(stripped).download_token_present, false, 'no download_token in the event → flag false');
+});
+
+console.log('\n[slack.enabled: false — no-Slack tenant, continued]');
+
 it('[acme-en-noslack] deploy gates: taskcrafter/feedback/error-trap OFF, transcripts ON', () => {
   const NODES = require(path.join(KIT, 'plugin', 'scripts', 'pipeline-nodes.js'));
   const gates = {};

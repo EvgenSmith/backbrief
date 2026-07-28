@@ -29,6 +29,11 @@
  * lesson: a bootstrap that re-POSTs reverts live fixes).
  *
  * Self-test (B6 gate):
+ *   --crc                   dry-run Zoom's URL-validation handshake against our
+ *                           own webhook (what Zoom's "Validate" button does):
+ *                           proves URL + active workflow + matching secret
+ *                           BEFORE the user clicks Validate in the Zoom UI.
+ *                           Read-only — no execution artifacts, no Slack, no commits.
  *   --selftest              sign + POST the synthetic fixture, assert the
  *                           execution succeeded, assert idempotent re-POST,
  *                           record created artifacts for cleanup
@@ -78,6 +83,9 @@ Options:
                            credentials API; second-choice)
   --rotate-anthropic       update the backbrief-anthropic credential from
                            $ANTHROPIC_API_KEY and exit (no workflow PUT needed)
+  --crc                    dry-run Zoom's URL-validation handshake against our own
+                           webhook (read-only). Green here == Zoom's "Validate"
+                           button will go green. Run it BEFORE clicking Validate.
   --selftest               B6 gate: signed synthetic webhook -> assert success,
                            idempotent re-POST, record artifacts for cleanup
   --selftest-interactivity Slack button round-trip half-test (human clicks Skip)
@@ -97,7 +105,7 @@ function parseArgs(argv) {
   const o = {
     tenant: null, state: null, import: false, workflows: [],
     anthropicInline: false, rotateAnthropic: false,
-    selftest: false, selftestInteractivity: false, selftestCleanup: false,
+    crc: false, selftest: false, selftestInteractivity: false, selftestCleanup: false,
     help: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -108,6 +116,7 @@ function parseArgs(argv) {
     else if (a === '--workflow') o.workflows.push(argv[++i]);
     else if (a === '--anthropic-inline') o.anthropicInline = true;
     else if (a === '--rotate-anthropic') o.rotateAnthropic = true;
+    else if (a === '--crc') o.crc = true;
     else if (a === '--selftest') o.selftest = true;
     else if (a === '--selftest-interactivity') o.selftestInteractivity = true;
     else if (a === '--selftest-cleanup') o.selftestCleanup = true;
@@ -480,6 +489,91 @@ async function postSignedWebhook(fixtureBody) {
   return res;
 }
 
+/**
+ * --crc — dry-run Zoom's URL-validation handshake against our own webhook.
+ *
+ * Why this exists: registering the endpoint in Zoom is the one step of the
+ * deploy that lives entirely in someone else's UI, and Zoom's "Validate"
+ * button reports failure as a spinner with no reason. Its three failure modes
+ * are exactly the three things checked here — wrong URL, workflow inactive,
+ * secret in n8n != secret in the Zoom app — so running this first turns a
+ * blind click into a check that names the cause. Read-only: the CRC branch of
+ * verify-zoom-webhook.js returns the token echo and touches nothing else.
+ */
+async function crcCheck() {
+  console.log('\n== Zoom URL-validation dry-run (what Zoom\'s "Validate" button does)');
+  const url = `${BASE}/webhook/backbrief-zoom`;
+  console.log(`  endpoint: ${url}`);
+
+  const secret = (process.env.ZOOM_WEBHOOK_SECRET_TOKEN || '').trim();
+  if (!secret) {
+    console.error('  FAIL: ZOOM_WEBHOOK_SECRET_TOKEN not set (.backbrief/secrets.env).');
+    console.error('  Fix: copy the Secret Token from Zoom app -> Feature -> Event Subscriptions,');
+    console.error('       then re-run: node plugin/scripts/deploy-pipeline.js  (secrets inject at deploy)');
+    return false;
+  }
+
+  const plainToken = crypto.randomBytes(16).toString('hex');
+  const body = { event: 'endpoint.url_validation', payload: { plainToken } };
+  const bodyStr = JSON.stringify(body);
+  const ts = String(Math.floor(Date.now() / 1000));
+  const sig = 'v0=' + crypto.createHmac('sha256', secret).update(`v0:${ts}:${bodyStr}`).digest('hex');
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-zm-request-timestamp': ts, 'x-zm-signature': sig },
+      body: bodyStr,
+    });
+  } catch (e) {
+    console.error(`  FAIL: cannot reach ${url} — ${e.message}`);
+    console.error('  Fix: check N8N_BASE_URL, and that the host is reachable from the public internet');
+    console.error('       (Zoom calls it from outside — localhost/VPN-only hosts never receive events).');
+    return false;
+  }
+
+  if (res.status === 404) {
+    console.error('  FAIL: HTTP 404 — no live webhook at that path.');
+    console.error('  Fix: the transcripts workflow is not active (or not deployed). Run:');
+    console.error('       node plugin/scripts/deploy-pipeline.js --import   (first run)');
+    console.error('       node plugin/scripts/deploy-pipeline.js            (re-deploy + re-activate)');
+    console.error('  Note: an INACTIVE workflow answers only on /webhook-test/… — Zoom needs /webhook/….');
+    return false;
+  }
+  if (!(res.status >= 200 && res.status < 300)) {
+    console.error(`  FAIL: HTTP ${res.status} (expected 2xx).`);
+    console.error('  Most likely: the workflow errored on the verify node. Open the n8n execution log.');
+    return false;
+  }
+
+  let out = null;
+  try { out = await res.json(); } catch (e) { /* handled below */ }
+  if (!out || !out.plainToken || !out.encryptedToken) {
+    console.error('  FAIL: endpoint answered 2xx but not with the CRC echo Zoom expects.');
+    console.error(`  Got: ${JSON.stringify(out).slice(0, 200)}`);
+    console.error('  Fix: the deployed workflow is not the Backbrief one (path collision?) — check n8n.');
+    return false;
+  }
+
+  const expected = crypto.createHmac('sha256', secret).update(plainToken).digest('hex');
+  if (out.plainToken !== plainToken || out.encryptedToken !== expected) {
+    console.error('  FAIL: signature mismatch — the secret deployed into n8n is NOT the one in');
+    console.error('        .backbrief/secrets.env, so Zoom will reject the handshake too.');
+    console.error('  Fix: re-copy the Secret Token from Zoom app -> Feature -> Event Subscriptions');
+    console.error('       into .backbrief/secrets.env, then: node plugin/scripts/deploy-pipeline.js');
+    console.error('  (Careful: that is NOT the same value as ZOOM_CLIENT_SECRET on App Credentials.)');
+    return false;
+  }
+
+  console.log('  OK: URL reachable, workflow active, secret matches.');
+  console.log('  Zoom\'s "Validate" button will go green. Paste this URL there now:');
+  console.log(`      ${url}`);
+  console.log('  Then, on the same subscription: select event "All Recordings have completed"');
+  console.log('  and tick "Add download token" (without it every transcript download 401s).');
+  return true;
+}
+
 async function selftest() {
   console.log('\n== self-test (T3)');
   const wfState = state.workflows.transcripts;
@@ -650,6 +744,9 @@ async function selftestCleanup() {
   }
   if (opts.selftestCleanup) process.exit((await selftestCleanup()) ? 0 : 1);
   if (opts.selftestInteractivity) process.exit((await selftestInteractivity()) ? 0 : 1);
+  // --crc is read-only and never deploys: it checks an ALREADY-deployed
+  // pipeline, so it short-circuits regardless of the other flags.
+  if (opts.crc) process.exit((await crcCheck()) ? 0 : 1);
   if (opts.selftest && opts.workflows.length === 0 && !opts.import) {
     // bare --selftest runs against the already-deployed pipeline
     process.exit((await selftest()) ? 0 : 1);

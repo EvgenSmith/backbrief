@@ -33,17 +33,34 @@ const partners = (j.participants_lastnames || [])
 
 const status = j.vtt_download_failed_status || 'unknown';
 
+// Two very different causes, two different fixes — say which one this is.
+// `download_token_present === false` means Zoom never sent a download token,
+// i.e. the event subscription lacks "Add download token" (setup mistake, hits
+// EVERY call until fixed). Anything else on an authorized download is the 24h
+// transcript-URL expiry (a one-off, redrivable). Guessing wrong sends the user
+// hunting for a race condition when the real fix is one checkbox.
+const noToken = j.download_token_present === false;
+const causeLine = noToken
+  ? `*Download status:* \`${status}\` — *Zoom sent no download token.* ` +
+    'Enable *Add download token* on the event subscription ' +
+    '(Zoom app → Feature → Event Subscriptions → edit → save). ' +
+    'Nothing to redeploy; the next call carries the token. ' +
+    '_Until then EVERY call loses its transcript._'
+  : `*Download status:* \`${status}\`  _(24h Zoom URL expiry is the usual cause)_`;
+
 const dm_text = [
   ':warning: *Raw .vtt download failed — transcript sidecar NOT saved*',
   `*Topic:* ${j.topic || '(no topic)'}`,
   partners ? `*Participants:* ${partners}` : null,
   j.duration_min ? `*Duration:* ${j.duration_min} min` : null,
   `*Zoom UUID:* \`${j.zoom_meeting_uuid || '?'}\``,
-  `*Download status:* \`${status}\`  _(24h Zoom URL expiry is the usual cause)_`,
+  causeLine,
   j.zoom_share_url ? `*Recording:* <${j.zoom_share_url}|open in Zoom Cloud>` : null,
   '',
   '_The .md summary still commits, but WITHOUT the raw .vtt._',
-  '_Recover the .vtt from Zoom Cloud while retained, or redrive: n8n UI → "Retry from failed node", or `redrive-dlq.js`._',
+  noToken
+    ? '_Fix the checkbox first — redriving before that just fails again._'
+    : '_Recover the .vtt from Zoom Cloud while retained, or redrive: n8n UI → "Retry from failed node", or `redrive-dlq.js`._',
 ].filter(Boolean).join('\n');
 
 // chat.postMessage-shaped payload — the alert goes to the public digest

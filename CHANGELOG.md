@@ -9,6 +9,25 @@ The single source of truth for the current version is the `VERSION` file;
 `plugin/.claude-plugin/plugin.json` and the release git tag `vX.Y.Z` must match
 it (CI-enforced).
 
+## [Unreleased]
+
+### Fixed — Zoom setup friction (the two clicks that fail silently)
+- **"Add download token" is now a named, explained step**, not a line lost in a
+  checklist. Unticked, Zoom sends no download token: every `.vtt` fetch 401s while the
+  webhook, the Slack post and the vault commit all still look healthy. The pipeline now
+  carries `download_token_present` from the event, and the failure alert names *that*
+  cause and its one-checkbox fix instead of blaming the 24 h URL expiry — which was the
+  wrong advice on every fresh setup.
+- **`deploy-pipeline.js --crc`** — dry-runs Zoom's `endpoint.url_validation` handshake
+  against your own webhook before you click **Validate** in the Zoom UI. Read-only. Zoom
+  reports all three of its failure modes as one silent spinner; this names which it is
+  (unreachable URL / inactive workflow / secret in n8n ≠ secret in the app).
+- **`test-creds.js zoom` now states what it cannot see.** The event subscription is not
+  exposed by any Zoom API for S2S apps, so a green credential probe was being read as
+  "Zoom is fully wired". It now says which facts only a real test call can confirm.
+- `docs/zoom-s2s-setup.md` opens with the whole setup as a click path; `deploy.md` B2/B6
+  call out both silent-failure clicks and run `--crc` before sending you back to Zoom.
+
 ## [0.1.0] — 2026-07-20 — first public release
 
 Opinionated kit for turning recorded calls into a team-owned context vault, task

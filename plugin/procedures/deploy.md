@@ -53,7 +53,7 @@ DO:
 ## Step B0 — hosting choice                                [REQUIRED for Phase B | flag: none | gate: none]
 
 PREFLIGHT: Phase B needs the **full kit checkout**
-  (`git clone https://github.com/BACKBRIEF_ORG/backbrief`) — a marketplace
+  (`git clone https://github.com/EvgenSmith/backbrief`) — a marketplace
   plugin-cache install carries `plugin/` only; every Phase-B script detects the
   missing `pipeline/` tree, says so, and exits 2. Get the checkout first.
 TELEMETRY: `step_started B0`
@@ -141,12 +141,18 @@ SAY (zoom users): "Now the pipeline needs to hear about your recordings. Zoom se
   ~10-minute checklist — it's the longest step; everything after is shorter."
 
 DO:
-  1. Walk `docs/zoom-s2s-setup.md` **one step at a time** (create Server-to-Server
-     OAuth app → scopes → event subscription `recording.completed` → copy
-     Account ID / Client ID / Client Secret / webhook Secret Token). **Leave the
-     event-subscription endpoint URL blank for now** — the pipeline's n8n webhook URL
-     doesn't exist until deploy (B6). B6 sends you back here to paste it and pass Zoom's
-     validation handshake; that is the step that actually makes recordings arrive.
+  1. Walk `docs/zoom-s2s-setup.md` **one step at a time** — the doc opens with the whole
+     path as a click map (create Server-to-Server OAuth app → scopes → event subscription
+     `recording.completed` → copy Account ID / Client ID / Client Secret / webhook Secret
+     Token). Two clicks on that map fail *silently until the next real call* — call both
+     out here, do not let them pass as one line in a checklist:
+     - **☑ Add download token** on the event subscription. Without it Zoom sends no
+       download token, every `.vtt` fetch 401s, and digests are built from metadata only
+       — while the webhook, the Slack post and the commit all still look healthy.
+     - **Leave the event-subscription endpoint URL blank for now** — the pipeline's n8n
+       webhook URL doesn't exist until deploy (B6). B6 sends you back here to paste it and
+       pass Zoom's validation handshake; that is the step that actually makes recordings
+       arrive.
   2. Collect the four values into `.backbrief/secrets.env` (state the secrets
      rules — first secret collected here).
   3. `[SCRIPT: test-creds.js zoom]` — live: token grant + participants-API
@@ -384,23 +390,36 @@ DO:
      and the user hits "done" on a pipeline that receives nothing. `deploy-pipeline.js`
      just printed the pipeline's n8n **webhook URL** — send the user back to their Zoom
      S2S app to wire it up, one step at a time:
-     a. Zoom Marketplace → your Server-to-Server OAuth app → **Feature → Event
+     a. **First, dry-run the handshake locally:** `[SCRIPT: deploy-pipeline.js --crc]`.
+        It POSTs Zoom's exact `endpoint.url_validation` challenge to our own webhook and
+        verifies the answer — read-only, no artifacts. Green ⇒ Zoom's Validate button will
+        go green. Red ⇒ it names which of the three causes it is (unreachable URL /
+        inactive workflow / secret in n8n ≠ secret in the Zoom app). **Fix red here** —
+        Zoom's UI reports the same failures as a spinner with no reason, so debugging in
+        their console is guesswork.
+     b. Zoom Marketplace → your Server-to-Server OAuth app → **Feature → Event
         Subscriptions** → add/edit a subscription → paste the n8n webhook URL as the
         **Event notification endpoint URL**.
-     b. Click **Validate**. Zoom immediately POSTs a CRC challenge (`endpoint.url_validation`);
-        the pipeline answers it automatically (HMAC-SHA256 of Zoom's `plainToken` with your
-        webhook **Secret Token**). **Success signal:** Zoom shows a green **"Validated"** —
-        that is the handshake passing. (If it spins/errs, the endpoint URL is wrong, the
-        workflow is inactive, or the Secret Token in `.backbrief/secrets.env` ≠ the app.)
-     c. Ensure the subscription lists the **`recording.completed`** event, **Save**, and
-        make sure the subscription is **enabled**.
-     d. Send a test event: record a short test call ≥ `pipeline.knobs.min_duration_min`
+     c. Click **Validate**. Zoom POSTs the same CRC challenge the dry-run just passed.
+        **Success signal:** a green **"Validated"**.
+     d. Ensure the subscription lists the **`recording.completed`** event, has
+        **☑ Add download token** ticked (this is the one that costs a day when missed —
+        transcripts silently 401 while everything else looks healthy), **Save**, and make
+        sure the subscription is **enabled**.
+     e. Send a test event: record a short test call ≥ `pipeline.knobs.min_duration_min`
         (or use Zoom's "send test event" if the app shows it). **Success signal:** within
         ~1–2 min a new transcript file lands in `<team>/transcripts/` and
         `[SCRIPT: status.js]` reports "last call processed" — that proves the loop end to end.
-     ERROR (Validate fails): re-copy the webhook URL exactly / re-activate the workflow
-     (`[SCRIPT: deploy-pipeline.js]`) / re-check the Secret Token
-     (`[SCRIPT: test-creds.js zoom]`) — the same three-option error tone (§10).
+        This is the ONLY check that covers the Zoom-side settings no API exposes
+        (subscription enabled, event selected, download token) — say that plainly rather
+        than implying the green dry-run already proved them.
+     ERROR (Validate fails after a green `--crc`): the dry-run passed against the URL the
+     deploy printed, so the mismatch is in what was pasted — re-copy the webhook URL
+     exactly (no trailing space, no `/webhook-test/`), then re-run `--crc` and Validate
+     again. §10 tone: retry / manual / hands-on.
+     ERROR (test call arrives but the transcript is empty + a "no download token" alert
+     lands in the digest channel): **Add download token** is unticked — step d. Tick it,
+     Save; no redeploy, the next call carries it.
   7. Point the Slack app's interactivity URL (if Slack on) at the printed n8n
      webhook URL (manifest placeholder → real URL), then optionally
      `[SCRIPT: deploy-pipeline.js --selftest-interactivity]` (human clicks Skip).

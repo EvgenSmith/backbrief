@@ -489,6 +489,12 @@ return [{
     has_transcript          : !!transcript,
     transcript_download_url : transcript?.download_url || null,
     transcript_access_token : event.download_token || obj.download_token || '',
+    // Zoom only puts `download_token` in the event when the event subscription
+    // has "Add download token" checked. Unchecked ⇒ every .vtt/MP4 download 401s
+    // and, before this flag existed, the failure alert blamed the 24h URL expiry —
+    // the wrong cause on a first setup. Carried through so build-vtt-fail-dm.js
+    // can name the actual fix (one checkbox in the Zoom app).
+    download_token_present  : !!(event.download_token || obj.download_token),
     recording_files_count   : files.length,
     // V1.5: MP4 metadata for Drive uploader branch (Pick MP4 reads these)
     mp4_present             : !!mp4,
