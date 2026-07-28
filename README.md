@@ -12,6 +12,169 @@ Two things to know up front:
 
 The main artifact is not a summary. It is **team context**: what's happening, what was agreed, next steps and on whom — with (MM:SS) deep links back into the call.
 
+## What it actually produces
+
+Four files in your own repo, plus what lands in your team's chat. Every shape below is the real output shape — filled in on a fictional team.
+
+<details open>
+<summary><b>1. The vault</b> — created in step A0, before you've fed it anything</summary>
+
+```
+acme-vault/
+├── AGENTS.md              ← the rules your agents inherit (what may be written, where)
+├── README.md
+├── tenant.yaml            ← your config: teams, roster, channels, feature flags
+├── .gitignore             ← keeps .backbrief/secrets.env out of git from the first commit
+├── docs/
+│   ├── company.md         ← what your company does — injected into every future digest
+│   ├── conventions.md     ← the writing contract: naming, frontmatter, vocabulary
+│   ├── skills/summarizer.md
+│   └── templates/         ← digest · transcript · tasks · team-profile · task-4block
+├── team/                  ← one file per person (step A2)
+├── product/
+│   ├── README.md
+│   └── transcripts/       ← one .md per call, + optional .vtt sibling
+├── engineering/transcripts/
+├── growth/transcripts/
+├── general/transcripts/   ← the mixed route: calls that belong to no single team
+├── tasks/                 ← one .tasks.md per call — the audit trail
+└── .backbrief/
+    ├── roadmap.md         ← every step you skipped, what it costs, how to resume
+    └── training/          ← your Approve/Skip decisions, local, yours
+```
+
+Team folders are created as they emerge — a solo vault gets `general/` only. No database, no lock-in: it's markdown in a git repo you own.
+</details>
+
+<details>
+<summary><b>2. A filed call</b> — frontmatter an agent can query, body a human reads</summary>
+
+```yaml
+---
+type: transcript
+team: product
+topic: "Pricing model review"
+date: 2026-07-10
+duration_min: 47
+participants: [Ivanova, Petrov]        # canonical lastnames, not raw display names
+external_participants: [Smith]
+recording_url: "https://example.zoom.us/rec/share/EXAMPLE"
+action_items:                          # agent-readable mirror of the body
+  - title: "Rewrite pricing page copy for the self-serve tier"
+    owner: Ivanova
+    status: post-call
+    priority: high
+    ts: "14:32"                        # anchor back into the recording
+    tracker_ref: GRW-214               # filled in once the issue exists
+---
+```
+
+```markdown
+## Summary
+
+### Self-serve tier pricing (12:04)
+- Current $49 floor blocks the SMB segment; **$19 entry** proposed, **60-day** trial
+- Petrov: migration for **existing annual plans** is the open risk
+
+## Decisions
+1. Ship the $19 self-serve tier before the Q3 campaign — the campaign
+   creative already assumes it (16:40)
+
+## Agreements
+1. Ivanova ↔ Petrov: pricing page copy freezes Friday so eng can cut the
+   release branch Monday (22:15)
+
+## Next steps
+### 📋 Post-call
+1. Rewrite pricing page copy for the self-serve tier — **Ivanova** _[high]_ (14:32)
+   > "we need to rewrite pricing for self-serve by Friday"
+
+### 👀 Monitoring
+1. Annual-plan migration path, until the release branch cuts — **Petrov** (22:40)
+```
+
+**Decisions ≠ Agreements ≠ Next steps.** Agreements — who owes what to whom — are what teams lose most often, and they never become tickets. Every anchor is real or absent; one fabricated timestamp kills the deep-link promise.
+</details>
+
+<details>
+<summary><b>3. The task pass</b> — checked against your live backlog <i>before</i> anything is created</summary>
+
+**4 tasks → `tasks/2026-07-10 1300 pricing model review w Ivanova,Petrov.tasks.md`**
+
+| # | task | owner | prio | verdict |
+|---|---|---|---|---|
+| 1 | Rewrite pricing page copy for the self-serve tier | Ivanova | high | ✏️ **CREATE** → GRW-214 |
+| 2 | Pricing revamp — call adds a Friday deadline + owner | Ivanova | — | 💬 **COMMENT** on GRW-180 |
+| 3 | Update the billing FAQ | ? | med | ⚠️ **FLAG** — 60% like GRW-102, owner unresolved |
+| 4 | Ask legal about the annual-plan wording | Petrov | med | ✏️ **CREATE** (file-only) |
+
+Row 2 is the point: the call restated an issue that already existed, so it gets a comment, not a duplicate. Row 3 is unsure and says so instead of guessing. In v0.1 nothing reaches your tracker without your approval — and every decision, including the ones you skip, is logged to `.backbrief/training/` on your own disk, as this team's private signal for raising autonomy in a later release.
+
+Without a tracker connected the same file *is* the deliverable: each accepted task carries a copy-paste-ready block.
+</details>
+
+<details>
+<summary><b>4. A person</b> — why "Masha", "М. Иванова" and "@maria" stop being three people</summary>
+
+```yaml
+---
+type: member
+lastname: Ivanova
+first_names: [Maria]
+aliases: [Masha, Маша, Маше, Маши, "Maria I.", "@maria"]   # every form heard on calls
+role: "Growth Lead"
+team: growth
+zones: [onboarding-emails, paid-acquisition, landing-pages]
+typical_partners: [Petrov, Sidorova]
+languages: [en, ru]
+status: draft            # → confirmed once she reviews her own file
+---
+```
+
+Built from Slack / your tracker / docs you upload — or five questions if you'd rather connect nothing. Responsibility zones come with the call quote that evidenced them; anything inferred is marked as inferred. No compensation, performance, or HR data — ever.
+
+</details>
+
+<details>
+<summary><b>5. What the team sees</b> — the two-phase Slack thread (pipeline only)</summary>
+
+Zoom finishes the recording immediately but takes 15–60 min to produce the transcript. Waiting for both would mean nothing appears for an hour, so delivery is split — and the split is a state machine, not a retry loop: the same call arriving twice never posts twice.
+
+**~1 minute after the call — root post:**
+
+```
+Title: [Pricing model review]
+Duration: [47 min]
+Started at [Jul 10, 13:00 GMT-4]
+Organizer: [maria@acme.dev]
+Recording: https://example.zoom.us/rec/share/EXAMPLE
+```
+
+**When the transcript lands — reply in that same thread:**
+
+```
+> Participants: Maria Ivanova, Ivan Petrov
+
+💬 Summary
+   Self-serve tier pricing (12:04) — $49 floor blocks SMB; $19 entry proposed…
+   Migration risk (22:15) — existing annual plans need a path before launch
+
+✅ Decisions (1)
+   Ship the $19 self-serve tier before the Q3 campaign (16:40)
+
+👀 Monitoring (1) — ongoing observation
+   Annual-plan migration path, until the release branch cuts — Petrov (22:40)
+
+📁 Vault: 2026-07-10 1300 pricing model review w Ivanova,Petrov.md
+_via Backbrief_
+```
+
+Every post comes from your own **@Backbrief** bot in your own workspace and carries the `via Backbrief` footer. Task proposals arrive as a separate message with Approve / Skip buttons — those clicks are what write to your tracker.
+
+Skip Slack entirely and everything still files to the vault; the digest simply lives in git instead of a channel.
+
+</details>
+
 ## Quickstart (3 lines — pick one)
 
 ```bash
