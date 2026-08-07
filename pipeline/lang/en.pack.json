@@ -192,6 +192,7 @@
     "tasks.assigned_to_suffix": " · assigned to {mention}",
     "tasks.unassigned_suffix": " · ⚠️ unassigned — team lead, please assign",
     "tasks.comment_added": "💬 Comment added to <{url}|{identifier}>",
+    "tasks.comment_footer": "🤖 _via Backbrief — automated comment from the call_",
     "tasks.updated_confirm": "🔄 Updated <{url}|{identifier}>: {state}",
     "tasks.tracker_forbidden_member": "⚠️ Tracker refused: `{assignee}` is not a member of the target team. \nOptions: (a) add `{assignee}` to that team in the tracker → retry; (b) tell me to create the task in a team where `{assignee}` is a member; (c) create it manually with the right team.",
     "tasks.tracker_failed": "❌ Tracker {mutation} failed ({code}): {message}",

@@ -36,9 +36,14 @@ production pipeline turned up three real ones:
   Per-channel and per-set caps now apply, and every clip is recorded in
   `truncated[]` so a clipped prompt is not mistaken for a small one.
 
-### Added — telling "empty" apart from "broken"
-
-- `__vault_context_meta` now carries `context_empty` (the one field worth alerting
+### Added
+- Bot attribution footer on tracker comments (`tasks.comment_footer` ui_string,
+  EN+RU packs). Personal API keys post comments under the key owner's name, so
+  auto-comments read as hand-written; the executor now appends a deterministic
+  «via Backbrief» footer (fallback body included; degrades to no footer when a
+  stale tenant render lacks the key).
+- Telling "empty" apart from "broken" in the context loader:
+  `__vault_context_meta` now carries `context_empty` (the one field worth alerting
   on), `channels[]` with per-channel status, and `prior_unparsed` — documents that
   downloaded but did not parse, which no empty vault can ever explain.
 - `pipeline/tests/vault-context.test.js` — the loader executed for real against a

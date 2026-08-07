@@ -303,6 +303,7 @@ const S = {
   'tasks.cannot_create_no_team': 'Cannot create a new task: the router could not resolve a team for «{title}». Possible causes: assignee_hint=\'{owner}\' is not a member of any known team, or the matcher produced no alt payload. Create the task manually or tell me the team explicitly.',
   'tasks.cannot_create_no_team_short': '⚠️ Cannot create «{title}» — no team for assignee_hint=\'{owner}\'.',
   'tasks.comment_added': '💬 Comment added to <{url}|{identifier}>',
+  'tasks.comment_footer': '🤖 _via Backbrief — automated comment from the call_',
   'tasks.created_confirm': '✅ Created <{url}|{identifier}>: «{title}»{assignee_suffix}',
   'tasks.discriminator_line': ':warning: discriminator ({confidence}): {concerns}',
   'tasks.fallback_text': 'Backbrief · tasks — {count} proposals ({counts})',

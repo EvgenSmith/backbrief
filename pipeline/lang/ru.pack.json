@@ -261,6 +261,7 @@
     "tasks.assigned_to_suffix": " · назначена на {mention}",
     "tasks.unassigned_suffix": " · ⚠️ без исполнителя — team lead, назначьте",
     "tasks.comment_added": "💬 Комментарий добавлен в <{url}|{identifier}>",
+    "tasks.comment_footer": "🤖 _via Backbrief — автокомментарий со звонка_",
     "tasks.updated_confirm": "🔄 Обновлено <{url}|{identifier}>: {state}",
     "tasks.tracker_forbidden_member": "⚠️ Трекер отказал: `{assignee}` не член нужной team. \nВарианты: (а) добавь `{assignee}` в эту team в трекере → ретрай; (б) скажи мне создать задачу вручную в team где `{assignee}` состоит; (в) создай вручную в трекере с правильной team.",
     "tasks.tracker_failed": "❌ Tracker {mutation} failed ({code}): {message}",

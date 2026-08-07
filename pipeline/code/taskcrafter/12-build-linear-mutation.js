@@ -202,6 +202,7 @@ const S = {
   'tasks.cannot_create_no_team': 'Cannot create a new task: the router could not resolve a team for «{title}». Possible causes: assignee_hint=\'{owner}\' is not a member of any known team, or the matcher produced no alt payload. Create the task manually or tell me the team explicitly.',
   'tasks.cannot_create_no_team_short': '⚠️ Cannot create «{title}» — no team for assignee_hint=\'{owner}\'.',
   'tasks.comment_added': '💬 Comment added to <{url}|{identifier}>',
+  'tasks.comment_footer': '🤖 _via Backbrief — automated comment from the call_',
   'tasks.created_confirm': '✅ Created <{url}|{identifier}>: «{title}»{assignee_suffix}',
   'tasks.discriminator_line': ':warning: discriminator ({confidence}): {concerns}',
   'tasks.fallback_text': 'Backbrief · tasks — {count} proposals ({counts})',
@@ -323,7 +324,13 @@ for (const it of items) {
       issueId: pl.target_issue_id,
       // defuseSink: same output-side guard as create — the comment body is
       // transcript-derived (Composer) and must not carry broadcast/control tokens.
-      body: defuseSink(pl.comment_markdown || `_(no comment composed) — ref: call ${j.call_uuid?.slice(0, 12)}_`),
+      // Bot attribution footer (tasks.comment_footer): tracker personal API keys
+      // post under the key owner's name, so auto-comments read as hand-written.
+      // Appended here — not in the Composer prompt — so it's deterministic and
+      // covers the fallback body too. Guarded: a stale tenant render without the
+      // key degrades to no footer, not the literal "undefined".
+      body: defuseSink(pl.comment_markdown || `_(no comment composed) — ref: call ${j.call_uuid?.slice(0, 12)}_`)
+        + (S['tasks.comment_footer'] ? '\n\n---\n' + S['tasks.comment_footer'] : ''),
     };
     out.push({
       json: {
