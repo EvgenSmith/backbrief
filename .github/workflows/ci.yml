@@ -56,6 +56,14 @@ jobs:
         run: node pipeline/tests/smoke.test.js
       - name: E2E offline (T1 — full Code-node graph, mocked HTTP boundaries)
         run: node pipeline/tests/e2e.test.js
+      # The vault context loader is best-effort by design: every fetch failure
+      # degrades to null and is skipped, so a dead channel and an empty vault
+      # look identical from outside. e2e STUBS this node out (its fetches are
+      # live) — which is exactly how a sibling pipeline kept a green suite while
+      # three of three context channels were down. This suite executes the real
+      # node against a mocked GitHub/Zoom/Linear and asserts on prompt content.
+      - name: Vault context loader (T4 — real node, mocked transport)
+        run: node pipeline/tests/vault-context.test.js
 
   sanitize:
     name: sanitize scan (generic secret/id shapes) + secret scan

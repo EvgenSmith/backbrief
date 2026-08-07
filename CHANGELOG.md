@@ -11,6 +11,41 @@ it (CI-enforced).
 
 ## [Unreleased]
 
+### Fixed — vault context loader: three defects that were invisible by construction
+
+The loader is best-effort by design — every fetch failure degrades to null and is
+skipped — so "this vault has no context" and "this loader is broken" looked
+identical from outside. An audit against a defect class found in a sibling
+production pipeline turned up three real ones:
+
+- **Prior summaries never reached the prompt.** The extractor anchored on
+  `## Summary`, but the pipeline writes `## Summary (Quick brief)`
+  (`build-commit-payload-v2.js`). Files downloaded fine and parsed to null, so the
+  channel was dead for every pipeline-filed call while still working for
+  manually-filed ones. Section slicing is now index arithmetic rather than a
+  regex — the obvious regex fix reads as correct and is not (under `/m` the `$`
+  alternative matches end-of-line, silently truncating the summary to one line).
+- **The enriched roster had two consumers reading different things.** The Zoom
+  roster fetch exists because the webhook carries only the host; team profiles
+  used the enriched roster while tracker context still read the raw seed, so open
+  issues were fetched for one person on a call of eight. The enriched roster is
+  also exported now (`participants_lastnames_enriched`) — under its own key, not
+  overwriting the seed that upstream routing already ran on.
+- **Injection was unbounded and scaled with the input.** One profile per
+  participant, injected whole, capped nowhere; measured at 130 KB in one prompt.
+  Per-channel and per-set caps now apply, and every clip is recorded in
+  `truncated[]` so a clipped prompt is not mistaken for a small one.
+
+### Added — telling "empty" apart from "broken"
+
+- `__vault_context_meta` now carries `context_empty` (the one field worth alerting
+  on), `channels[]` with per-channel status, and `prior_unparsed` — documents that
+  downloaded but did not parse, which no empty vault can ever explain.
+- `pipeline/tests/vault-context.test.js` — the loader executed for real against a
+  mocked GitHub/Zoom/Linear, asserting on prompt content. The e2e suite stubs this
+  node out because its fetches are live; that gap is how the sibling pipeline kept
+  a green suite while three channels were down.
+
 ### Fixed — Zoom setup friction (the two clicks that fail silently)
 - **"Add download token" is now a named, explained step**, not a line lost in a
   checklist. Unticked, Zoom sends no download token: every `.vtt` fetch 401s while the

@@ -440,6 +440,29 @@ function hasCyrillic(s) {
   return /[Ѐ-ӿ]/.test(String(s));
 }
 
+// ── Injection budget ──────────────────────────────────────────────────────
+// Every document below is injected into the system prompt VERBATIM, and the
+// number of documents scales with the input (one profile per participant).
+// Without caps the per-call cost is set by whatever size a team lets its vault
+// files grow to — and it grows silently, because nothing in the call path
+// measures it. Each cap records a line in `truncated[]` so a clipped prompt is
+// never mistaken for a small one.
+// (Deliberately plain constants, not tenant knobs: a budget the tenant can
+// raise is a budget that stops being a guarantee. Revisit if teams ask.)
+const SUMMARIZER_SKILL_CAP   = 8000;
+const PROFILE_CAP_EACH       = 6000;
+const PROFILES_CAP_TOTAL     = 24000;
+const PRIOR_SUMMARY_CAP_EACH = 3000;
+const PRIOR_SUMMARIES_TOTAL  = 12000;
+const VAULT_CONTEXT_CAP      = 60000;  // final backstop over everything
+const truncated = [];                  // human-readable record of what was clipped
+
+function capText(text, cap, label) {
+  if (typeof text !== 'string' || text.length <= cap) return text;
+  truncated.push(`${label}: ${text.length}→${cap} chars`);
+  return text.slice(0, cap) + `\n\n[…truncated at the ${label} injection cap]`;
+}
+
 // 0. Company profile (vault.company_profile_path, default docs/company.md) —
 //    injected FIRST: what the company does, product names and vocabulary
 //    disambiguate topics/entities in every downstream section. HARD size cap:
@@ -448,13 +471,12 @@ function hasCyrillic(s) {
 const COMPANY_PROFILE_CAP = 4000;
 let companyProfile = await ghGet(COMPANY_PROFILE_PATH);
 if (typeof companyProfile !== 'string') companyProfile = null;
-if (companyProfile && companyProfile.length > COMPANY_PROFILE_CAP) {
-  companyProfile = companyProfile.slice(0, COMPANY_PROFILE_CAP)
-    + '\n\n[…company profile truncated at the injection cap — keep the file under ~60 lines]';
-}
+companyProfile = capText(companyProfile, COMPANY_PROFILE_CAP, 'company profile');
 
 // 1. Base summarizer skill (vault.summarizer_skill_path)
-const summarizerSkill = await ghGet(SUMMARIZER_SKILL_PATH);
+let summarizerSkill = await ghGet(SUMMARIZER_SKILL_PATH);
+if (typeof summarizerSkill !== 'string') summarizerSkill = null;
+summarizerSkill = capText(summarizerSkill, SUMMARIZER_SKILL_CAP, 'summarizer skill');
 
 // ─────────────────────────────────────────────────────────────────────────
 // 1.5 — Full participant roster via Zoom Server-to-Server OAuth. (V1.8, 2026-07-09)
@@ -629,13 +651,54 @@ const profilePromises = rosterLastnames
     return content ? { lastname, content } : null;
   });
 const profilesRaw = await Promise.all(profilePromises);
-const profiles = profilesRaw.filter(Boolean);
+// Budget: one profile per participant means the worst case is set by the roster
+// size, which §1.5 above deliberately made bigger. Cap each, then the set.
+let profileBudget = PROFILES_CAP_TOTAL;
+const profiles = [];
+for (const p of profilesRaw.filter(Boolean)) {
+  const content = capText(p.content, PROFILE_CAP_EACH, `profile ${p.lastname}`);
+  if (content.length > profileBudget) {
+    truncated.push(`profiles: kept ${profiles.length} of ${profilesRaw.filter(Boolean).length} (set cap)`);
+    break;
+  }
+  profileBudget -= content.length;
+  profiles.push({ lastname: p.lastname, content });
+}
 
 // 3. Prior summaries — heuristic team folder from topic regex (team_tag
 //    unknown until the LLM responds, so we guess; a wrong guess still yields
 //    relevant context from a related folder). The table is GENERATED from
 //    vault.teams keywords/descriptions (TENANT_ROUTING region); fallback =
 //    the mixed folder.
+// Pull the Summary section out of a filed digest: from its heading line down to
+// the next top-level '## ' heading (or end of file).
+//
+// The heading is written by ANOTHER component and the two have already drifted
+// apart once: the pipeline emits `## Summary (Quick brief)`
+// (build-commit-payload-v2.js) while the manual/plugin path emits plain
+// `## Summary` (templates/frontmatter/digest.md). The previous anchor
+// `/##\s+Summary\s*\n+/` required a newline immediately after "Summary", so it
+// returned null on every pipeline-written file — a successful download that
+// contributed nothing to the prompt, invisibly.
+//
+// Written as index arithmetic on purpose. The obvious regex fix
+// (`/^##[ \t]+Summary\b[^\n]*\n+([\s\S]*?)(?=\n##[ \t]+|$)/m`) is WRONG in a way
+// that reads as correct: under /m the `$` alternative matches end-of-LINE, so
+// the lazy group stops after the first line and quietly returns a one-line
+// summary. Section slicing is not worth a clever pattern.
+function extractSummarySection(body) {
+  const lines = String(body).split('\n');
+  const isH2 = (l) => /^##[ \t]+\S/.test(l);
+  const start = lines.findIndex(l => isH2(l) && /^##[ \t]+Summary\b/.test(l));
+  if (start === -1) return null;
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (isH2(lines[i])) { end = i; break; }
+  }
+  const text = lines.slice(start + 1, end).join('\n').trim();
+  return text || null;
+}
+
 function guessFolder(topic) {
   const t = String(topic || '').toLowerCase();
   for (const g of GUESS_FOLDER_TABLE) {
@@ -647,6 +710,7 @@ function guessFolder(topic) {
 const priorFolder = guessFolder(item.topic);
 const folderListing = await ghGet(priorFolder.replace(/\/$/, ''));
 let priorSummaries = [];
+let prior_unparsed = 0;   // downloaded but the Summary anchor did not match — the drift signal
 if (Array.isArray(folderListing)) {
   // Sort by filename descending (filename has YYYY-MM-DD HHMM, lexicographic = chronological)
   // Kit naming rule: date-first basenames sort chronologically (docs/conventions.md).
@@ -656,13 +720,29 @@ if (Array.isArray(folderListing)) {
     .slice(0, 5);
   const summaryPromises = transcripts.map(async (f) => {
     const body = await ghGet(`${priorFolder}${f.name}`);
-    if (!body) return null;
-    // Extract `## Summary` section only (between '## Summary' and next '## ')
-    const m = body.match(/##\s+Summary\s*\n+([\s\S]*?)(?=\n##\s+|$)/);
-    return m ? { filename: f.name, summary: m[1].trim() } : null;
+    if (!body) return { filename: f.name, summary: null, unparsed: true };
+    const summary = extractSummarySection(body);
+    if (!summary) return { filename: f.name, summary: null, unparsed: true };
+    return { filename: f.name, summary };
   });
   const results = await Promise.all(summaryPromises);
-  priorSummaries = results.filter(Boolean);
+  const parsed = results.filter(Boolean);
+  prior_unparsed = parsed.filter(r => r.unparsed).length;
+  priorSummaries = parsed.filter(r => r.summary);
+
+  // Budget: cap each summary, then the set.
+  let priorBudget = PRIOR_SUMMARIES_TOTAL;
+  const keptPrior = [];
+  for (const p of priorSummaries) {
+    const s = capText(p.summary, PRIOR_SUMMARY_CAP_EACH, `prior summary ${p.filename}`);
+    if (s.length > priorBudget) {
+      truncated.push(`prior summaries: dropped ${priorSummaries.length - keptPrior.length} of ${priorSummaries.length} (set cap)`);
+      break;
+    }
+    priorBudget -= s.length;
+    keptPrior.push({ filename: p.filename, summary: s });
+  }
+  priorSummaries = keptPrior;
 }
 
 // 4. Linear context — V1.2.5 active. Fetch user IDs by lastname → query open
@@ -710,8 +790,13 @@ let linearContext = null;
 let linear_context_status = 'no-token';
 if (LINEAR_TOKEN && !LINEAR_TOKEN.startsWith('__LINEAR')) {
   linear_context_status = 'attempted';
+  // rosterLastnames, NOT the raw `participants` seed. §1.5 exists precisely
+  // because the webhook carries at most the host; reading the seed here meant
+  // the profile channel saw the whole call while the tracker channel saw one
+  // person — the same enrichment consumed inconsistently by two consumers in
+  // the same node.
   const userIdsRaw = await Promise.all(
-    participants
+    rosterLastnames
       .filter(p => typeof p === 'string' && p && !p.includes('?'))
       .map(p => resolveUserId(p))
   );
@@ -795,7 +880,34 @@ if (linearContext) {
   sections.push(`## Vault context — Linear\n\nstatus: ${linear_context_status}`);
 }
 
-const vault_context_system_prompt = sections.join('\n\n');
+let vault_context_system_prompt = sections.join('\n\n');
+vault_context_system_prompt = capText(vault_context_system_prompt, VAULT_CONTEXT_CAP, 'vault context total');
+
+// ── Channel health ────────────────────────────────────────────────────────
+// The whole node is best-effort: every failure degrades to null and is skipped.
+// That makes "this vault has no context yet" and "this loader is broken" look
+// identical downstream — which is how a sibling pipeline ran for weeks with
+// three dead channels. So state per-channel health explicitly, and raise one
+// boolean when EVERY channel came back empty: that is the shape a dead loader
+// has, and it is the only thing worth alerting on.
+const channels = [
+  { name: 'company_profile', ok: !!companyProfile, detail: COMPANY_PROFILE_PATH },
+  { name: 'summarizer_skill', ok: !!summarizerSkill, detail: SUMMARIZER_SKILL_PATH },
+  { name: 'profiles', ok: profiles.length > 0, detail: `${profiles.length}/${rosterLastnames.length} of ${PROFILES_FOLDER}/` },
+  { name: 'prior_summaries', ok: priorSummaries.length > 0, detail: `${priorSummaries.length} parsed, ${prior_unparsed} unparsed in ${priorFolder}` },
+  { name: 'tracker', ok: !!linearContext, detail: linear_context_status },
+];
+const context_empty = channels.every(c => !c.ok);
+if (context_empty) {
+  console.log('[stub-C] ALL context channels returned empty — vault genuinely bare, or the loader is broken. '
+    + `repo=${REPO_OWNER}/${REPO_NAME}@${BRANCH} github_calls=${cache_misses}`);
+}
+// Downloaded-but-unparsed is the signature of format drift: the fetch worked,
+// the anchor did not. It can never be explained by an empty vault.
+if (prior_unparsed > 0) {
+  console.log(`[stub-C] ${prior_unparsed} prior digest(s) downloaded but the Summary anchor did not match `
+    + `in ${priorFolder} — the digest format and this extractor have drifted apart.`);
+}
 
 // V1.4 — surface prior call filenames so build-commit-payload-v2.js can put them
 // in the new file's frontmatter as `references_prior_calls`. Lets future agents
@@ -807,8 +919,18 @@ return [{ json: {
   ...item,
   vault_context_system_prompt,
   references_prior_calls,
+  // The Zoom-augmented roster, exported under its OWN key. Deliberately not
+  // written over `participants_lastnames`: routing and the frontmatter ran on
+  // the original seed upstream, and silently swapping it here would re-open
+  // decisions this node is not allowed to touch. Downstream consumers that
+  // want the full attendance opt in by name.
+  participants_lastnames_enriched: rosterLastnames,
   __stub_c_vault_context: 'loaded',
   __vault_context_meta: {
+    context_empty,                              // the one field worth alerting on
+    channels,                                   // per-channel ok + detail
+    truncated,                                  // what the budget clipped, if anything
+    prior_unparsed,                             // format-drift signal (fetched, not parsed)
     company_loaded      : !!companyProfile,
     summarizer_loaded   : !!summarizerSkill,
     profiles_loaded     : profiles.length,
