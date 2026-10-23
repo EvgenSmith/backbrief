@@ -283,6 +283,7 @@ The plugin is the convenient wrapper, not the value. Every piece below stands al
 plugin/      Claude Code plugin: skills, agent-agnostic procedures, templates, zero-dep scripts (MIT)
 pipeline/    generalized n8n automation — workflows, code nodes, fixtures (BSL 1.1)
 gateway/     telemetry gateway source, published for transparency (MIT)
+site/        product landing page: static, zero-dependency, Cloudflare Pages (MIT)
 docs/        setup checklists (Zoom, Slack, GitHub, Linear, n8n hosting), privacy, FAQ (MIT)
 AGENTS.md    entrypoint for Codex and other AGENTS.md-convention agents (designed, not yet field-tested)
 ```

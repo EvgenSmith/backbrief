@@ -158,3 +158,18 @@ jobs:
             if (errs.length) { console.error(errs.join("\n")); process.exit(1); }
             console.log(`procedure-sync OK: ${skills.length} skill wrapper(s) checked`);
           '
+
+  site:
+    name: landing page builds and passes its lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # Default mode: structure, links, same-origin assets and wording are
+      # enforced; TODO placeholders only warn. Going live runs --release.
+      - name: Build and check site/
+        run: |
+          node site/scripts/build.js
+          node site/scripts/check.js

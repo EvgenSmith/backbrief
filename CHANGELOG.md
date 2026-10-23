@@ -11,6 +11,19 @@ it (CI-enforced).
 
 ## [Unreleased]
 
+### Added — product landing page (`site/`)
+- A static, zero-dependency website for the hosted beta: landing page, privacy
+  policy, terms of use and a beta-access form. Everything that varies per
+  deployment (domain, legal entity, team, stats) lives in `site.config.json`.
+- The form posts to a same-origin Cloudflare Pages Function that forwards only
+  the typed email to the gateway's existing `POST /v1/waitlist`
+  (`interest: "hosted"`), so emails are still stored in exactly one place and
+  the gateway needs no CORS.
+- `site/scripts/check.js` lints the build against what startup-program
+  reviewers verify. `--release` refuses placeholders, unreviewed legal text, a
+  contact email off the site's domain, and any wording that ties the product to
+  crypto. A new CI job builds and checks the site.
+
 ### Fixed — vault context loader: three defects that were invisible by construction
 
 The loader is best-effort by design — every fetch failure degrades to null and is

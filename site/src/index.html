@@ -1,0 +1,304 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+<head>
+<!-- @include head -->
+</head>
+<body>
+<!-- @include header -->
+<main id="main">
+
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Call intelligence for distributed teams</p>
+        <h1>A company's context is born on calls. <span class="accent">And it dies there.</span></h1>
+        <p class="lede">{{ product }} turns every recorded team call into three things: tasks in your tracker, checked against the live backlog so nothing is filed twice; a Slack digest of what was decided and who owns what, down to the minute; and a markdown file in your company's own git repository that your AI agents can read.</p>
+        <div class="cta-row">
+          <a class="btn" href="#beta">Request beta access</a>
+          <a class="btn btn-ghost" href="{{ links.github }}">Self-host from GitHub</a>
+        </div>
+        <ul class="proof" aria-label="In production">
+          <li><strong>{{ stats.calls_processed }}</strong> calls processed</li>
+          <li><strong>{{ stats.task_proposals_logged }}</strong> task proposals logged</li>
+          <li>in production since <strong>{{ stats.in_production_since }}</strong></li>
+        </ul>
+      </div>
+      <figure class="flow" aria-label="How a call flows through Backbrief">
+        <div class="flow-old">
+          <span>Call</span><span aria-hidden="true">&rarr;</span><span>Summary</span><span aria-hidden="true">&rarr;</span><span>Vendor cloud</span>
+          <small>locked &middot; not yours &middot; invisible to your AI</small>
+        </div>
+        <div class="flow-new">
+          <div class="node">Call<small>Zoom cloud recording</small></div>
+          <div class="node node-main">{{ product }}<small>transcript &rarr; context &rarr; Claude</small></div>
+          <div class="node">Your vault<small>markdown in your git repo</small></div>
+          <div class="fan">
+            <div class="leaf">Tasks, deduplicated<small>Linear</small></div>
+            <div class="leaf">Digest + timestamps<small>Slack</small></div>
+            <div class="leaf leaf-strong">Your agents read it</div>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <section id="problem" class="band">
+    <div class="wrap">
+      <h2>Why a meeting notetaker isn't enough</h2>
+      <div class="cols-3">
+        <div>
+          <h3>It summarizes blind</h3>
+          <p>The model doesn't know who is on the call, what those people are working on right now, or what the team agreed a month ago. So "Speaker 2 will handle it" is the best it can do.</p>
+        </div>
+        <div>
+          <h3>Action items die on the way to the tracker</h3>
+          <p>Someone has to retype them, check whether the issue already exists, and find the owner. Usually nobody does, and the task quietly disappears.</p>
+        </div>
+        <div>
+          <h3>The corpus isn't yours</h3>
+          <p>Months of what your team said live in a vendor's cloud, on their terms. Your own agents can't read it, and you can't take it with you.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="section-lede">No bot joins your calls. {{ product }} works from the recording your meeting platform already makes.</p>
+      <ol class="steps">
+        <li>
+          <h3>Record</h3>
+          <p>Turn on Zoom cloud recording, as you may already do. When the recording completes, Zoom notifies {{ product }}, and a short post with the title, duration and recording link appears in your team channel within about a minute.</p>
+        </li>
+        <li>
+          <h3>Transcribe</h3>
+          <p>When the transcript is ready, usually 15 to 60 minutes later, the speech is cleaned up with your team's glossary, so product names and people's names come out spelled the way you spell them.</p>
+        </li>
+        <li>
+          <h3>Understand</h3>
+          <p>Claude reads the transcript together with your team's context: who is who and what they own, your company profile, and the most recent calls on the same topic. Decisions, agreements and next steps come out separately, each anchored to the minute it was said.</p>
+        </li>
+        <li>
+          <h3>Deliver</h3>
+          <p>The digest lands in the same Slack thread. Proposed tasks are first checked against your Linear backlog, then posted with Approve and Skip buttons. The call is committed to your vault as one markdown file.</p>
+        </li>
+      </ol>
+      <p class="note">Works today with Zoom, Slack, Linear, GitHub and Claude, orchestrated by your own n8n. Google Meet, Microsoft Teams, our own speech-to-text and more trackers are on the roadmap.</p>
+    </div>
+  </section>
+
+  <section id="product" class="band">
+    <div class="wrap">
+      <h2>What your team actually gets</h2>
+      <p class="section-lede">Real output shapes from the product, filled in for a fictional team.</p>
+      <div class="samples">
+
+        <figure class="sample">
+          <figcaption><span class="tag">Slack</span> In the team channel, right after the call</figcaption>
+          <div class="chat">
+            <div class="chat-msg">
+              <div class="chat-head"><span class="bot">{{ product }}</span> <span class="muted">13:48</span></div>
+              <pre>Title: Pricing model review
+Duration: 47 min
+Organizer: maria@acme.dev
+Recording: zoom.us/rec/share/…</pre>
+            </div>
+            <div class="chat-msg chat-reply">
+              <div class="chat-head"><span class="bot">{{ product }}</span> <span class="muted">in thread</span></div>
+              <p><strong>Summary</strong><br>Self-serve tier pricing <span class="ts">(12:04)</span>: the $49 floor blocks small teams; a $19 entry tier is proposed.</p>
+              <p><strong>Decisions (1)</strong><br>Ship the $19 self-serve tier before the Q3 campaign <span class="ts">(16:40)</span></p>
+              <p><strong>Monitoring (1)</strong><br>Annual-plan migration path, until the release branch is cut. Petrov <span class="ts">(22:40)</span></p>
+              <p class="muted small">Vault: 2026-07-10 1300 pricing model review w Ivanova,Petrov.md</p>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="sample">
+          <figcaption><span class="tag">Linear</span> Tasks, checked against your backlog before anything is created</figcaption>
+          <table class="tasks">
+            <thead><tr><th>Task</th><th>Owner</th><th>Verdict</th></tr></thead>
+            <tbody>
+              <tr><td>Rewrite pricing page copy for the self-serve tier</td><td>Ivanova</td><td><span class="v v-create">Create</span> <span class="id">GRW-214</span></td></tr>
+              <tr><td>Pricing revamp: the call adds a Friday deadline and an owner</td><td>Ivanova</td><td><span class="v v-comment">Comment</span> <span class="id">on GRW-180</span></td></tr>
+              <tr><td>Update the billing FAQ</td><td>?</td><td><span class="v v-flag">Flag</span> <span class="id">60% like</span> <span class="id">GRW-102</span></td></tr>
+              <tr><td>Ask legal about the annual-plan wording</td><td>Petrov</td><td><span class="v v-create">Create</span></td></tr>
+            </tbody>
+          </table>
+          <p class="sample-note">Row two is the point: the call restated an issue that already exists, so it becomes a comment, not a duplicate. Row three is unsure and says so instead of guessing.</p>
+        </figure>
+
+        <figure class="sample">
+          <figcaption><span class="tag">Git</span> A file in your vault, written for humans and agents</figcaption>
+          <pre class="code">## Decisions
+1. Ship the $19 self-serve tier before the Q3
+   campaign: the creative already assumes it (16:40)
+
+## Agreements
+1. Ivanova ↔ Petrov: pricing copy freezes Friday
+   so engineering can cut the release Monday (22:15)
+
+## Next steps
+### Post-call
+1. Rewrite pricing page copy — Ivanova [high] (14:32)
+   > "we need to rewrite pricing for self-serve by Friday"</pre>
+          <p class="sample-note">Decisions, agreements and next steps are kept apart. Agreements, who owes what to whom, are what teams lose most often, and they rarely become tickets.</p>
+        </figure>
+
+        <figure class="sample">
+          <figcaption><span class="tag">Team</span> People, not speaker labels</figcaption>
+          <pre class="code">lastname: Ivanova
+first_names: [Maria]
+aliases: [Masha, "Maria I.", "@maria"]
+role: Growth Lead
+team: growth
+zones: [onboarding-emails, paid-acquisition]
+typical_partners: [Petrov, Sidorova]</pre>
+          <p class="sample-note">One profile per teammate, built from your tools or a five-question form. That is why the digest says "Maria owns the launch page" instead of "Speaker 2 will handle it".</p>
+        </figure>
+
+      </div>
+<!-- @demo -->
+    </div>
+  </section>
+
+  <section id="different">
+    <div class="wrap">
+      <h2>What makes it different</h2>
+      <div class="cols-3 features">
+        <div>
+          <h3>Context, not summaries</h3>
+          <p>Every call is read together with team profiles and recent related calls, so digest number fifty is sharper than digest number one.</p>
+        </div>
+        <div>
+          <h3>Deduplicated against the live backlog</h3>
+          <p>Before a task is proposed, it is matched against open issues. A restated task becomes a comment on the existing issue; an unsure match is flagged for a human.</p>
+        </div>
+        <div>
+          <h3>Every timestamp is real</h3>
+          <p>Each decision, agreement and task links back to the minute it was said. If the timing isn't known, there is no timestamp at all, never a made-up one.</p>
+        </div>
+        <div>
+          <h3>Your data lives in your repo</h3>
+          <p>The vault is plain markdown in a git repository you own: history, diffs, backup and access control included. Delete {{ product }} tomorrow and everything it wrote stays.</p>
+        </div>
+        <div>
+          <h3>A human approves every task</h3>
+          <p>Nothing reaches your tracker without a click. Every Approve and Skip is logged as your team's own training signal, so autonomy can be earned later rather than assumed.</p>
+        </div>
+        <div>
+          <h3>Open at the core</h3>
+          <p>The plugin, templates and pipeline are on GitHub. The full functional spec fits in one file you can hand to any engineer, or any AI, to rebuild it on another stack.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="plans" class="band">
+    <div class="wrap">
+      <h2>Plans</h2>
+      <div class="plans">
+        <div class="plan">
+          <h3>Self-hosted</h3>
+          <p class="price">Free <span class="muted small">open source (MIT)</span></p>
+          <ul>
+            <li>Claude Code plugin and n8n pipeline</li>
+            <li>Runs on your infrastructure, with your API keys</li>
+            <li>Manual mode in about 15 minutes, automatic pipeline in about an hour</li>
+          </ul>
+          <a class="btn btn-ghost" href="{{ links.github }}">Get it on GitHub</a>
+        </div>
+        <div class="plan plan-main">
+          <h3>Hosted</h3>
+          <p class="price">Private beta</p>
+          <ul>
+            <li>We run the pipeline; the vault stays in your own git repository</li>
+            <li>Set up together with you during onboarding</li>
+            <li>Subscription pricing announced at general availability</li>
+          </ul>
+          <a class="btn" href="#beta">Request access</a>
+        </div>
+        <div class="plan">
+          <h3>Teams</h3>
+          <p class="price">Talk to us</p>
+          <p>Need private handling of 1:1, board and legal calls, another tracker or meeting platform, or single sign-on? Tell us what you need. Requests from teams decide what we build next.</p>
+          <a class="btn btn-ghost" href="mailto:{{ contact_email }}">Contact us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="security">
+    <div class="wrap">
+      <h2>Privacy and security</h2>
+      <div class="cols-2">
+        <ul class="checks">
+          <li><strong>Self-hosted means zero {{ product }} servers.</strong> Call content flows only between systems you configure: your meeting platform, your n8n, your model provider key, your git repository, your Slack and your tracker.</li>
+          <li><strong>No bot joins your calls.</strong> {{ product }} processes recordings your platform already made. Recording consent stays with you.</li>
+        </ul>
+        <ul class="checks">
+          <li><strong>Telemetry is opt-in and counters only.</strong> The receiving API has no field that can hold text, and <a href="{{ links.telemetry }}">its source is public</a>.</li>
+          <li><strong>Hosted beta under a written agreement.</strong> We sign a data processing agreement listing sub-processors and retention before any call data is processed. See the <a href="/privacy">privacy policy</a>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="team" class="band">
+    <div class="wrap">
+      <h2>Team</h2>
+      <p class="section-lede">Built by people who run their own company on it.</p>
+<!-- @team -->
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap narrow">
+      <h2>Questions</h2>
+      <details>
+        <summary>Does {{ product }} record our calls?</summary>
+        <p>No. It works from recordings and transcripts your meeting platform already produces, today Zoom cloud recordings. You can also hand it transcripts exported from other tools.</p>
+      </details>
+      <details>
+        <summary>Which languages does it support?</summary>
+        <p>English and Russian are first-class. Digests and tasks are written in the language of the call; file names and metadata stay in English so the vault stays searchable.</p>
+      </details>
+      <details>
+        <summary>Do we need Slack and Linear?</summary>
+        <p>No. Each part can be switched off. Without a tracker, tasks become files in the vault; without Slack, digests live only in the vault.</p>
+      </details>
+      <details>
+        <summary>Where does our data live?</summary>
+        <p>In your own git repository and your own tracker. Self-hosted, nothing passes through us. In the hosted beta, we process calls only to produce those outputs, under a data processing agreement.</p>
+      </details>
+      <details>
+        <summary>What does the open-source version cost?</summary>
+        <p>Nothing. You pay for your own n8n hosting and your model provider's usage.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="beta" class="band band-strong">
+    <div class="wrap narrow">
+      <h2>Request access to the hosted beta</h2>
+      <p>We are onboarding a small number of teams and setting each one up together with them. Leave a work email and we will get in touch.</p>
+      <form class="beta-form" action="/api/waitlist" method="post" data-waitlist>
+        <label for="beta-email" class="sr-only">Work email</label>
+        <input id="beta-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com">
+        <div class="hp" aria-hidden="true">
+          <label for="beta-website">Leave this field empty</label>
+          <input id="beta-website" name="website" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <button class="btn" type="submit">Request access</button>
+        <p class="form-status" role="status" aria-live="polite" data-status></p>
+      </form>
+      <p class="small muted">We use your email only to contact you about the beta. No newsletter. <a href="/privacy">Privacy policy</a>.</p>
+    </div>
+  </section>
+
+</main>
+<!-- @include footer -->
+<script src="/assets/waitlist.js" defer></script>
+</body>
+</html>

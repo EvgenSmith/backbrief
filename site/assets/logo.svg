@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Backbrief">
+  <!-- SPDX-License-Identifier: MIT -->
+  <rect x="1" y="1" width="30" height="30" rx="8" fill="#2e6b4f"/>
+  <path d="M7 11.5c1.6-2 3.2-2 4.8 0s3.2 2 4.8 0" fill="none" stroke="#f6ead8" stroke-width="2" stroke-linecap="round"/>
+  <path d="M7 17h18M7 22h12" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="24" cy="11.5" r="2" fill="#e0a456"/>
+</svg>

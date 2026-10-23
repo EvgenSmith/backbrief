@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+<head>
+<!-- @include head -->
+</head>
+<body>
+<!-- @include header -->
+<main id="main" class="doc wrap narrow">
+  <h1>Privacy policy</h1>
+  <p class="muted">Last updated: {{ updated }}</p>
+
+  <h2>Who we are</h2>
+  <p>This website and the hosted {{ product }} beta are operated by {{ legal.entity_name }} ({{ legal.registration }}), registered office: {{ legal.address }}. Contact us about anything in this policy at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+
+  <h2>This website</h2>
+  <ul>
+    <li><strong>What we collect.</strong> If you request beta access, we store the email address you type in, so that we can contact you about the beta. Nothing else is collected through the form.</li>
+    <li><strong>No cookies, analytics or third-party scripts.</strong> The site loads no trackers and sets no cookies.</li>
+    <li><strong>Hosting logs.</strong> Our hosting provider processes technical request data, such as IP addresses, to deliver and protect the site.</li>
+    <li><strong>Legal basis and retention.</strong> We rely on your consent, given by submitting the form. We keep your email until the beta ends or until you ask us to delete it, whichever comes first.</li>
+  </ul>
+
+  <h2>The open-source, self-hosted product</h2>
+  <p>When you run {{ product }} yourself, your call recordings, transcripts, digests and tasks flow only between systems you configure: your meeting platform, your automation server, your model provider, your git repository, your chat and your tracker. We do not receive any of it.</p>
+  <p>The kit can send anonymous usage counters, such as "a setup step was completed", only if you opt in during setup. These events have no field that can carry text, names or file paths. <a href="{{ links.telemetry }}">What is sent, exactly</a>.</p>
+
+  <h2>The hosted beta</h2>
+  <p>In the hosted beta we process your call recordings and transcripts on your behalf, only to produce the outputs you asked for: digests, task proposals and vault files. For this processing you are the controller and we are the processor. Before any call data is processed, we sign a data processing agreement with you that lists our sub-processors (for example hosting, speech-to-text and language-model providers), where data is processed and how long it is kept. You remain responsible for obtaining any consent that recording your calls requires.</p>
+
+  <h2>Your rights</h2>
+  <p>You can ask us to access, correct, export or delete personal data we hold about you, or object to its processing, by writing to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>. You also have the right to complain to your data protection authority.</p>
+
+  <h2>Changes</h2>
+  <p>If we change this policy, we will update the date at the top of this page. Material changes affecting beta participants will be announced to them by email.</p>
+</main>
+<!-- @include footer -->
+</body>
+</html>

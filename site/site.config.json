@@ -1,0 +1,34 @@
+{
+  "product": "Backbrief",
+  "domain": "TODO: product domain (decision D2), e.g. getbackbrief.com",
+  "contact_email": "TODO: hello@<product domain>",
+  "legal": {
+    "entity_name": "TODO: legal entity name exactly as registered (decision D1)",
+    "registration": "TODO: company number and register, e.g. Company No. 12345678, registered in England and Wales",
+    "address": "TODO: registered office address exactly as on the certificate",
+    "governing_law": "TODO: governing law, e.g. England and Wales",
+    "reviewed": false
+  },
+  "links": {
+    "github": "https://github.com/EvgenSmith/backbrief",
+    "docs": "https://github.com/EvgenSmith/backbrief#readme",
+    "spec": "https://github.com/EvgenSmith/backbrief/blob/main/PRD.md",
+    "telemetry": "https://github.com/EvgenSmith/backbrief/blob/main/docs/telemetry.md",
+    "linkedin_company": "TODO: company LinkedIn page URL"
+  },
+  "stats": {
+    "as_of": "October 2026",
+    "in_production_since": "May 2026",
+    "calls_processed": "245",
+    "task_proposals_logged": "1,500+"
+  },
+  "demo_video_url": "",
+  "team": [
+    {
+      "name": "Eugene Netso",
+      "role": "Founder",
+      "linkedin": "https://www.linkedin.com/in/netso",
+      "bio": "Built Backbrief to stop losing his own team's decisions between calls, and has run every internal call through it since."
+    }
+  ]
+}

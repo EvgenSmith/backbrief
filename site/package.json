@@ -1,0 +1,16 @@
+{
+  "name": "backbrief-site",
+  "private": true,
+  "type": "module",
+  "description": "Backbrief product landing page — static, zero dependencies, deployable to Cloudflare Pages.",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "check": "node scripts/check.js",
+    "check:release": "node scripts/check.js --release",
+    "dev": "node scripts/build.js && node scripts/serve.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
