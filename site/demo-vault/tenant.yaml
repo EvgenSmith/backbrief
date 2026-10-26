@@ -1,0 +1,46 @@
+# =============================================================================
+# Acme — Backbrief tenant configuration
+# Born minimal at A0 (init-vault.js); completed at B1 (generate-tenant.js).
+# Schema: plugin/templates/tenant.schema.json (schema_version: 1)
+# Edit by conversation with your agent (it shows a diff before writing) or by
+# hand; validate with: node plugin/scripts/validate-tenant.js
+#
+# *** NO SECRETS EVER *** — tokens and API keys live in .backbrief/secrets.env
+# (gitignored), never here. The validator hard-fails on token-shaped values.
+# =============================================================================
+
+schema_version: 1
+
+tenant:
+  name: Acme
+  persona: company_lead       # whose calls the vault holds (A0 fork): solo | team_lead | company_lead
+  internal_domains: [acme.dev]
+  languages: [en, ru]
+  timezone: Europe/London
+
+vault:
+  repo: null                    # set at B4 (GitHub vault sync); local-only until then
+  branch: main
+  teams:
+    - tag: product
+      folder: product
+      description: ""            # one line for the classifier: what this team does
+    - tag: growth
+      folder: growth
+      description: ""            # one line for the classifier: what this team does
+    - tag: engineering
+      folder: engineering
+      description: ""            # one line for the classifier: what this team does
+  mixed_folder: general         # route when a call spans teams / team unresolved
+
+roster: []                      # filled at A2 (profiles) / B1 (generate-tenant.js)
+
+# Privacy routing (auto-routing 1:1/board/legal calls into private slices) is
+# deliberately NOT part of v0.1 — every call files into team folders. Need it?
+# Say so: waitlist interest "privacy".
+
+features:
+  raw_retention: none           # none = digest .md only | vtt = .vtt sibling committed
+  telemetry:
+    enabled: false       # OPT-IN, asked once at A0; false = zero outbound calls
+    endpoint: https://backbrief-telemetry.backbrief.workers.dev

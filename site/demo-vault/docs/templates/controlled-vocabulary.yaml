@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: MIT
+# =============================================================================
+# Backbrief controlled vocabulary — frontmatter spec v1.
+# Machine-readable input for validate-vault.js; the human-readable mirror
+# lives in the vault AGENTS.md.
+#
+# EXTENSION RULE (the whole point — kept verbatim from the prod-proven rule):
+# new values enter only by editing tenant.yaml and the vault AGENTS.md —
+# never ad-hoc in an individual file. Otherwise the vocabulary stops meaning
+# anything for search.
+#
+# `source: tenant` fields take tenant-defined values (tenant.yaml paths noted);
+# `values:` lists are the fixed v1 enums; `open: true` marks the only
+# freeform field (tags).
+#
+# This file is COPIED INTO EVERY VAULT at init (docs/templates/) together with
+# the frontmatter templates — the team's own agents inherit the full contract
+# even with no Backbrief plugin installed. WHY the enums are closed: search
+# over enums only works when the value set cannot drift — pipeline code,
+# templates, and telemetry must agree on the same values.
+# =============================================================================
+schema_version: 1
+
+transcript:
+  type:
+    values: [transcript]
+  team:
+    source: tenant                     # vault.teams[].tag + the mixed tag (vault.mixed_folder)
+    golden_path_defaults: [product, engineering, growth, general]
+  sub_tag:
+    source: tenant                     # vault.teams[].subteams[].tag
+    nullable: true
+  # (no sensitivity field — privacy routing is deliberately not part of v0.1;
+  #  every call files into team folders. Waitlist interest: privacy.)
+  call_type:
+    values: [standup, planning, review, demo, discovery, 1on1, all-hands, external, mixed]
+  source:
+    values: [zoom, fireflies, granola, otter, teams, meet, manual, other]
+  platform:
+    values: [zoom, meet, teams, phone, in-person, slack-huddle, other]
+  language:
+    pattern: "^[a-z]{2}$"              # ISO 639-1
+  digest_version:
+    values: [v0, v1]                   # v0 = no team context yet; regen at A4 updates in place
+  filed_by:
+    values: [manual, plugin, pipeline]
+  tags:
+    open: true                         # the ONLY open field: freeform kebab-case EN
+    pattern: "^[a-z0-9]+(-[a-z0-9]+)*$"
+  action_items:
+    status:
+      values: [post-call, done-on-call, monitoring]   # drives the digest's three-list layout
+    priority:
+      values: [low, medium, high, urgent]             # matches tracker mapping
+
+member:
+  type:
+    values: [member]
+  team:
+    source: tenant                     # vault.teams[].tag
+  status:
+    values: [draft, confirmed, stale]  # stale = departed; never delete
+  sources:
+    values: [slack, tracker, docs, survey, transcripts, web]
+
+tasks:
+  type:
+    values: [tasks]
+  team:
+    source: tenant
+  tracker:
+    values: [linear, none]             # none = file-only mode (any non-Linear tracker => none + waitlist)
+  autonomy_level:
+    values: [L0, L1, L2]
+  verdict_markers:                     # fixed body-marker vocabulary (block headings)
+    values: ["✏️ CREATE", "💬 COMMENT", "⚠️ FLAG", "🔁 DUPLICATE"]

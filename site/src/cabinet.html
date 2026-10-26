@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+<head>
+<!-- @include head -->
+<meta name="robots" content="{{ page.robots }}">
+</head>
+<body class="cabinet" data-mode="{{ page.mode }}">
+<a class="skip" href="#main">Skip to content</a>
+<header class="app-header">
+  <div class="app-header-row">
+    <a class="brand" href="/" aria-label="{{ product }} home">
+      <img src="/assets/logo.svg" alt="" width="26" height="26">
+      <span>{{ product }}</span>
+    </a>
+    <span class="ws-name" data-ws-name>Workspace</span>
+    <span class="badge" data-demo-only>Demo</span>
+    <div class="app-actions">
+      <a class="btn btn-small" href="/#beta" data-demo-only>Request access</a>
+      <span class="small muted" data-user data-app-only></span>
+      <form method="post" action="/api/auth/logout" data-app-only>
+        <button class="btn btn-small btn-ghost" type="submit">Sign out</button>
+      </form>
+    </div>
+  </div>
+</header>
+<p class="demo-banner" data-demo-only>This is a demo workspace for a fictional team, built from <a href="{{ demo.vault_url }}">an example vault</a> in the open-source repository. Every screen is what a beta team sees for its own calls.</p>
+<div class="app-layout">
+  <nav class="app-nav" aria-label="Workspace">
+    <a href="#/" data-nav="overview">Overview</a>
+    <a href="#/calls" data-nav="calls">Calls</a>
+    <a href="#/tasks" data-nav="tasks">Action items</a>
+    <a href="#/people" data-nav="people">People</a>
+  </nav>
+  <main id="main" class="app-main">
+    <h1 data-view-title>Loading…</h1>
+    <div data-view aria-live="polite"><p class="muted">Loading the workspace…</p></div>
+    <noscript><p>The workspace needs JavaScript to render. The underlying files are plain markdown in the vault repository.</p></noscript>
+  </main>
+</div>
+<!-- @include footer -->
+<script src="/assets/cabinet.js" defer></script>
+</body>
+</html>

@@ -11,6 +11,25 @@ it (CI-enforced).
 
 ## [Unreleased]
 
+### Added — beta cabinet and public demo workspace (`site/`)
+- `/demo`: a public workspace for a fictional team. It is built from
+  `site/demo-vault/`, a real vault that passes `validate-vault.js` in CI, so
+  reviewers and prospects click through real product output.
+- `/app`: the beta cabinet. A team signs in with a one-time email link and sees
+  an overview, calls with digests, action items, task proposals with dedup
+  verdicts, and people, all read live from its own vault on GitHub through a
+  read-only token.
+- `site/lib/vault.js` parses both digest profiles and older production vaults.
+  The YAML parser is a verbatim copy of the validator's, and a test fails if
+  they drift. A frontmatter line outside the dialect is dropped, not fatal.
+- Sign-in works the same for unknown emails, uses hashed single-use tokens and
+  a confirmation page that survives mail scanners, sets signed HttpOnly
+  sessions, and is rate limited.
+- `scripts/workspace.js` prints the KV entries and wrangler commands to onboard
+  a team. `serve.js` runs every function locally against an in-memory KV and a
+  mock GitHub. `site/tests/cabinet.test.js` covers parsing, sessions and the
+  whole sign-in → workspace path over HTTP.
+
 ### Added — product landing page (`site/`)
 - A static, zero-dependency website for the hosted beta: landing page, privacy
   policy, terms of use and a beta-access form. Everything that varies per

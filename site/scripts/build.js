@@ -19,6 +19,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  classify, parseCall, parseTasks, parseMember, parseCompany, buildWorkspace, workspaceJson,
+} from '../lib/vault.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outArg = process.argv.indexOf('--out');
@@ -43,6 +46,21 @@ export const PAGES = [
     src: 'terms.html', out: 'terms.html', path: '/terms',
     title: `Terms of use | ${config.product}`,
     description: `Terms for this website and the hosted ${config.product} beta.`,
+  },
+  {
+    src: 'login.html', out: 'login.html', path: '/login',
+    title: `Sign in | ${config.product}`,
+    description: `Sign in to your ${config.product} beta workspace with a one-time email link.`,
+  },
+  {
+    src: 'cabinet.html', out: 'demo.html', path: '/demo', mode: 'demo', robots: 'index, follow',
+    title: `Demo workspace | ${config.product}`,
+    description: `A live ${config.product} workspace for a fictional team: calls, digests, action items and task proposals read from an example vault.`,
+  },
+  {
+    src: 'cabinet.html', out: 'app.html', path: '/app', mode: 'app', robots: 'noindex',
+    title: `Workspace | ${config.product}`,
+    description: `Your ${config.product} workspace: calls, digests, action items and people from your team's vault.`,
   },
   {
     src: '404.html', out: '404.html', path: '/404',
@@ -106,6 +124,49 @@ function copyDir(from, to) {
   }
 }
 
+/*
+ * The public demo workspace: site/demo-vault is a real vault (it passes the
+ * kit's validate-vault.js), parsed by the same lib/vault.js the live cabinet
+ * uses, and written out as the static JSON /demo reads.
+ */
+function buildDemo(out) {
+  const root = path.join(ROOT, 'demo-vault');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const files = walk(root).map((f) => path.relative(root, f).split(path.sep).join('/'));
+  const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
+  const of = (kind) => files.filter((f) => classify(f) === kind).sort();
+  const calls = of('call').map((p) => parseCall(p, read(p)));
+  const latest = calls.map((c) => c.date).sort().pop() || new Date().toISOString().slice(0, 10);
+  const ws = buildWorkspace({
+    info: {
+      id: 'demo',
+      name: config.demo.name,
+      mode: 'demo',
+      vault_url: config.demo.vault_url,
+      tracker_url: config.demo.tracker_url || null,
+      integrations: { zoom: true, slack: true, linear: true, github: true },
+    },
+    callPaths: of('call'),
+    calls,
+    tasks: of('tasks').map((p) => parseTasks(p, read(p))),
+    members: of('member').map((p) => parseMember(p, read(p))),
+    company: of('company').length ? parseCompany(read('docs/company.md')) : null,
+    // A fixed "now" keeps the demo's "last 30 days" stable as real time passes.
+    now: new Date(`${latest}T23:59:59Z`).toISOString(),
+  });
+  const dir = path.join(out, 'demo');
+  fs.mkdirSync(path.join(dir, 'calls'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'workspace.json'), JSON.stringify(workspaceJson(ws)));
+  fs.writeFileSync(path.join(dir, 'people.json'), JSON.stringify({ people: ws.people }));
+  for (const c of ws.calls) {
+    const detail = ws._detail(c.id);
+    detail.vault_file_url = config.demo.file_url_base + c.path.split('/').map(encodeURIComponent).join('/');
+    fs.writeFileSync(path.join(dir, 'calls', `${c.id}.json`), JSON.stringify(detail));
+  }
+  return ws.calls.length;
+}
+
 function isSet(v) {
   return typeof v === 'string' && v.trim() !== '' && !v.startsWith('TODO');
 }
@@ -117,6 +178,7 @@ export function build() {
     fs.writeFileSync(path.join(OUT, page.out), render(page.src, page));
   }
   copyDir(path.join(ROOT, 'assets'), path.join(OUT, 'assets'));
+  buildDemo(OUT);
 
   // Cloudflare Pages response headers: strict CSP (everything is same-origin),
   // no framing, no referrer leakage.
@@ -126,13 +188,19 @@ export function build() {
     '  Referrer-Policy: strict-origin-when-cross-origin',
     '  X-Content-Type-Options: nosniff',
     '  Permissions-Policy: camera=(), microphone=(), geolocation=()',
+    '/app',
+    '  X-Robots-Tag: noindex',
+    '/login',
+    '  X-Robots-Tag: noindex',
+    '/api/*',
+    '  X-Robots-Tag: noindex',
     '',
   ].join('\n'));
 
-  const robots = ['User-agent: *', 'Allow: /'];
+  const robots = ['User-agent: *', 'Allow: /', 'Disallow: /app', 'Disallow: /api/'];
   if (isSet(config.domain)) {
     const base = `https://${config.domain}`;
-    const urls = PAGES.filter((p) => p.out !== '404.html')
+    const urls = PAGES.filter((p) => !['404.html', 'app.html', 'login.html'].includes(p.out))
       .map((p) => `  <url><loc>${base}${p.path === '/' ? '/' : p.path}</loc></url>`).join('\n');
     fs.writeFileSync(path.join(OUT, 'sitemap.xml'),
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);

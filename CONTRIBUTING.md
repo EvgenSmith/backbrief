@@ -50,6 +50,9 @@ Exemptions (files that cannot or should not carry a header):
   a kit license header inside a user's own document would be wrong. They are
   MIT by path.
 - Synthetic fixtures under `pipeline/fixtures/` (JSON anyway) — BUSL-1.1 by path.
+- The demo vault under `site/demo-vault/` — a real vault for a fictional team
+  that the public demo workspace is built from. Vault files must open with
+  their frontmatter (`---` on line 1), so they carry no header. MIT by path.
 
 CI lints SPDX headers against path (`spdx-lint` job in
 `.github/workflows/ci.yml`); a missing or path-mismatched identifier fails the

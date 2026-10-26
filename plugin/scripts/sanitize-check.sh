@@ -167,6 +167,7 @@ if [ "$MODE" != "denylist" ]; then
       .git/*|design/*|node_modules/*) continue ;;
       LICENSE|pipeline/LICENSE|VERSION) continue ;;
       plugin/templates/vault-skeleton/*|plugin/templates/frontmatter/*) continue ;;
+      site/demo-vault/*) continue ;; # a real vault: frontmatter must open each file
       "$SELF") ;; # the gate lints itself like any other script
     esac
     case "$rel" in

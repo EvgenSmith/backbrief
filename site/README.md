@@ -1,9 +1,17 @@
 <!-- SPDX-License-Identifier: MIT -->
-# Backbrief landing page
+# Backbrief website and cabinet
 
-The product website: one landing page, a privacy policy and terms of use, and a
-beta-access form. Static HTML and CSS with no dependencies and no third-party
-scripts, built for Cloudflare Pages.
+The product website and the beta cabinet, built for Cloudflare Pages with no
+dependencies and no third-party scripts:
+
+- **Landing** (`/`): the product, a privacy policy, terms of use and a
+  beta-access form.
+- **Demo workspace** (`/demo`): a public cabinet for a fictional team. It is
+  built from `demo-vault/`, a real vault that passes the kit's
+  `validate-vault.js`.
+- **Cabinet** (`/app`): a beta team signs in with a one-time email link and
+  sees its own calls, digests, action items, task proposals and people. The
+  data is read live from the team's vault on GitHub.
 
 It also serves as the website that startup programs (cloud, model and
 speech-to-text credits) check when we apply. `scripts/check.js --release`
@@ -15,11 +23,16 @@ those things.
 ```
 site/
 ├── site.config.json      ← everything that changes per deployment: domain, contact email,
-│                            legal entity, team, links, production stats
-├── src/                  ← pages (index, privacy, terms, 404) and partials (head, header, footer)
-├── assets/               ← styles.css, waitlist.js (form enhancement), logo.svg
-├── functions/api/        ← waitlist.js: Cloudflare Pages Function behind the beta form
-└── scripts/              ← build.js · check.js · serve.js (zero-dependency Node ≥ 18)
+│                            legal entity, team, links, production stats, demo settings
+├── src/                  ← pages (index, privacy, terms, login, cabinet shell, 404) + partials
+├── assets/               ← styles.css, logo.svg, waitlist.js, login.js, cabinet.js
+├── demo-vault/           ← the fictional team's vault behind /demo (kit format, validated in CI)
+├── lib/                  ← shared by the build and the functions: vault parsing, GitHub reads,
+│                            sessions, sign-in, workspace registry
+├── functions/api/        ← Cloudflare Pages Functions: waitlist, auth/{request,verify,logout},
+│                            me, workspace, call, people
+├── scripts/              ← build.js · check.js · serve.js · workspace.js
+└── tests/                ← cabinet.test.js (node --test)
 ```
 
 ## Commands
@@ -30,8 +43,17 @@ node scripts/build.js              # render pages into dist/
 node scripts/check.js              # lint dist/: structure, links, no third-party assets, wording
 node scripts/check.js --release    # also fails on TODO placeholders, unreviewed legal text,
                                    # contact email off the site's domain
-node scripts/serve.js              # preview at http://localhost:8788 (form runs in dry-run mode)
+node scripts/serve.js              # preview at http://localhost:8788 — see "Local preview"
+node --test tests/cabinet.test.js  # parsing, sessions, sign-in → workspace over HTTP
 ```
+
+### Local preview
+
+`serve.js` runs every function the way Pages would, with nothing leaving the
+machine: an in-memory KV, a mock GitHub API serving `demo-vault/` as a
+repository, and sign-in emails printed to the console instead of sent.
+Open `/demo` for the public demo. To see the live cabinet, sign in at `/login`
+as `dev@acme.dev`: the sign-in link appears on the page.
 
 ## Before going live
 
@@ -59,14 +81,67 @@ Fill in `site.config.json`, then run `check.js --release` until it passes:
 8. **Optional:** `links.linkedin_company` (DigitalOcean requires a company
    page), `demo_video_url` (a 2–3 minute walkthrough).
 
+## The cabinet
+
+**What a beta team sees:** an overview (calls processed, action items, task
+proposals, duplicates caught, pipeline status), all calls with search and a
+team filter, each call's digest with its action items, task proposals and the
+earlier calls it was built on, action items across calls, and team profiles.
+Everything is read from the team's own vault, and every call links to its file
+there.
+
+**Sign-in** is passwordless:
+- The person types a work email. If it belongs to a workspace, a one-time link
+  is sent. It is stored hashed in KV, single use, and valid for 15 minutes.
+- The answer is identical for unknown emails, so the endpoint never reveals
+  who is in the beta.
+- The link opens a confirmation page whose button completes the sign-in. Mail
+  security scanners prefetch links, and a link consumed on GET would be dead
+  by the time the person clicks it.
+- The session is a signed, HttpOnly, SameSite=Lax cookie that lasts 14 days.
+  Removing someone from a workspace locks them out on their next request.
+- Requests are limited to 5 per email and 30 per IP per hour.
+
+**Onboarding a team** (hand-held during the beta):
+
+1. The team creates a fine-grained GitHub token: their vault repository only,
+   permission *Contents: Read-only*.
+2. Run `node scripts/workspace.js --id <id> --name "<Team>" --repo <owner/repo>
+   [--root <folder>] --member <email> …`. It prints the KV entries, the
+   `wrangler` commands that create them, and the secret name for the token
+   (`VAULT_TOKEN_<ID>`).
+3. Review and run the commands. The token goes into Pages secrets, never into
+   KV.
+
+**Limits:**
+- Functions on the free plan may make 50 subrequests per request. A workspace
+  load is 1 tree read plus one read per call and per tasks file, so the cabinet
+  shows the latest 20 calls in detail. Totals still count every call.
+  `CALLS_WINDOW` raises the window on a paid plan.
+- File bodies are cached by content hash and the file list for a minute, so
+  repeat views are cheap.
+
 ## Deploy (Cloudflare Pages)
 
 - Project root directory: `site`
 - Build command: `node scripts/build.js`
 - Build output directory: `dist`
 - Functions are picked up from `site/functions/`.
-- Environment variable `WAITLIST_API`: base URL of your telemetry gateway
-  (`gateway/`). The default is the hosted gateway.
+- Bindings and settings:
+
+| Name | Kind | Purpose |
+|---|---|---|
+| `CABINET` | KV namespace | workspace registry, one-time sign-in tokens, rate limits |
+| `SESSION_SECRET` | secret, 32+ chars | signs session cookies; rotating it signs everyone out |
+| `MAIL_PROVIDER` | variable | `resend` in production; `log` (default) only prints |
+| `RESEND_API_KEY` | secret | Resend API key, when `MAIL_PROVIDER=resend` |
+| `MAIL_FROM` | variable | sender on the product domain, e.g. `Backbrief <hello@…>` |
+| `VAULT_TOKEN_<ID>` | secret | one per workspace: read-only token for its vault repository |
+| `WAITLIST_API` | variable | telemetry gateway base URL (default: the hosted gateway) |
+| `CALLS_WINDOW` | variable, optional | calls loaded in detail per workspace view (default 20) |
+
+Never set `DEV_RETURN_LINK` or `WAITLIST_DRY_RUN` in production. They exist
+for the local preview.
 
 The beta form posts to `/api/waitlist` on the same domain. The function
 forwards the email to the gateway's `POST /v1/waitlist` with `interest:

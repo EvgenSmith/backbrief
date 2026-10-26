@@ -30,5 +30,11 @@
       "linkedin": "https://www.linkedin.com/in/netso",
       "bio": "Built Backbrief to stop losing his own team's decisions between calls, and has run every internal call through it since."
     }
-  ]
+  ],
+  "demo": {
+    "name": "Acme (demo)",
+    "vault_url": "https://github.com/EvgenSmith/backbrief/tree/main/site/demo-vault",
+    "file_url_base": "https://github.com/EvgenSmith/backbrief/blob/main/site/demo-vault/",
+    "tracker_url": ""
+  }
 }

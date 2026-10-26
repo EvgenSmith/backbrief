@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+<head>
+<!-- @include head -->
+<meta name="robots" content="noindex">
+</head>
+<body>
+<!-- @include header -->
+<main id="main" class="doc wrap narrow auth-card">
+  <h1>Sign in to your workspace</h1>
+  <p>The hosted beta is invitation-only. Enter the work email your team was set up with and we'll send you a one-time sign-in link.</p>
+  <form class="beta-form" action="/api/auth/request" method="post" data-login>
+    <label for="login-email" class="sr-only">Work email</label>
+    <input id="login-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com">
+    <button class="btn" type="submit">Email me a link</button>
+    <p class="form-status" role="status" aria-live="polite" data-status></p>
+  </form>
+  <p class="small muted">Not in the beta yet? <a href="/#beta">Request access</a>, or look around the <a href="/demo">demo workspace</a>.</p>
+</main>
+<!-- @include footer -->
+<script src="/assets/login.js" defer></script>
+</body>
+</html>

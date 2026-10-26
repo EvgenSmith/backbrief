@@ -92,7 +92,7 @@ for (const [file, doc] of Object.entries(html)) {
       continue;
     }
     if (!target) { fail(`${file}: broken link ${href}`); continue; }
-    if (anchor && !idsOf(html[target]).has(anchor) && anchor !== 'beta-thanks') {
+    if (anchor && !anchor.startsWith('/') && !idsOf(html[target]).has(anchor) && anchor !== 'beta-thanks') {
       fail(`${file}: link ${href} points to a missing #${anchor}`);
     }
   }
@@ -111,8 +111,30 @@ for (const id of ['how', 'product', 'plans', 'security', 'team', 'beta']) {
   if (!ids.has(id)) fail(`index.html: required section #${id} is missing`);
 }
 if (!/<form[^>]+action="\/api\/waitlist"/.test(home)) fail('index.html: beta form must post to /api/waitlist');
-for (const f of ['privacy.html', 'terms.html', 'assets/styles.css', '_headers', 'robots.txt']) {
+for (const f of ['privacy.html', 'terms.html', 'login.html', 'assets/styles.css', 'assets/cabinet.js', '_headers', 'robots.txt']) {
   if (!fs.existsSync(path.join(DIST, f))) fail(`dist is missing ${f}`);
+}
+
+// Cabinet pages and the demo data built from site/demo-vault.
+for (const page of ['demo.html', 'app.html']) {
+  if (!html[page]) { fail(`dist is missing ${page}`); continue; }
+  if (!/data-view/.test(html[page])) fail(`${page}: cabinet shell has no [data-view] container`);
+}
+const demoDir = path.join(DIST, 'demo');
+try {
+  const ws = JSON.parse(fs.readFileSync(path.join(demoDir, 'workspace.json'), 'utf8'));
+  if (!ws.calls || ws.calls.length < 3) fail('demo workspace has fewer than 3 calls');
+  for (const c of ws.calls || []) {
+    if (!fs.existsSync(path.join(demoDir, 'calls', `${c.id}.json`))) fail(`demo call detail missing: ${c.id}`);
+  }
+  const blob = fs.readdirSync(path.join(demoDir, 'calls')).map((f) => fs.readFileSync(path.join(demoDir, 'calls', f), 'utf8')).join('\n')
+    + fs.readFileSync(path.join(demoDir, 'workspace.json'), 'utf8');
+  for (const re of DENY) {
+    const hit = blob.match(re);
+    if (hit) fail(`demo data: forbidden wording "${hit[0]}"`);
+  }
+} catch (e) {
+  fail(`demo workspace data unreadable: ${e.message}`);
 }
 
 const team = config.team || [];
