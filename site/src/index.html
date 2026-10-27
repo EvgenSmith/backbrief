@@ -11,13 +11,13 @@
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="beta-tag">Beta</span> For distributed product teams on Zoom, Slack and Linear</p>
-        <h1>Every call ends with <mark>decisions on record</mark> and <mark>tasks in Linear</mark>.</h1>
+        <p class="eyebrow"><span class="beta-tag">Beta</span> For distributed product teams</p>
+        <h1>Every call ends with <mark>decisions on record</mark> and <mark>tasks in your tracker</mark>.</h1>
         <p class="lede">Nobody has to write it up. After each call, {{ product }} reads the recording and does the follow-up your team keeps skipping.</p>
         <ul class="outputs">
-          <li><span class="dest">Slack</span><span>Decisions, agreements and owners in the call's thread, each linked to the minute it was said.</span></li>
-          <li><span class="dest">Linear</span><span>Tasks checked against your backlog, so a task you already have gets a comment instead of a duplicate.</span></li>
-          <li><span class="dest">Git</span><span>The call as a markdown file in your repository, so your AI agents know what the team decided.</span></li>
+          <li><span class="dest">Chat</span><span>Decisions, agreements and owners in the call's thread in your team chat, each linked to the minute it was said.</span></li>
+          <li><span class="dest">Tracker</span><span>Tasks checked against your backlog, so a task you already have gets a comment instead of a duplicate.</span></li>
+          <li><span class="dest">Repo</span><span>The call as a markdown file in your git repository, so your AI agents know what the team decided.</span></li>
         </ul>
         <div class="cta-row">
           <a class="btn" href="/book">Book a demo</a>
@@ -37,8 +37,8 @@
           <p><span class="tc">16:40</span><span class="who">Ivanova</span><span>Agreed. <mark>We ship the $19 tier before the Q3 campaign.</mark></span></p>
         </div>
 
-        <figure class="thread" aria-label="What lands in Slack after the call">
-          <div class="thread-bar"><span><b># product-sync</b></span><span>Thread</span></div>
+        <figure class="thread" aria-label="Example: what lands in Slack after the call">
+          <div class="thread-bar"><span><b># product-sync</b></span><span>Example · Slack</span></div>
           <div class="msg">
             <img class="msg-av" src="/assets/logo.svg" alt="" width="36" height="36">
             <div class="msg-main">
@@ -53,7 +53,7 @@
                 <p>Ivanova ↔ Petrov: pricing copy freezes Friday so engineering can cut the release on Monday <span class="ts">22:15</span></p>
               </div>
               <div class="msg-block">
-                <p class="label">Tasks, checked against your Linear backlog</p>
+                <p class="label">Tasks, checked against your backlog</p>
                 <ul class="verdicts">
                   <li><span class="v v-create">Create</span><span>Rewrite pricing page copy <span class="muted">· Ivanova</span></span><span class="id">GRW-214</span></li>
                   <li><span class="v v-comment">Comment</span><span>Already tracked: deadline and owner added</span><span class="id">GRW-180</span></li>
@@ -75,7 +75,7 @@
     <div class="wrap">
       <div class="section-head">
         <h2>What your team gets after every call</h2>
-        <p class="section-lede">Real output, filled in for a fictional team. <a href="/demo">Open the demo workspace</a> to click through a week of their calls.</p>
+        <p class="section-lede">Real output for a fictional team on Zoom, Slack, Linear and GitHub. <a href="/demo">Open the demo workspace</a> to click through a week of their calls.</p>
       </div>
       <div class="samples">
 
@@ -173,7 +173,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         <div class="compare-row">
           <h3>The summary</h3>
           <p class="was"><span class="cell-label">A notetaker</span>A wall of text in another tab, skimmed once if at all.</p>
-          <p class="now"><span class="cell-label">{{ product }}</span>Decisions and owners in the Slack thread people already read, and tasks in Linear where the work happens.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Decisions and owners in the chat thread people already read, and tasks in the tracker where the work happens.</p>
         </div>
         <div class="compare-row">
           <h3>Who owns what</h3>
@@ -183,7 +183,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         <div class="compare-row">
           <h3>The tasks</h3>
           <p class="was"><span class="cell-label">A notetaker</span>Someone has to retype them, check for duplicates and find the owner, so usually nobody does.</p>
-          <p class="now"><span class="cell-label">{{ product }}</span>Proposes them in Linear after checking your backlog. Nothing is filed until someone on the team approves it in the thread.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Proposes them in your tracker after checking the backlog. Nothing is filed until someone on the team approves it in the thread.</p>
         </div>
       </div>
     </div>
@@ -193,12 +193,12 @@ zones: [onboarding-emails, paid-acquisition]</pre>
     <div class="wrap">
       <div class="section-head">
         <h2>How it works</h2>
-        <p class="section-lede">No bot joins your calls. {{ product }} works from the recording Zoom already makes.</p>
+        <p class="section-lede">No bot joins your calls. {{ product }} works from the recording your call platform already makes.</p>
       </div>
       <ol class="steps">
         <li>
           <h3>Record</h3>
-          <p>Record the call to the Zoom cloud. About a minute after it ends, a short post with the title and recording link appears in your team channel.</p>
+          <p>Record the call to the cloud, Zoom cloud recording for example. About a minute after it ends, a short post with the title and recording link appears in your team channel.</p>
         </li>
         <li>
           <h3>Transcribe</h3>
@@ -210,7 +210,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </li>
         <li>
           <h3>Deliver</h3>
-          <p>The digest lands in the Slack thread, task proposals follow with Approve and Skip, and the call is saved to your git repository.</p>
+          <p>The digest lands in the call's chat thread, task proposals follow with Approve and Skip, and the call is saved to your git repository.</p>
         </li>
       </ol>
       <p class="note">Hosted, we run all of this for you. Self-hosted, it runs on your own n8n with your own API keys, and manual mode gets you a first digest in about 15 minutes.</p>
@@ -224,7 +224,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         <div>
           <p class="k">Scope</p>
           <h3>Only calls you record to the cloud are processed.</h3>
-          <p>Keep a 1:1, board or HR meeting off the Zoom cloud recording and {{ product }} never sees it.</p>
+          <p>Keep a 1:1, board or HR meeting off the cloud recording and {{ product }} never sees it.</p>
         </div>
         <div>
           <p class="k">In the call</p>
@@ -234,7 +234,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         <div>
           <p class="k">Output</p>
           <h3>Everything it writes lives in your tools.</h3>
-          <p>Decisions in your Slack, tasks in your Linear, the record in your git repository. Remove {{ product }} and all of it stays.</p>
+          <p>Decisions in your chat, tasks in your tracker, the record in your git repository. Remove {{ product }} and all of it stays.</p>
         </div>
         <div>
           <p class="k">Model</p>
@@ -260,8 +260,8 @@ zones: [onboarding-emails, paid-acquisition]</pre>
       <h2>Built for product teams like yours</h2>
       <div class="fit-grid">
         <div>
-          <h3>Works with</h3>
-          <ul class="tools" aria-label="Supported tools"><li>Zoom</li><li>Slack</li><li>Linear</li><li>GitHub</li></ul>
+          <h3>Connected today</h3>
+          <ul class="tools" aria-label="Connected today"><li>Zoom</li><li>Slack</li><li>Linear</li><li>GitHub</li></ul>
           <ul class="plain-list">
             <li>Distributed product teams of about 10 to 50 people</li>
             <li>Lots of internal calls: syncs, planning, reviews</li>
@@ -269,9 +269,9 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           </ul>
         </div>
         <div>
-          <h3>Not yet</h3>
-          <ul class="tools tools-off" aria-label="Not supported yet"><li>Google Meet</li><li>Microsoft Teams</li><li>Jira</li><li>Asana</li><li>Single sign-on</li></ul>
-          <p class="muted">These are on the roadmap. <a href="/book">Book a demo</a> and tell us what you run on; requests decide what we build next.</p>
+          <h3>Coming next</h3>
+          <ul class="tools tools-off" aria-label="Coming next"><li>Google Meet</li><li>Microsoft Teams</li><li>Jira</li><li>Asana</li><li>Single sign-on</li></ul>
+          <p class="muted">{{ product }} isn't tied to one stack. <a href="/book">Book a demo</a> and tell us what you run on; requests decide which connection comes next.</p>
         </div>
       </div>
     </div>
@@ -285,7 +285,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <p class="k">Hosted</p>
           <h3>We run it for your team</h3>
           <ul>
-            <li>We connect your Zoom, Slack and Linear together on one call</li>
+            <li>We connect your call platform, chat and tracker together on one call</li>
             <li>The record stays in your own git repository</li>
             <li>A data processing agreement before any call is processed</li>
             <li>Private handling of 1:1 and board calls, other trackers and single sign-on: tell us what you need</li>
@@ -322,15 +322,15 @@ zones: [onboarding-emails, paid-acquisition]</pre>
       <div class="faq-list">
         <details>
           <summary>Can we keep some calls out?</summary>
-          <p>Yes. {{ product }} only processes calls recorded to the Zoom cloud, so record 1:1s, board or HR calls locally or not at all. Automatic private handling for such calls is on the roadmap.</p>
+          <p>Yes. {{ product }} only processes calls recorded to the cloud, so record 1:1s, board or HR calls locally or not at all. Automatic private handling for such calls is on the roadmap.</p>
         </details>
         <details>
           <summary>Who approves the tasks?</summary>
-          <p>Someone on your team, in the call's Slack thread. Proposals the backlog check is sure about can be approved together in one click; flagged ones wait to be reviewed one by one. Skipped proposals are logged, so you can see what your team doesn't want filed.</p>
+          <p>Someone on your team, in the call's chat thread. Proposals the backlog check is sure about can be approved together in one click; flagged ones wait to be reviewed one by one. Skipped proposals are logged, so you can see what your team doesn't want filed.</p>
         </details>
         <details>
           <summary>Where do people who don't use git read it?</summary>
-          <p>In Slack, and in the {{ product }} workspace in the browser: calls, decisions, open action items and people. Git is where the record is kept, so it stays yours.</p>
+          <p>In your team chat, and in the {{ product }} workspace in the browser: calls, decisions, open action items and people. Git is where the record is kept, so it stays yours.</p>
         </details>
         <details>
           <summary>Which languages does it support?</summary>
@@ -338,11 +338,11 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </details>
         <details>
           <summary>We already use Granola or Fireflies. Can we keep it?</summary>
-          <p>Yes. Exported transcripts can be filed the same way as Zoom recordings. Automatic capture today works with Zoom cloud recordings.</p>
+          <p>Yes. Exported transcripts can be filed the same way as cloud recordings. Automatic capture is connected to Zoom cloud recordings today.</p>
         </details>
         <details>
           <summary>What happens to our data if {{ product }} goes away?</summary>
-          <p>Nothing. Everything it wrote is already in your Slack, your Linear and your git repository as plain files, and the code is open source.</p>
+          <p>Nothing. Everything it wrote is already in your chat, your tracker and your git repository as plain files, and the code is open source.</p>
         </details>
         <details>
           <summary>What does the open-source version cost?</summary>

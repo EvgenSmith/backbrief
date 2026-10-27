@@ -36,7 +36,7 @@ export const PAGES = [
   {
     src: 'index.html', out: 'index.html', path: '/',
     title: `${config.product}: calls into tasks, digests and company memory`,
-    description: `${config.product} turns recorded team calls into deduplicated tasks in your tracker, Slack digests with timestamps, and a markdown memory in your own git repository.`,
+    description: `${config.product} turns recorded team calls into deduplicated tasks in your tracker, chat digests with timestamps, and a markdown memory in your own git repository.`,
   },
   {
     src: 'privacy.html', out: 'privacy.html', path: '/privacy',
