@@ -348,12 +348,7 @@ summary::after { content: "+"; font: 400 1.4rem/1 var(--mono); color: var(--fain
 details[open] summary::after { transform: rotate(45deg); }
 details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 
-/* Forms shared by sign-in */
-.beta-form { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 12px; }
-.beta-form input[type=email] {
-  flex: 1 1 260px; min-height: 48px; padding: 0 16px; border-radius: var(--radius);
-  border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); font: 1rem var(--sans);
-}
+/* Form status line (booking form) */
 .form-status { flex-basis: 100%; margin: 4px 0 0; min-height: 1.6em; font-weight: 600; }
 .form-status.ok { color: var(--pos); }
 .form-status.err { color: var(--neg); }
@@ -391,6 +386,38 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 .book-calendar { display: block; width: 100%; height: 680px; border: 0; border-radius: var(--radius); background: var(--paper); }
 .book-page { padding-block: 64px 96px; }
 .book-page .eyebrow { margin-bottom: 0; }
+
+/* Log in and password reset */
+.auth { padding-block: 72px 104px; }
+.auth section { padding-block: 0; }
+.auth-card { width: min(440px, 100%); margin-inline: auto; background: var(--sheet); border: 1px solid var(--rule); border-radius: 20px; padding: 40px 36px; }
+.auth h1, .auth .auth-title { font-size: 1.9rem; line-height: 1.08; margin-bottom: 8px; }
+.auth-sub { color: var(--muted); margin: 0 0 26px; }
+.btn-google { background: var(--sheet); color: var(--ink); border-color: var(--rule); gap: 10px; }
+.btn-google:hover { background: var(--tint); border-color: var(--faint); color: var(--ink); }
+.auth-or { display: flex; align-items: center; gap: 12px; margin: 22px 0; font: .74rem var(--mono); color: var(--faint); text-transform: uppercase; letter-spacing: .1em; }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.auth-form label { display: block; margin: 0 0 8px; font: 500 .72rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.auth-form input[type=email], .auth-form input[type=password], .auth-form input[type=text] {
+  display: block; width: 100%; min-height: 48px; padding: 0 14px; margin: 0 0 18px; border-radius: var(--radius);
+  border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 1rem var(--sans);
+}
+.auth-form input:focus { border-color: var(--ink); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--mark) 70%, transparent); }
+.label-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.label-row a { font-size: .85rem; }
+.password-field { position: relative; }
+.password-field input[type] { padding-right: 68px; }
+.reveal { position: absolute; right: 6px; top: 6px; height: 36px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 500 .82rem var(--sans); cursor: pointer; }
+.reveal:hover { color: var(--ink); background: var(--tint); }
+.auth-form .btn-block { margin-top: 6px; }
+.auth-msg { margin-top: 20px; padding: 14px 16px; border-radius: var(--radius); font-size: .95rem; }
+.auth-msg p { margin: 0 0 6px; }
+.auth-msg p:last-of-type { margin-bottom: 0; }
+.auth-msg .btn { margin-top: 12px; }
+.auth-msg.is-error { background: var(--neg-soft); }
+.auth-msg.is-ok { background: var(--pos-soft); }
+.auth-msg.is-notice { background: color-mix(in srgb, var(--mark) 20%, var(--sheet)); border: 1px solid color-mix(in srgb, var(--mark) 70%, var(--rule)); }
+.auth-foot { margin: 24px 0 0; text-align: center; color: var(--muted); font-size: .95rem; }
 
 /* Documents (privacy, terms) */
 .doc { padding-block: 64px 96px; }
@@ -449,6 +476,8 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   .verdicts .id { grid-column: 2; }
   .book { gap: 36px; }
   .book-card { padding: 24px 20px; }
+  .auth { padding-block: 40px 72px; }
+  .auth-card { padding: 28px 20px; }
   .stepper { gap: 8px; font-size: .84rem; }
   .stepper li { gap: 8px; }
   .stepper .dot { width: 28px; height: 28px; }
@@ -465,8 +494,6 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 /* ------------------------------------------------------------------ */
 /* Cabinet (/demo, /app) and sign-in                                   */
 /* ------------------------------------------------------------------ */
-.auth-card { padding-top: 64px; }
-.auth-card .brand { margin-bottom: 24px; }
 .cabinet { background: var(--paper); }
 .app-header { border-bottom: 1px solid var(--rule); background: var(--sheet); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
 .app-header-row { display: flex; align-items: center; gap: 14px; min-height: 58px; padding: 0 20px; }

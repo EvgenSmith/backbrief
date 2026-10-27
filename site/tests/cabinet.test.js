@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import * as V from '../lib/vault.js';
 import { createSessionCookie, readSession } from '../lib/session.js';
 import { handle, devEnv } from '../scripts/serve.js';
-import { requestSignIn } from '../lib/auth.js';
+import { requestReset, hashPassword, verifyPassword } from '../lib/auth.js';
 
 const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VAULT = path.join(SITE, 'demo-vault');
@@ -131,42 +131,68 @@ const postForm = (body, cookie) => ({
   body: new URLSearchParams(body).toString(),
 });
 
-test('sign-in and workspace API end to end', async (t) => {
+test('password hashing: round trip, wrong password, salted', async () => {
+  const stored = await hashPassword('correct horse battery');
+  assert.match(stored, /^pbkdf2\$100000\$[0-9a-f]{32}\$[0-9a-f]{64}$/);
+  assert.equal(await verifyPassword('correct horse battery', stored), true);
+  assert.equal(await verifyPassword('correct horse batterz', stored), false);
+  assert.notEqual(await hashPassword('correct horse battery'), stored, 'a fresh salt every time');
+  assert.equal(await verifyPassword('x', 'garbage'), false);
+});
+
+test('log in, reset password and workspace API end to end', async (t) => {
   const { srv, env, call } = await server();
   t.after(() => srv.close());
 
-  // Unknown email: same answer, no link, nothing stored.
-  let r = await call('/api/auth/request', postJson({ email: 'stranger@example.com' }));
-  assert.equal(r.status, 200);
-  assert.equal((await r.json()).dev_link, undefined);
+  // Not a member: the login page can offer a demo.
+  let r = await call('/api/auth/login', postJson({ email: 'stranger@example.com', password: 'whatever-123' }));
+  assert.equal(r.status, 404);
+  assert.deepEqual(await r.json(), { error: 'not_registered' });
+  r = await call('/api/auth/forgot', postJson({ email: 'stranger@example.com' }));
+  assert.equal(r.status, 404);
+
+  // Without JavaScript the form gets a redirect the page turns into a message.
+  r = await call('/api/auth/login', postForm({ email: 'stranger@example.com', password: 'whatever-123' }));
+  assert.equal(r.status, 303);
+  assert.match(r.headers.get('location'), /\/login#not-registered$/);
 
   // Signed out: the API refuses.
   assert.equal((await call('/api/workspace')).status, 401);
 
-  // Member (case-insensitive): a one-time link.
-  r = await call('/api/auth/request', postJson({ email: 'Dev@Acme.dev' }));
+  // A member without a password yet is told to set one.
+  r = await call('/api/auth/login', postJson({ email: 'Dev@Acme.dev', password: 'whatever-123' }));
+  assert.equal(r.status, 409);
+
+  // Forgot password: a one-time link to /reset (returned only in the local preview).
+  r = await call('/api/auth/forgot', postJson({ email: 'Dev@Acme.dev' }));
+  assert.equal(r.status, 200);
   const { dev_link } = await r.json();
-  assert.match(dev_link, /\/api\/auth\/verify\?token=[0-9a-f]{64}$/);
+  assert.match(dev_link, /\/reset\?token=[0-9a-f]{64}$/);
   const token = new URL(dev_link).searchParams.get('token');
 
-  // GET shows a confirmation page and does NOT consume the token (mail scanners).
-  r = await call(`/api/auth/verify?token=${token}`);
-  assert.equal(r.status, 200);
-  assert.match(await r.text(), /<form method="post" action="\/api\/auth\/verify">/);
+  // Too short is refused and does not burn the token.
+  r = await call('/api/auth/password', postJson({ token, password: 'short' }));
+  assert.equal(r.status, 400);
 
-  // POST consumes it and sets the session.
-  r = await call('/api/auth/verify', postForm({ token }));
-  assert.equal(r.status, 303);
-  assert.match(r.headers.get('location'), /\/app$/);
+  // Setting the password signs the member in.
+  r = await call('/api/auth/password', postJson({ token, password: 'a-long-enough-password' }));
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { ok: true, redirect: '/app' });
   const setCookie = r.headers.get('set-cookie');
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /SameSite=Lax/);
-  const cookie = setCookie.split(';')[0];
-  const auth = { headers: { cookie } };
 
   // The same link never works twice.
-  r = await call('/api/auth/verify', postForm({ token }));
-  assert.match(r.headers.get('location'), /error=expired/);
+  r = await call('/api/auth/password', postJson({ token, password: 'another-long-password' }));
+  assert.equal(r.status, 410);
+
+  // Email and password from now on.
+  r = await call('/api/auth/login', postJson({ email: 'dev@acme.dev', password: 'not-the-password' }));
+  assert.equal(r.status, 401);
+  r = await call('/api/auth/login', postJson({ email: 'DEV@acme.dev', password: 'a-long-enough-password' }));
+  assert.equal(r.status, 200);
+  const cookie = r.headers.get('set-cookie').split(';')[0];
+  const auth = { headers: { cookie } };
 
   // Workspace data, read from the (mock) GitHub vault by the live code path.
   r = await call('/api/me', auth);
@@ -186,34 +212,62 @@ test('sign-in and workspace API end to end', async (t) => {
   r = await call('/api/people', auth);
   assert.equal((await r.json()).people.length, 5);
 
-  // Removed from the workspace: the session stops working at once.
+  // Removed from the workspace: the session stops working at once, and so does the password.
   const cfg = await env.CABINET.get('workspace:acme-dev', { type: 'json' });
   await env.CABINET.put('workspace:acme-dev', JSON.stringify({ ...cfg, members: [] }));
   assert.equal((await call('/api/workspace', auth)).status, 403);
   await env.CABINET.put('workspace:acme-dev', JSON.stringify(cfg));
 
-  // Sign out clears the cookie.
+  // Log out clears the cookie.
   r = await call('/api/auth/logout', { method: 'POST', headers: { cookie } });
   assert.equal(r.status, 303);
+  assert.match(r.headers.get('location'), /\/login#signed-out$/);
   assert.match(r.headers.get('set-cookie'), /Max-Age=0/);
 });
 
-test('the dev sign-in shortcut never works off localhost', async () => {
-  const env = await devEnv(0);
-  const prod = await requestSignIn(env, { email: 'dev@acme.dev', origin: 'https://backbrief.example' });
-  assert.equal(prod.sent, true);
-  assert.equal(prod.link, undefined);
-  const local = await requestSignIn(env, { email: 'dev@acme.dev', origin: 'http://localhost:8788' });
-  assert.match(local.link, /^http:\/\/localhost:8788\/api\/auth\/verify\?token=/);
-});
-
-test('sign-in requests are rate limited per email', async (t) => {
+test('Google sign-in: unavailable without credentials, refuses a forged state', async (t) => {
   const { srv, call } = await server();
   t.after(() => srv.close());
-  const codes = [];
-  for (let i = 0; i < 6; i++) codes.push((await call('/api/auth/request', postJson({ email: 'dev@acme.dev' }))).status);
-  assert.deepEqual(codes, [200, 200, 200, 200, 200, 429]);
-  assert.equal((await call('/api/auth/request', postJson({ email: 'not-an-email' }))).status, 400);
+  let r = await call('/api/auth/google');
+  assert.equal(r.status, 303);
+  assert.match(r.headers.get('location'), /\/login#google-unavailable$/);
+  r = await call('/api/auth/google-callback?code=x&state=y');
+  assert.match(r.headers.get('location'), /\/login#google-unavailable$/);
+});
+
+test('Google sign-in: redirects to Google with a state cookie, and checks it on the way back', async () => {
+  const { onRequestGet: start } = await import('../functions/api/auth/google.js');
+  const { onRequestGet: back } = await import('../functions/api/auth/google-callback.js');
+  const env = { GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 'secret' };
+  const r = await start({ request: new Request('https://backbrief.test/api/auth/google'), env });
+  const to = new URL(r.headers.get('location'));
+  assert.equal(to.origin, 'https://accounts.google.com');
+  assert.equal(to.searchParams.get('redirect_uri'), 'https://backbrief.test/api/auth/google-callback');
+  const state = to.searchParams.get('state');
+  assert.match(r.headers.get('set-cookie'), new RegExp(`bb_oauth=${state};.*HttpOnly`));
+  const forged = await back({ request: new Request(`https://backbrief.test/api/auth/google-callback?code=c&state=other`, { headers: { cookie: `bb_oauth=${state}` } }), env });
+  assert.match(forged.headers.get('location'), /\/login#google-failed$/);
+});
+
+test('the dev set-password shortcut never works off localhost', async () => {
+  const env = await devEnv(0);
+  const prod = await requestReset(env, { email: 'dev@acme.dev', origin: 'https://backbrief.example' });
+  assert.equal(prod.status, 'sent');
+  assert.equal(prod.link, undefined);
+  const local = await requestReset(env, { email: 'dev@acme.dev', origin: 'http://localhost:8788' });
+  assert.match(local.link, /^http:\/\/localhost:8788\/reset\?token=/);
+});
+
+test('password resets and log-in attempts are rate limited per email', async (t) => {
+  const { srv, call } = await server();
+  t.after(() => srv.close());
+  const resets = [];
+  for (let i = 0; i < 6; i++) resets.push((await call('/api/auth/forgot', postJson({ email: 'dev@acme.dev' }))).status);
+  assert.deepEqual(resets, [200, 200, 200, 200, 200, 429]);
+  const logins = [];
+  for (let i = 0; i < 11; i++) logins.push((await call('/api/auth/login', postJson({ email: 'dev@acme.dev', password: 'whatever-123' }))).status);
+  assert.deepEqual(logins.slice(-2), [409, 429]);
+  assert.equal((await call('/api/auth/forgot', postJson({ email: 'not-an-email' }))).status, 400);
 });
 
 test('book-a-demo form posts through the same-origin function', async (t) => {

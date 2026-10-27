@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en">
+<head>
+<!-- @include head -->
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+</head>
+<body>
+<!-- @include header -->
+<main id="main" class="auth">
+  <div class="auth-card">
+    <section data-view="reset">
+      <h1>Set a new password</h1>
+      <p class="auth-sub">Use at least 10 characters. You'll be logged in right after.</p>
+      <form class="auth-form" action="/api/auth/password" method="post" data-reset>
+        <input type="hidden" name="token" value="" data-token>
+        <label for="reset-password">New password</label>
+        <div class="password-field">
+          <input id="reset-password" name="password" type="password" required minlength="10" autocomplete="new-password">
+          <button type="button" class="reveal" data-reveal aria-controls="reset-password" aria-pressed="false">Show</button>
+        </div>
+        <label for="reset-confirm">Repeat it</label>
+        <input id="reset-confirm" type="password" required minlength="10" autocomplete="new-password">
+        <button class="btn btn-block" type="submit">Set password and log in</button>
+      </form>
+      <div class="auth-msg" role="status" aria-live="polite" data-status hidden></div>
+      <p class="auth-foot"><a href="/login">Back to log in</a></p>
+    </section>
+  </div>
+</main>
+<!-- @include footer -->
+<script src="/assets/login.js" defer></script>
+</body>
+</html>

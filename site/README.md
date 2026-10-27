@@ -9,7 +9,7 @@ dependencies and no third-party scripts:
 - **Demo workspace** (`/demo`): a public cabinet for a fictional team. It is
   built from `demo-vault/`, a real vault that passes the kit's
   `validate-vault.js`.
-- **Cabinet** (`/app`): a beta team signs in with a one-time email link and
+- **Cabinet** (`/app`): a team logs in with email and password or with Google and
   sees its own calls, digests, action items, task proposals and people. The
   data is read live from the team's vault on GitHub.
 
@@ -51,9 +51,10 @@ node --test tests/cabinet.test.js  # parsing, sessions, sign-in → workspace ov
 
 `serve.js` runs every function the way Pages would, with nothing leaving the
 machine: an in-memory KV, a mock GitHub API serving `demo-vault/` as a
-repository, and sign-in emails printed to the console instead of sent.
-Open `/demo` for the public demo. To see the live cabinet, sign in at `/login`
-as `dev@acme.dev`: the sign-in link appears on the page.
+repository, and password emails printed to the console instead of sent.
+Open `/demo` for the public demo. To see the live cabinet, open `/login`, choose
+"Forgot password?" for `dev@acme.dev`, follow the link that appears on the
+page, set a password, and you are in.
 
 ## Before going live
 
@@ -90,17 +91,25 @@ earlier calls it was built on, action items across calls, and team profiles.
 Everything is read from the team's own vault, and every call links to its file
 there.
 
-**Sign-in** is passwordless:
-- The person types a work email. If it belongs to a workspace, a one-time link
-  is sent. It is stored hashed in KV, single use, and valid for 15 minutes.
-- The answer is identical for unknown emails, so the endpoint never reveals
-  who is in the beta.
-- The link opens a confirmation page whose button completes the sign-in. Mail
-  security scanners prefetch links, and a link consumed on GET would be dead
-  by the time the person clicks it.
+**Log in** (`/login`, code in `lib/auth.js` and `lib/google.js`):
+- Accounts exist only for emails a workspace lists as members. Anyone else who
+  tries to log in, reset a password or continue with Google is told there is
+  no account for that email and offered a demo. This reveals whether an email
+  has an account, on purpose, and is rate limited.
+- Email and password: passwords are stored in KV as PBKDF2-SHA256 hashes
+  (100 000 iterations, random salt) under `pw:<email>`.
+- Forgot password: a member gets a link to `/reset`, stored hashed in KV,
+  single use, valid for 30 minutes. Only the POST that sets the new password
+  consumes it, so mail scanners that prefetch links cannot burn it. New
+  members set their first password this way.
+- Continue with Google: OpenID Connect code flow with a state cookie. Only a
+  verified Google email that belongs to a workspace gets in. Without
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` the button says Google
+  sign-in is unavailable.
 - The session is a signed, HttpOnly, SameSite=Lax cookie that lasts 14 days.
   Removing someone from a workspace locks them out on their next request.
-- Requests are limited to 5 per email and 30 per IP per hour.
+- Limits per hour: log in 10 per email and 30 per IP; reset 5 per email and
+  30 per IP.
 
 **Onboarding a team** (hand-held during the beta):
 
@@ -131,12 +140,14 @@ there.
 
 | Name | Kind | Purpose |
 |---|---|---|
-| `CABINET` | KV namespace | workspace registry, one-time sign-in tokens, rate limits |
+| `CABINET` | KV namespace | workspace registry, password hashes, reset tokens, rate limits |
 | `SESSION_SECRET` | secret, 32+ chars | signs session cookies; rotating it signs everyone out |
 | `MAIL_PROVIDER` | variable | `resend` in production; `log` (default) only prints |
 | `RESEND_API_KEY` | secret | Resend API key, when `MAIL_PROVIDER=resend` |
 | `MAIL_FROM` | variable | sender on the product domain, e.g. `Backbrief <hello@…>` |
 | `VAULT_TOKEN_<ID>` | secret | one per workspace: read-only token for its vault repository |
+| `GOOGLE_CLIENT_ID` | variable | Google OAuth client (Web application); redirect URI `https://<domain>/api/auth/google-callback` |
+| `GOOGLE_CLIENT_SECRET` | secret | the client's secret |
 | `WAITLIST_API` | variable | telemetry gateway base URL (default: the hosted gateway) |
 | `CALLS_WINDOW` | variable, optional | calls loaded in detail per workspace view (default 20) |
 

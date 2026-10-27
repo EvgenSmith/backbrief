@@ -94,6 +94,11 @@ for (const [file, doc] of Object.entries(html)) {
       if (!fs.existsSync(path.join(DIST, p))) fail(`${file}: broken asset link ${href}`);
       continue;
     }
+    if (p.startsWith('/api/')) {
+      const fn = path.join(ROOT, 'functions', `${p.replace(/^\/+|\/+$/g, '')}.js`);
+      if (!fs.existsSync(fn)) fail(`${file}: link ${href} has no function behind it`);
+      continue;
+    }
     if (!target) { fail(`${file}: broken link ${href}`); continue; }
     if (anchor && !anchor.startsWith('/') && !idsOf(html[target]).has(anchor) && anchor !== 'beta-thanks') {
       fail(`${file}: link ${href} points to a missing #${anchor}`);

@@ -51,8 +51,13 @@ export const PAGES = [
   },
   {
     src: 'login.html', out: 'login.html', path: '/login',
-    title: `Sign in | ${config.product}`,
-    description: `Sign in to your ${config.product} beta workspace with a one-time email link.`,
+    title: `Log in | ${config.product}`,
+    description: `Log in to ${config.product} with your work email and password, or with Google.`,
+  },
+  {
+    src: 'reset.html', out: 'reset.html', path: '/reset',
+    title: `Set a new password | ${config.product}`,
+    description: `Set a new password for your ${config.product} account.`,
   },
   {
     src: 'cabinet.html', out: 'demo.html', path: '/demo', mode: 'demo', robots: 'index, follow',
@@ -232,15 +237,18 @@ export function build() {
     '  X-Robots-Tag: noindex',
     '/login',
     '  X-Robots-Tag: noindex',
+    '/reset',
+    '  X-Robots-Tag: noindex',
+    '  Referrer-Policy: no-referrer',
     '/api/*',
     '  X-Robots-Tag: noindex',
     '',
   ].join('\n'));
 
-  const robots = ['User-agent: *', 'Allow: /', 'Disallow: /app', 'Disallow: /api/'];
+  const robots = ['User-agent: *', 'Allow: /', 'Disallow: /app', 'Disallow: /reset', 'Disallow: /api/'];
   if (isSet(config.domain)) {
     const base = `https://${config.domain}`;
-    const urls = PAGES.filter((p) => !['404.html', 'app.html', 'login.html'].includes(p.out))
+    const urls = PAGES.filter((p) => !['404.html', 'app.html', 'login.html', 'reset.html'].includes(p.out))
       .map((p) => `  <url><loc>${base}${p.path === '/' ? '/' : p.path}</loc></url>`).join('\n');
     fs.writeFileSync(path.join(OUT, 'sitemap.xml'),
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`);

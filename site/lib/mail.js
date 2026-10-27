@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
- * mail.js — send the sign-in email.
+ * mail.js — send the password email.
  *
  * MAIL_PROVIDER=resend  POST https://api.resend.com/emails with RESEND_API_KEY,
  *                       from MAIL_FROM (an address on the product domain).
@@ -10,14 +10,14 @@
  *                       pretends to have sent anything.
  */
 
-export async function sendSignInEmail(env, { to, link, product = 'Backbrief' }) {
-  const subject = `Your ${product} sign-in link`;
+export async function sendPasswordEmail(env, { to, link, product = 'Backbrief' }) {
+  const subject = `Set your ${product} password`;
   const text = [
-    `Sign in to ${product}:`,
+    `Set a new password for ${product}:`,
     link,
     '',
-    'The link works once and expires in 15 minutes.',
-    "If you didn't ask for it, ignore this email.",
+    'The link works once and expires in 30 minutes.',
+    "If you didn't ask for it, ignore this email; your password stays as it is.",
   ].join('\n');
 
   const provider = (env.MAIL_PROVIDER || 'log').toLowerCase();

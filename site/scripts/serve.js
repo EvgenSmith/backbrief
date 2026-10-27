@@ -6,8 +6,8 @@
  *
  * Nothing leaves the machine. The functions run against:
  *   - an in-memory KV (binding CABINET),
- *   - MAIL_PROVIDER=log + DEV_RETURN_LINK=1: the sign-in link is printed here
- *     and shown on the login page instead of being emailed,
+ *   - MAIL_PROVIDER=log + DEV_RETURN_LINK=1: the set-password link is printed
+ *     here and shown on the login page instead of being emailed,
  *   - WAITLIST_DRY_RUN=1: the beta form validates but stores nothing,
  *   - a mock GitHub API at /__github serving site/demo-vault as a repository,
  *     with a workspace "acme-dev" whose member is dev@acme.dev, so /app shows
@@ -151,6 +151,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(e);
     res.writeHead(500).end('internal error');
   })).listen(PORT, () => {
-    console.log(`preview: http://localhost:${PORT}  ·  demo: /demo  ·  sign in at /login as dev@acme.dev`);
+    console.log(`preview: http://localhost:${PORT}  ·  demo: /demo  ·  log in at /login as dev@acme.dev (Forgot password? sets one)`);
   });
 }
