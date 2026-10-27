@@ -34,6 +34,13 @@ action_items:
     priority: medium
     ts: "16:30"
     tracker_ref: null
+  - title: "Shipped the in-app checklist to 20% of users"
+    owner: Kim
+    helpers: []
+    status: done-on-call
+    priority: medium
+    ts: "09:10"
+    tracker_ref: GRW-221
 ---
 
 # Onboarding funnel review — 2026-10-16
@@ -49,7 +56,7 @@ action_items:
 
 ## Decisions
 
-1. The new second email goes to an A/B test on 50% of signups, not to everyone at once (06:30)
+1. The new second email goes to an A/B test on 50% of signups, not to everyone at once — 118 signups are too few to trust a seven-point lift (06:30)
 
 ## Agreements
 
@@ -62,7 +69,7 @@ action_items:
    > "let's not send it to everyone at once, half first"
 
 ### ✅ Done on call
-None.
+1. Shipped the in-app checklist to 20% of users — **Kim** (09:10)
 
 ### 👀 Monitoring
 1. Share of clinics without a first booking after the checklist, for two weeks — **Carter** (16:30)

@@ -19,7 +19,7 @@ counts: { extracted: 3, created: 2, commented: 0, skipped: 1 }
 - **decision: accepted → [GRW-219](https://linear.app/acme/issue/GRW-219)**
 
 ## 2. ✏️ CREATE — Mock up an in-app checklist for the first three steps
-- owner: **Kim** (product) · priority: medium · (19:45)
+- owner: **Kim** (growth) · priority: medium · (19:45)
 - quote: "let me sketch a checklist, three items, nothing more"
 - dedup: no similar issues in backlog
 - **decision: accepted → [GRW-221](https://linear.app/acme/issue/GRW-221)**

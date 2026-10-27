@@ -40,6 +40,13 @@ action_items:
     priority: low
     ts: "24:10"
     tracker_ref: null
+  - title: "Shared the onboarding drop-off numbers by step"
+    owner: Carter
+    helpers: []
+    status: done-on-call
+    priority: medium
+    ts: "02:30"
+    tracker_ref: GRW-205
 ---
 
 # Onboarding emails rework — 2026-10-09
@@ -56,7 +63,7 @@ action_items:
 
 ## Decisions
 
-1. Email two becomes the calendar-connect email; reminders move to email four (10:05)
+1. Email two becomes the calendar-connect email; reminders move to email four — connecting a calendar is the largest drop, and reminders only matter after the first booking (10:05)
 
 ## Agreements
 
@@ -72,6 +79,7 @@ action_items:
 
 ### ✅ Done on call
 1. Removed the outdated video link from email three — **Carter** (24:10)
+2. Shared the onboarding drop-off numbers by step — **Carter** (02:30)
 
 ### 👀 Monitoring
 None.

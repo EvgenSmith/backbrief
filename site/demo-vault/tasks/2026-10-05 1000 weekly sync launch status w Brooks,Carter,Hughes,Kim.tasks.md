@@ -6,7 +6,7 @@ team: general
 date: 2026-10-05
 tracker: linear
 autonomy_level: L0
-generated: 2026-10-05T11:02:00Z
+generated: 2026-10-05T10:02:00Z
 counts: { extracted: 4, created: 2, commented: 0, skipped: 2 }
 ---
 
@@ -22,7 +22,7 @@ counts: { extracted: 4, created: 2, commented: 0, skipped: 2 }
 - owner: **Hughes** (engineering) · priority: high · (14:40)
 - quote: "give me until Wednesday for a real estimate on monthly billing"
 - dedup: no similar issues in backlog
-- **decision: accepted → [ENG-311](https://linear.app/acme/issue/ENG-311)**
+- **decision: edited → [ENG-311](https://linear.app/acme/issue/ENG-311)** (owner: Okafor → Hughes)
 
 ## 3. 🔁 DUPLICATE — Fix SMS reminders failing for some clinics
 - matches [ENG-296](https://linear.app/acme/issue/ENG-296) "SMS provider switch", already in progress

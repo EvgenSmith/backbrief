@@ -41,6 +41,13 @@ action_items:
     priority: medium
     ts: "18:05"
     tracker_ref: null
+  - title: "Billing estimate for the self-serve tier delivered: 6 engineering days"
+    owner: Hughes
+    helpers: []
+    status: done-on-call
+    priority: high
+    ts: "01:30"
+    tracker_ref: ENG-311
 ---
 
 # Self-serve launch plan — 2026-10-14
@@ -60,8 +67,8 @@ action_items:
 
 ## Decisions
 
-1. Launch on 27 October with monthly plans only (04:15)
-2. The table layout wins for the pricing page (14:40)
+1. Launch on 27 October with monthly plans only — the 6-day billing estimate covers monthly billing, and annual waits for legal (04:15)
+2. The table layout wins for the pricing page — all three clinic owners found the per-practitioner price faster in it (14:40)
 
 ## Agreements
 
@@ -78,7 +85,7 @@ action_items:
    > "I'll make the call on annual once legal answers"
 
 ### ✅ Done on call
-None.
+1. Billing estimate for the self-serve tier delivered: 6 engineering days — **Hughes** (01:30)
 
 ### 👀 Monitoring
 None.

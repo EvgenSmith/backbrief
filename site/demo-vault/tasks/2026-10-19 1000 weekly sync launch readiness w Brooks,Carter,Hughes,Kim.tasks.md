@@ -7,7 +7,7 @@ date: 2026-10-19
 tracker: linear
 autonomy_level: L0
 generated: 2026-10-19T09:44:00Z
-counts: { extracted: 4, created: 0, commented: 0, skipped: 0 }
+counts: { extracted: 5, created: 0, commented: 0, skipped: 1 }
 ---
 
 # Tasks — Weekly sync: launch readiness (2026-10-19)
@@ -33,6 +33,10 @@ counts: { extracted: 4, created: 0, commented: 0, skipped: 0 }
 ## 4. 🔁 DUPLICATE — Ship per-clinic rate limits
 - matches [ENG-318](https://linear.app/acme/issue/ENG-318) "Add per-clinic rate limits to the public booking API", done on this call (15:20)
 - **decision: pending**
+
+## 5. 🔁 DUPLICATE — Finish the pricing page for the self-serve launch
+- matches [GRW-214](https://linear.app/acme/issue/GRW-214) "Rewrite pricing page copy for the self-serve tier", done on this call (01:40)
+- **decision: skipped by user** ("Already done")
 
 ---
 _Decisions above are logged to `.backbrief/training/task-decisions.jsonl` — this team's

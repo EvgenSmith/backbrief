@@ -243,6 +243,9 @@ export function parseTasks(rel, text) {
     }
     const reason = (block.match(/\*\*decision:[^*]*\*\*\s*\(["“]([^"”]+)["”]\)/) || [])[1]
       || (decisionText.match(/file-only\s*\(([^)]+)\)/) || [])[1] || null;
+    // "**decision: edited → [ENG-311](…)** (owner: Okafor → Hughes)": approved after a change.
+    const edited = decision === 'accepted' && /\bedited\b/i.test(decisionText);
+    const editNote = edited ? ((block.match(/\*\*decision:[^*]*\*\*\s*\(([^)"“]+)\)/) || [])[1] || '').trim() || null : null;
     const decisionRef = (decisionText.match(REF) || [])[1] || null;
     const result = decision === 'skipped' ? 'skipped'
       : decision === 'pending' ? null
@@ -254,6 +257,7 @@ export function parseTasks(rel, text) {
       n: d.n, owner: d.owner, owner_team: d.owner_team, priority: d.priority, ts: d.ts, quote: d.quote,
       dedup: d.dedup, similarity: d.similarity, target: d.target, notes: d.notes,
       reason, result, result_ref: result === 'commented' ? (d.target && d.target.ref) || decisionRef : decisionRef,
+      edited, edit_note: editNote,
     });
   }
   return {
@@ -338,6 +342,82 @@ export function parseTrainingLog(text) {
     } catch { /* not a row */ }
   }
   return rows;
+}
+
+// --------------------------------------------------------------- reviews
+
+/**
+ * The note an edited decision carries, "owner: Okafor → Hughes; title edited",
+ * as {changed: ['owner', 'title'], from: {owner: 'Okafor'}, to: {owner: 'Hughes'}}.
+ * Field names follow the workspace's edit form: title, owner, priority, team, comment.
+ */
+export function parseEditNote(note) {
+  const out = { changed: [], from: {}, to: {} };
+  const value = (v) => (/^(none|unresolved)$/i.test(v) ? null : v);
+  for (const part of String(note || '').split(/;\s*/)) {
+    const m = part.trim().match(/^(owner|priority|team|title)\s*:\s*(.+?)\s*→\s*(.+)$/i);
+    if (m) {
+      const f = m[1].toLowerCase();
+      out.changed.push(f);
+      out.from[f] = value(m[2]);
+      out.to[f] = value(m[3]);
+      continue;
+    }
+    const e = part.trim().match(/^(title|comment)\s+edited$/i);
+    if (e) out.changed.push(e[1].toLowerCase());
+  }
+  return out;
+}
+
+/**
+ * A skip reason as a review kind: covered | done | not_a_task | wrong_owner |
+ * wrong_team | other, or null when no reason was given (a DUPLICATE skipped
+ * without one counts as covered: that is what its verdict says). Reads the
+ * tasks file's free text and the workspace's reason chips alike.
+ */
+export function reasonKind(reason, verdict = null) {
+  const r = String(reason || '').trim().toLowerCase();
+  if (!r) return verdict === 'DUPLICATE' ? 'covered' : null;
+  if (/wrong team|other team|belongs to/.test(r)) return 'wrong_team';
+  if (/wrong owner|reassign/.test(r)) return 'wrong_owner';
+  if (/not a task|no ticket|decides|discussion only/.test(r)) return 'not_a_task';
+  if (/\bdone\b|shipped|\blive\b|finished|\b(?:is|are) (?:already )?in\b/.test(r)) return 'done';
+  if (/covered|same ticket|already (?:tracked|exists|in the tracker)|duplicate|\b[a-z][a-z0-9]{1,9}-\d+\b/.test(r)) return 'covered';
+  return 'other';
+}
+
+/** Epoch ms of a wall-clock date and "HH:MM" in an IANA zone (read as UTC when the zone is missing or unknown). */
+export function zonedMs(date, time, timeZone = null) {
+  const d = String(date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const t = String(time || '00:00').match(/^(\d{1,2}):(\d{2})$/);
+  if (!d || !t) return null;
+  const wall = Date.UTC(+d[1], +d[2] - 1, +d[3], +t[1], +t[2]);
+  if (!timeZone) return wall;
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+    });
+    const offset = (ms) => {
+      const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+      return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - ms;
+    };
+    return wall - offset(wall - offset(wall));
+  } catch {
+    return wall;
+  }
+}
+
+/** When a call ended (start in the tenant's zone + duration), as epoch ms; null without date, time or duration. */
+export function callEndMs(call, timeZone = null) {
+  const start = zonedMs(call.date, call.time, timeZone);
+  return start === null || !Number.isFinite(call.duration_min) ? null : start + call.duration_min * 60000;
+}
+
+function median(values) {
+  const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const mid = Math.floor(v.length / 2);
+  return Math.round(v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2);
 }
 
 // --------------------------------------------------------------- transcripts
@@ -516,6 +596,141 @@ export function digestLines(call) {
   return out;
 }
 
+// --------------------------------------------------------------- across calls
+
+/**
+ * Where every action item stands once later calls are read, keyed
+ * "<call id>|<index in action_items>":
+ *   closed_by  — a later call recorded it as done: that call's done-on-call item
+ *                with the same tracker_ref, as {call_id, topic, date, ts, title};
+ *                null otherwise (and always null for done-on-call items themselves)
+ *   superseded — a later row carries the same tracker_ref, so a list shows one
+ *                row per issue: the latest
+ * "Later" is call date and time, then the item's (MM:SS). Items without a
+ * tracker_ref are never closed or superseded by another call.
+ */
+export function itemStates(calls) {
+  const rows = calls.flatMap((c) => c.action_items.map((a, i) => ({ c, a, i, at: `${c.date || ''} ${c.time || ''}`, sec: tsSeconds(a.ts) ?? -1 })));
+  const cmp = (x, y) => x.at.localeCompare(y.at) || x.sec - y.sec;
+  const byRef = new Map();
+  for (const r of rows) if (r.a.tracker_ref) byRef.set(r.a.tracker_ref, [...(byRef.get(r.a.tracker_ref) || []), r]);
+  const out = new Map();
+  for (const r of rows) {
+    const later = r.a.tracker_ref ? byRef.get(r.a.tracker_ref).filter((x) => cmp(x, r) > 0).sort(cmp) : [];
+    const done = r.a.status === 'done-on-call' ? null : later.find((x) => x.a.status === 'done-on-call');
+    out.set(`${r.c.id}|${r.i}`, {
+      closed_by: done ? { call_id: done.c.id, topic: done.c.topic, date: done.c.date, ts: done.a.ts, title: done.a.title } : null,
+      superseded: later.length > 0,
+    });
+  }
+  return out;
+}
+
+/** Still owed: a post-call item that no later call records as done, on the latest row for its issue. */
+export const isOpenItem = (a, st = a) => a.status === 'post-call' && !(st && st.closed_by) && !(st && st.superseded);
+
+const STOP = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'be', 'before', 'by', 'for', 'from', 'in', 'into', 'is', 'it', 'its',
+  'not', 'no', 'of', 'on', 'once', 'only', 'or', 'our', 'per', 'so', 'than', 'that', 'the', 'their', 'them', 'then', 'this', 'to',
+  'until', 'we', 'what', 'when', 'with']);
+function stems(text) {
+  const out = new Set();
+  for (let w of String(text || '').toLowerCase().split(/[^a-z0-9]+/)) {
+    if (!w || STOP.has(w) || (w.length < 3 && !/\d/.test(w))) continue;
+    if (w.length > 5) w = w.replace(/(ing|ed)$/, '');
+    if (w.length > 3) w = w.replace(/s$/, '');
+    out.add(w);
+  }
+  return out;
+}
+
+/** The action item that carries a decision out: the same call's post-call item sharing the most words with it (two or more), the nearest in time on a tie. */
+function followUpIndex(dec, call) {
+  const want = stems(dec.title);
+  const at = tsSeconds(dec.ts) ?? 0;
+  let best = { i: -1, n: 1, gap: Infinity };
+  call.action_items.forEach((a, i) => {
+    if (a.status !== 'post-call') return;
+    const have = stems(a.title);
+    const n = [...want].filter((w) => have.has(w)).length;
+    const gap = Math.abs((tsSeconds(a.ts) ?? 0) - at);
+    if (n > best.n || (n === best.n && n > 1 && gap < best.gap)) best = { i, n, gap };
+  });
+  return best.i;
+}
+
+/**
+ * Every decision across calls, newest call first (in digest order within a
+ * call): {call_id, topic, date, time, team, n, title, why, ts, follow_up}.
+ * follow_up is the action item that implements it ({title, owner, tracker_ref,
+ * ts, status, closed_by, superseded, open}) or null when no item matches.
+ */
+export function decisionsIndex(calls, states = itemStates(calls)) {
+  const out = [];
+  for (const c of calls) {
+    digest(c.sections || []).decisions.forEach((d, k) => {
+      const i = followUpIndex(d, c);
+      const a = i >= 0 ? c.action_items[i] : null;
+      const st = (a && states.get(`${c.id}|${i}`)) || { closed_by: null, superseded: false };
+      out.push({
+        call_id: c.id, topic: c.topic, date: c.date, time: c.time, team: c.team, n: k + 1,
+        title: d.title, why: d.why, ts: d.ts,
+        follow_up: a ? {
+          title: a.title, owner: a.owner, tracker_ref: a.tracker_ref, ts: a.ts, status: a.status,
+          closed_by: st.closed_by, superseded: st.superseded, open: isOpenItem(a, st),
+        } : null,
+      });
+    });
+  }
+  return out.sort((x, y) => `${y.date} ${y.time}`.localeCompare(`${x.date} ${x.time}`) || x.n - y.n);
+}
+
+const plain = (s) => unlink(unbold(String(s || ''))).replace(/\s+/g, ' ').trim();
+
+/**
+ * What a call search runs over, one line each with the (MM:SS) it sits at so a
+ * hit can show ▶: topic, people (full names; guests marked), tags, summary
+ * themes and points, decisions with their why, agreements, action items (owner,
+ * helpers, issue key), open questions, key insights, verbatim quotes, and task
+ * proposals that are not already an action item. kind names the source.
+ */
+export function searchLines(call, { proposals = [], names = new Map() } = {}) {
+  const d = digest(call.sections || []);
+  const lines = [];
+  const seen = new Set();
+  const add = (kind, text, ts = null) => {
+    const t = plain(text);
+    const key = `${kind}|${t}|${ts}`;
+    if (!t || seen.has(key)) return;
+    seen.add(key);
+    lines.push({ text: t, ts: ts || null, kind });
+  };
+  add('topic', call.topic);
+  add('people', [...call.participants.map((p) => names.get(p) || p), ...call.external_participants.map((p) => `${p} (guest)`)].join(', '));
+  if (call.tags.length) add('tags', call.tags.join(', '));
+  for (const th of d.themes) {
+    add('summary', th.title, th.ts);
+    for (const p of th.points) add('summary', p, th.ts);
+  }
+  for (const x of d.decisions) add('decision', x.why ? `${x.title} — ${x.why}` : x.title, x.ts);
+  for (const x of d.agreements) add('agreement', x.parties.length ? `${x.parties.join(' ↔ ')}: ${x.text}` : x.text, x.ts);
+  for (const a of call.action_items) {
+    add('action_item', `${a.title} — ${a.owner || 'no owner'}${a.helpers.length ? ` (helpers: ${a.helpers.join(', ')})` : ''}${a.tracker_ref ? ` · ${a.tracker_ref}` : ''}`, a.ts);
+  }
+  for (const x of d.open_questions) add('open_question', x.why ? `${x.title} — ${x.why}` : x.title, x.ts);
+  for (const x of d.key_insights) add('key_insight', x.implication ? `${x.title} — ${x.implication}` : x.title, x.ts);
+  const quotes = new Set();
+  for (const q of [...d.next_steps, ...proposals]) {
+    if (q.quote && !quotes.has(q.quote)) { quotes.add(q.quote); add('quote', q.quote, q.ts); }
+  }
+  const itemTitles = new Set(call.action_items.map((a) => a.title));
+  for (const p of proposals) {
+    if (itemTitles.has(p.title)) continue;
+    const ref = (p.target && p.target.ref) || (p.decision && p.decision.ref);
+    add('proposal', `${p.title}${ref ? ` · ${ref}` : ''}`, p.ts);
+  }
+  return lines;
+}
+
 // --------------------------------------------------------------- call detail
 
 /** Human label for a call path when its frontmatter wasn't read. */
@@ -561,22 +776,34 @@ export function recordingRef(call) {
   return { available: Boolean(call.recording_url), provider: call.platform || call.source || null, url: call.recording_url || null };
 }
 
-/** Call detail: the call, its task proposals, and links to the calls it built on. */
+/**
+ * Call detail: the call, its task proposals, and links to the calls it built on.
+ * `states` (itemStates() over the workspace's calls) marks each action item and
+ * next step closed_by / superseded; without it nothing is closed. `training`
+ * (log rows) dates each decided proposal.
+ */
 export function callDetail(call, tasksFile = null, knownTopics = new Map(), opts = {}) {
-  const { tenant = null, files = null, members = [], transcriptUrl = null } = opts;
+  const { tenant = null, files = null, members = [], transcriptUrl = null, states = null, training = null } = opts;
+  const st = (i) => (states && states.get(`${call.id}|${i}`)) || { closed_by: null, superseded: false };
+  const d = digest(call.sections);
+  d.next_steps = d.next_steps.map((s) => {
+    const i = call.action_items.findIndex((a) => a.ts === s.ts && a.title === s.title);
+    return i < 0 ? s : { ...s, tracker_ref: call.action_items[i].tracker_ref, closed_by: st(i).closed_by, superseded: st(i).superseded };
+  });
   return {
     ...call,
+    action_items: call.action_items.map((a, i) => ({ ...a, closed_by: st(i).closed_by, superseded: st(i).superseded, open: isOpenItem(a, st(i)) })),
     references: call.references.map((p) => ({
       path: p,
       id: callId(p, dateFromName(p).date),
       topic: knownTopics.get(p) || labelFromName(p),
     })),
     tasks: tasksFile,
-    digest: digest(call.sections),
+    digest: d,
     transcript: transcriptRef(call, files, transcriptUrl),
     recording: recordingRef(call),
     slack: slackPost(call, tenant),
-    task_log: taskLogEntry(call, tasksFile, members),
+    task_log: taskLogEntry(call, tasksFile, members, { training }),
   };
 }
 
@@ -588,8 +815,43 @@ const SUGGESTED = { CREATE: 'approve', COMMENT: 'approve', FLAG: 'review', DUPLI
 /** call_type → the taskcrafter call_mode (the vault does not store it): planning and mixed stay, else discovery. */
 export const callMode = (callType) => (callType === 'planning' || callType === 'mixed' ? callType : 'discovery');
 
+/**
+ * How a decision relates to the verdict Backbrief proposed: 'agreed' (decided
+ * as suggested), 'edited' (approved after a change) or 'overridden'; null while
+ * pending. CREATE and COMMENT suggest approve; DUPLICATE suggests skip; a FLAG
+ * (possible duplicate) is borne out by a skip or by a comment on the issue it
+ * named, and overridden by filing a new issue instead.
+ */
+export function agreementOf(p) {
+  if (!p || p.status === 'pending') return null;
+  const approved = p.status === 'approved';
+  const result = p.decision && p.decision.result;
+  if (p.verdict === 'DUPLICATE') return approved ? 'overridden' : 'agreed';
+  if (p.verdict === 'FLAG' && approved && result !== 'commented') return 'overridden';
+  if (p.verdict === 'FLAG' && !approved) return 'agreed';
+  if (!approved) return 'overridden';
+  return p.edited ? 'edited' : 'agreed';
+}
+
+/**
+ * Whether a decision kept a duplicate out of the tracker: a COMMENT approved,
+ * a FLAG approved as a comment on its issue, or a FLAG or DUPLICATE skipped as
+ * already covered or already done.
+ */
+export function preventsDuplicate(p) {
+  if (!p || p.status === 'pending') return false;
+  const d = p.decision || {};
+  if (p.verdict === 'COMMENT') return p.status === 'approved';
+  if (p.verdict === 'FLAG' && p.status === 'approved') return d.result === 'commented';
+  if (p.verdict === 'FLAG' || p.verdict === 'DUPLICATE') {
+    const kind = d.reason_kind !== undefined ? d.reason_kind : reasonKind(d.reason, p.verdict);
+    return p.status === 'skipped' && (kind === 'covered' || kind === 'done');
+  }
+  return false;
+}
+
 /** One draft → the proposal a reviewer acts on (status, safe, suggested action, decision). */
-function proposal(d, call, teamOf, steps) {
+function proposal(d, call, teamOf, steps, rowFor) {
   const item = d.ts ? call.action_items.find((a) => a.ts === d.ts) : null;
   const step = d.ts ? steps.find((s) => s.ts === d.ts && s.quote) : null;
   const title = d.verdict === 'COMMENT'
@@ -597,14 +859,20 @@ function proposal(d, call, teamOf, steps) {
     : d.title;
   const status = d.decision === 'accepted' ? 'approved' : d.decision === 'skipped' ? 'skipped' : 'pending';
   const evidence = d.verdict === 'CREATE' ? d.dedup : (d.note ? unlink(d.note).split(/;\s+/)[0] : null);
-  return {
+  const ownerTeam = d.owner_team || (d.owner && teamOf(d.owner)) || null;
+  const priority = d.priority || (item && item.priority) || null;
+  // An edited approval: the block shows what was filed; the note says what the proposal had.
+  const edit = d.edited ? parseEditNote(d.edit_note) : null;
+  const was = (f, now) => (edit && f in edit.from ? edit.from[f] : now);
+  const row = status === 'pending' ? null : rowFor(title);
+  const p = {
     n: d.n,
     verdict: d.verdict,
     title,
     target: d.target,
     owner: d.owner,
-    owner_team: d.owner_team || (d.owner && teamOf(d.owner)) || null,
-    priority: d.priority || (item && item.priority) || null,
+    owner_team: ownerTeam,
+    priority,
     ts: d.ts,
     quote: d.quote || (step && step.quote) || null,
     evidence,
@@ -612,17 +880,32 @@ function proposal(d, call, teamOf, steps) {
     status,
     safe: SAFE.has(d.verdict),
     suggested: SUGGESTED[d.verdict] || 'review',
-    decision: { result: d.result, ref: d.result_ref, reason: d.reason },
+    decision: { result: d.result, ref: d.result_ref, reason: d.reason, reason_kind: status === 'skipped' ? reasonKind(d.reason, d.verdict) : null },
     on_approve: null,
+    edited: Boolean(d.edited),
+    edit_summary: d.edited ? d.edit_note : null,
+    changed: edit ? edit.changed : [],
+    original: edit ? { title, owner: was('owner', d.owner), priority: was('priority', priority), owner_team: was('team', ownerTeam) } : null,
+    decided_at: row ? str(row.ts) : null,
   };
+  p.agreement = agreementOf(p);
+  p.prevents_duplicate = preventsDuplicate(p);
+  return p;
 }
 
-/** One call's task artifact as a decision log: every proposal, its status, and what bulk actions apply. */
-export function taskLogEntry(call, tasksFile, members = []) {
+/**
+ * One call's task artifact as a decision log: every proposal, its status, and
+ * what bulk actions apply. `opts.training` (task-decisions.jsonl rows) dates
+ * each decided proposal (decided_at).
+ */
+export function taskLogEntry(call, tasksFile, members = [], opts = {}) {
   const teams = new Map(members.map((m) => [m.lastname, m.team]));
   const teamOf = (ln) => teams.get(ln) || null;
   const steps = digest(call.sections || []).next_steps;
-  const proposals = tasksFile ? tasksFile.drafts.map((d) => proposal(d, call, teamOf, steps)) : [];
+  const base = callBasename(call.path);
+  const rows = (opts.training || []).filter((r) => r.call_id === base);
+  const rowFor = (title) => rows.find((r) => r.task_title === title) || null;
+  const proposals = tasksFile ? tasksFile.drafts.map((d) => proposal(d, call, teamOf, steps, rowFor)) : [];
   const pending = proposals.filter((p) => p.status === 'pending');
   const mode = callMode(call.call_type);
   return {
@@ -655,8 +938,96 @@ function weekOf(date) {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * The Overview's review metrics, as base values the workspace recomputes with
+ * the decisions made in the browser:
+ *   verdict_agreement     {agreed, edited, decided}: agreed = decided as
+ *                         suggested; edited = approved after a change
+ *   duplicates_prevented  {confirmed}: COMMENT approved + FLAG approved as a
+ *                         comment + FLAG or DUPLICATE skipped as covered or done
+ *   time_to_decision      {median_minutes, over_48h, calls[]}: per fully decided
+ *                         call, call end → its last decision (training log ts);
+ *                         over_48h counts proposals decided, or still waiting at
+ *                         `now`, more than 48 h after their call ended
+ *   owner_coverage        {with_owner, total}: distinct tasks (call + minute)
+ *                         that are open or were filed as an issue
+ *   processing            {calls, median_digest_minutes, max_digest_minutes}:
+ *                         call end → tasks file `generated` (else the Slack post);
+ *                         the minutes are null without tenant.yaml (no zone)
+ * Call times are wall-clock in tenant.yaml's timezone (UTC when it names none).
+ */
+export function metrics({ calls, taskLog, states = itemStates(calls), timezone = null, now = null, tenant = null }) {
+  const all = taskLog.flatMap((e) => e.proposals.map((p) => ({ e, p })));
+  const decided = all.filter(({ p }) => p.status !== 'pending');
+  const byId = new Map(calls.map((c) => [c.id, c]));
+  const nowMs = now ? Date.parse(now) : NaN;
+
+  const perCall = [];
+  let over48 = 0;
+  for (const e of taskLog) {
+    const c = byId.get(e.call_id);
+    const end = c ? callEndMs(c, timezone) : null;
+    if (end === null || !e.proposals.length) continue;
+    const times = [];
+    for (const p of e.proposals) {
+      const t = p.status === 'pending' ? nowMs : Date.parse(p.decided_at || '');
+      if (p.status !== 'pending' && Number.isFinite(t)) times.push(t);
+      if (Number.isFinite(t) && t - end > 48 * 3600e3) over48++;
+    }
+    const last = e.pending === 0 && times.length ? Math.max(...times) : null;
+    perCall.push({
+      call_id: e.call_id, ended_at: new Date(end).toISOString(), decided_at: last ? new Date(last).toISOString() : null,
+      minutes: last ? Math.round((last - end) / 60000) : null, pending: e.pending,
+    });
+  }
+
+  const tasks = new Map();
+  for (const c of calls) {
+    c.action_items.forEach((a, i) => {
+      if (isOpenItem(a, states.get(`${c.id}|${i}`) || {})) tasks.set(`${c.id}|${a.ts || a.title}`, a.owner || null);
+    });
+  }
+  for (const { e, p } of all) {
+    if (p.status === 'approved' && p.decision.result === 'created') tasks.set(`${e.call_id}|${p.ts || p.title}`, p.owner || null);
+  }
+
+  // Minutes to the digest need the tenant's clock: without tenant.yaml (/app today) they stay null.
+  const digestMinutes = [];
+  for (const c of tenant ? calls : []) {
+    const end = callEndMs(c, timezone);
+    if (end === null) continue;
+    const e = taskLog.find((x) => x.call_id === c.id);
+    let at = e && e.generated ? Date.parse(e.generated) : NaN;
+    if (!Number.isFinite(at)) {
+      const post = slackPost(c, tenant);
+      at = post && post.posted_at ? zonedMs(c.date, post.posted_at, timezone) ?? NaN : NaN;
+    }
+    if (Number.isFinite(at)) digestMinutes.push(Math.round((at - end) / 60000));
+  }
+
+  return {
+    verdict_agreement: {
+      agreed: decided.filter(({ p }) => p.agreement === 'agreed').length,
+      edited: decided.filter(({ p }) => p.agreement === 'edited').length,
+      decided: decided.length,
+    },
+    duplicates_prevented: { confirmed: decided.filter(({ p }) => p.prevents_duplicate).length },
+    time_to_decision: {
+      median_minutes: median(perCall.map((x) => x.minutes).filter((m) => m !== null)),
+      over_48h: over48,
+      calls: perCall,
+    },
+    owner_coverage: { with_owner: [...tasks.values()].filter(Boolean).length, total: tasks.size },
+    processing: {
+      calls: calls.length,
+      median_digest_minutes: median(digestMinutes),
+      max_digest_minutes: digestMinutes.length ? Math.max(...digestMinutes) : null,
+    },
+  };
+}
+
 /** What needs a decision, digest totals, and how the calls spread over weeks, teams and owners. */
-export function overview({ calls, taskLog, training = null }) {
+export function overview({ calls, taskLog, training = null, states = itemStates(calls), timezone = null, now = null, tenant = null }) {
   const totals = { themes: 0, decisions: 0, agreements: 0, open_questions: 0, key_insights: 0 };
   for (const c of calls) {
     const d = digest(c.sections);
@@ -673,9 +1044,12 @@ export function overview({ calls, taskLog, training = null }) {
   }
   const byTeam = {};
   for (const c of calls) byTeam[c.team] = (byTeam[c.team] || 0) + 1;
+  // Open = post-call, not recorded as done by a later call, latest row for its issue.
   const open = {};
   for (const c of calls) {
-    for (const a of c.action_items) if (a.owner && a.status === 'post-call') open[a.owner] = (open[a.owner] || 0) + 1;
+    c.action_items.forEach((a, i) => {
+      if (a.owner && isOpenItem(a, states.get(`${c.id}|${i}`) || {})) open[a.owner] = (open[a.owner] || 0) + 1;
+    });
   }
   const flags = new Map();
   for (const e of taskLog) {
@@ -710,6 +1084,7 @@ export function overview({ calls, taskLog, training = null }) {
       edited: training.filter((r) => r.user_action === 'edited').length,
       skipped: training.filter((r) => r.user_action === 'skipped').length,
     } : null,
+    metrics: metrics({ calls, taskLog, states, timezone, now, tenant }),
   };
 }
 
@@ -744,12 +1119,18 @@ function callForEvidence(calls, ev) {
 export function peopleIndex({ members, calls, suggestions = {}, teams = [] }) {
   const profiled = new Set(members.map((m) => m.lastname));
   const idx = speakerIndex(members);
+  const states = itemStates(calls);
   const people = members
     .filter((m) => m.status !== 'stale')
     .sort((a, b) => a.lastname.localeCompare(b.lastname))
     .map((m) => {
       const attended = calls.filter((c) => c.participants.includes(m.lastname));
-      const owned = calls.flatMap((c) => c.action_items.filter((a) => a.owner === m.lastname));
+      const rows = calls.flatMap((c) => c.action_items.map((a, i) => ({ a, key: `${c.id}|${i}`, st: states.get(`${c.id}|${i}`) || {} })))
+        .filter((r) => r.a.owner === m.lastname);
+      const owned = rows.map((r) => r.a);
+      // Done: finished on a call, or closed by a later one; one count per issue.
+      const done = new Set(rows.filter((r) => r.a.status === 'done-on-call' || r.st.closed_by)
+        .map((r) => (r.a.tracker_ref ? `ref:${r.a.tracker_ref}` : r.key)));
       const partners = {};
       for (const c of attended) for (const p of c.participants) if (p !== m.lastname) partners[p] = (partners[p] || 0) + 1;
       return {
@@ -762,9 +1143,9 @@ export function peopleIndex({ members, calls, suggestions = {}, teams = [] }) {
         activity: {
           calls: attended.length,
           last_call: attended.map((c) => c.date).sort().pop() || null,
-          open: owned.filter((a) => a.status === 'post-call').length,
-          monitoring: owned.filter((a) => a.status === 'monitoring').length,
-          done: owned.filter((a) => a.status === 'done-on-call').length,
+          open: rows.filter((r) => isOpenItem(r.a, r.st)).length,
+          monitoring: rows.filter((r) => r.a.status === 'monitoring' && !r.st.closed_by && !r.st.superseded).length,
+          done: done.size,
           helps: calls.reduce((n, c) => n + c.action_items.filter((a) => a.helpers.includes(m.lastname)).length, 0),
           tracker_refs: [...new Set(owned.map((a) => a.tracker_ref).filter(Boolean))].sort(),
           partners: Object.entries(partners).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([lastname, n]) => ({ lastname, calls: n })),
@@ -1023,7 +1404,8 @@ export function vaultTree({ files, calls, tasks, members, tenant = null, agentsM
     c.action_items.forEach((a, i) => {
       if (a.tracker_ref) {
         edges.push({ call_id: c.id, from: c.path, to: a.tracker_ref, via: `action_items[${i}].tracker_ref` });
-        edges.push({ call_id: c.id, from: a.tracker_ref, to: c.path, via: 'issue body 📎 Source → Vault', rule: true });
+        // The issue links back to the call that filed or commented on it, not to a later call that reports it done.
+        if (a.status !== 'done-on-call') edges.push({ call_id: c.id, from: a.tracker_ref, to: c.path, via: 'issue body 📎 Source → Vault', rule: true });
       }
       if (a.owner && profiles.has(a.owner)) {
         edges.push({ call_id: c.id, from: c.path, to: `team/${a.owner}.md`, via: `action_items[${i}].owner = lastname` });
@@ -1130,7 +1512,8 @@ export function settingsFromVault({ tenant, calls, taskLog, slackScopes = [] }) 
  * @param {object[]} o.tasks       parsed tasks files
  * @param {object[]} o.members     parsed team profiles
  * @param {object}   [o.company]   parsed company profile
- * @param {string}   [o.now]       ISO date the "last 30 days" window ends on
+ * @param {string}   [o.now]       ISO time the "last 30 days" window ends on, and the clock
+ *                                 overview.metrics measures waiting proposals against
  * @param {object}   [o.tenant]    parsed tenant.yaml (Slack channels for call details)
  * @param {string[]} [o.files]     every vault path (confirms .vtt siblings exist)
  * @param {object[]} [o.training]  parsed .backbrief/training/task-decisions.jsonl rows
@@ -1145,9 +1528,15 @@ export function buildWorkspace({
 
   const since = new Date(new Date(now).getTime() - 30 * 864e5).toISOString().slice(0, 10);
   const allDates = callPaths.map((p) => dateFromName(p).date).filter(Boolean);
+  const timezone = str(tenant && tenant.tenant && tenant.tenant.timezone);
+  // Each item knows whether a later call closed it, and whether a later row for its issue replaces it.
+  const states = itemStates(sorted);
   const items = [];
   for (const c of sorted) {
-    for (const a of c.action_items) items.push({ ...a, call_id: c.id, call_topic: c.topic, call_date: c.date });
+    c.action_items.forEach((a, i) => {
+      const st = states.get(`${c.id}|${i}`);
+      items.push({ ...a, call_id: c.id, call_topic: c.topic, call_date: c.date, closed_by: st.closed_by, superseded: st.superseded, open: isOpenItem(a, st) });
+    });
   }
   const verdicts = { CREATE: 0, COMMENT: 0, FLAG: 0, DUPLICATE: 0, accepted: 0, skipped: 0 };
   for (const c of sorted) {
@@ -1160,19 +1549,25 @@ export function buildWorkspace({
     }
   }
   const last = sorted[0] || null;
-  const taskLog = sorted.map((c) => taskLogEntry(c, tasksByCall.get(c.path) || null, members));
+  const taskLog = sorted.map((c) => taskLogEntry(c, tasksByCall.get(c.path) || null, members, { training }));
   const logByCall = new Map(taskLog.map((e) => [e.call_id, e]));
+  const names = new Map(members.map((m) => [m.lastname, m.name || m.lastname]));
 
   return {
     // timezone: tenant.yaml's IANA zone, for clock times the pipeline wrote in UTC (tasks `generated`).
-    workspace: { ...info, company, timezone: str(tenant && tenant.tenant && tenant.tenant.timezone) },
+    workspace: { ...info, company, timezone },
     window: { calls: sorted.length, total: callPaths.length, truncated: sorted.length < callPaths.length },
     stats: {
       calls_total: callPaths.length,
       calls_last_30d: allDates.filter((d) => d >= since).length,
       action_items: items.length,
+      // open_items: still owed (see isOpenItem); latest_items: what a list shows, one row per issue.
+      open_items: items.filter((a) => a.open).length,
+      latest_items: items.filter((a) => !a.superseded).length,
       linked_to_tracker: items.filter((a) => a.tracker_ref).length,
       proposals: verdicts.CREATE + verdicts.COMMENT + verdicts.FLAG + verdicts.DUPLICATE,
+      // Kept for older screens: every COMMENT and DUPLICATE verdict, decided or not.
+      // overview.metrics.duplicates_prevented counts only the ones the team confirmed.
       duplicates_caught: verdicts.COMMENT + verdicts.DUPLICATE,
       accepted: verdicts.accepted,
       skipped: verdicts.skipped,
@@ -1181,9 +1576,11 @@ export function buildWorkspace({
       people: members.length,
       last_call: last ? { id: last.id, date: last.date, time: last.time, topic: last.topic } : null,
     },
-    calls: sorted.map(({ sections: secs, action_items, references, ...c }) => {
+    calls: sorted.map((call) => {
+      const { sections: secs, action_items, references, ...c } = call;
       const d = digest(secs);
       const log = logByCall.get(c.id);
+      const lines = searchLines(call, { proposals: log.proposals, names });
       return {
         ...c,
         action_items_count: action_items.length,
@@ -1191,21 +1588,26 @@ export function buildWorkspace({
         has_tasks_file: tasksByCall.has(c.path),
         decisions_count: d.decisions.length,
         agreements_count: d.agreements.length,
+        first_decision: d.decisions.length ? d.decisions[0].title : null,
         proposals: { total: log.proposals.length, pending: log.pending },
         has_transcript: transcriptRef(c, files).available,
         has_recording: Boolean(c.recording_url),
+        // Client-side search: match the lowercase blob, then show the matching line with ▶ ts.
+        search: lines.map((l) => l.text).join('\n').toLowerCase(),
+        search_lines: lines,
       };
     }),
     action_items: items,
+    decisions: decisionsIndex(sorted, states),
     people: members
       .filter((m) => m.status !== 'stale')
       .sort((a, b) => a.lastname.localeCompare(b.lastname)),
-    overview: overview({ calls: sorted, taskLog, training }),
+    overview: overview({ calls: sorted, taskLog, training, states, timezone, now, tenant }),
     task_log: taskLog,
     _detail: (id) => {
       const c = sorted.find((x) => x.id === id);
       return c ? callDetail(c, tasksByCall.get(c.path) || null, new Map(sorted.map((x) => [x.path, x.topic])),
-        { tenant, files, members, transcriptUrl }) : null;
+        { tenant, files, members, transcriptUrl, states, training }) : null;
     },
   };
 }

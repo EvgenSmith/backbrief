@@ -37,7 +37,7 @@ Full naming grammar + the rationale behind each rule: `docs/conventions.md`.
 | All calls of a team           | `rg -l 'team: product' --glob '**/transcripts/*.md'` |
 | Calls in a date range         | filenames sort chronologically: `ls <team>/transcripts/ \| sort` |
 | Who decided X                 | `rg -A2 'X' --glob '**/transcripts/*.md'` then read the Decisions section |
-| Open commitments of a person  | `rg 'owner: <Lastname>' --glob '**/transcripts/*.md'` (frontmatter action_items) |
+| Open commitments of a person  | `rg 'owner: <Lastname>' --glob '**/transcripts/*.md'` (frontmatter action_items); an item is done once a later call lists its `tracker_ref` with `status: done-on-call` |
 | A person's role/zones/aliases | read `team/<Lastname>.md` |
 | Everything about a topic      | `rg -l '<topic-word>'` then prefer files whose `tags:` match |
 | What a task came from         | tracker issue links back; or `rg '<ISSUE-KEY>' tasks/ --glob '*.tasks.md'` |

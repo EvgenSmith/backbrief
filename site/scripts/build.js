@@ -173,17 +173,19 @@ function copyDir(from, to) {
  * kit's validate-vault.js), parsed by the same lib/vault.js the live cabinet
  * uses, and written out as the static JSON /demo reads:
  *
- *   demo/workspace.json         overview, stats, calls, action items, task_log
+ *   demo/workspace.json         overview (+ metrics), stats, calls (+ search), action items
+ *                               (+ closed_by, superseded), decisions, task_log, demo_now
  *   demo/calls/<id>.json        one call: digest, proposals, transcript, recording, Slack post
  *   demo/transcripts/<id>.json  the call's .vtt as [{speaker, ts_mmss, text}]
  *   demo/people.json            profiles + activity, unprofiled names, "Add person" rules
  *   demo/vault.json             the vault as a folder tree + the links between files + AGENTS.md's recipes
- *   demo/settings.json          sources (Zoom, Slack, Linear, GitHub) and Slack delivery
+ *   demo/settings.json          sources (Zoom, Slack, Linear, GitHub), Slack delivery, tracker issues
  *
  * Facts no vault holds (connection status, accounts, scope wording, delivery
  * toggles and channels, setup dates, the ids a click would create and the
- * issue bodies behind them, model suggestions for an unprofiled name) come
- * from demo.config.json, marked "_demo_only" and read here only.
+ * issue bodies behind them, model suggestions for an unprofiled name, what
+ * the tracker says about each issue, the demo's frozen clock) come from
+ * demo.config.json, marked "_demo_only" and read here only.
  */
 function slackScopes() {
   // The scopes the shipped Slack app manifest requests: what "connected" grants.
@@ -193,9 +195,63 @@ function slackScopes() {
   return bot.map(String);
 }
 
-function buildDemo(out) {
+const ISSUE_STATUSES = ['Open', 'In Progress', 'In Review', 'Done', 'Canceled'];
+
+/*
+ * settings.issues: what the tracker says about every issue a proposal targets
+ * or a decision filed or commented on (the card popover "GRW-102 · Billing FAQ
+ * refresh · Open · Carter · updated 3 Oct"). A demo cannot ask Linear, so this
+ * is config; titles must be the ones the vault already gives each issue.
+ */
+function checkIssues(issues, taskLog, { teamKeys, people }) {
+  const want = new Map();
+  const note = (ref, title, where) => {
+    const seen = want.get(ref);
+    if (seen && title && seen.title && seen.title !== title) {
+      throw new Error(`vault names ${ref} both "${seen.title}" (${seen.where}) and "${title}" (${where})`);
+    }
+    want.set(ref, seen && seen.title ? seen : { title: title || null, where });
+  };
+  for (const e of taskLog) {
+    for (const p of e.proposals) {
+      const where = `${e.tasks_path} #${p.n}`;
+      if (p.target && p.target.ref) note(p.target.ref, p.target.title, where);
+      if (p.decision.ref && p.decision.result === 'created') note(p.decision.ref, p.title, where);
+      if (p.decision.ref && p.decision.result === 'commented') note(p.decision.ref, null, where);
+    }
+  }
+  for (const [ref, { title, where }] of want) {
+    const i = issues[ref];
+    if (!i) throw new Error(`demo.config.json issues: no entry for ${ref} (${where})`);
+    if (title && i.title !== title) throw new Error(`demo.config.json issues.${ref}.title must be "${title}", as in ${where}`);
+  }
+  for (const [ref, i] of Object.entries(issues)) {
+    if (!want.has(ref)) throw new Error(`demo.config.json issues.${ref}: no proposal or target names it`);
+    const prefix = ref.split('-')[0];
+    if (i.team !== prefix || !teamKeys.includes(prefix)) throw new Error(`demo.config.json issues.${ref}.team must be ${prefix}, a tracker team in tenant.yaml`);
+    if (!ISSUE_STATUSES.includes(i.status)) throw new Error(`demo.config.json issues.${ref}.status: one of ${ISSUE_STATUSES.join(', ')}`);
+    if (i.assignee !== null && !people.includes(i.assignee)) throw new Error(`demo.config.json issues.${ref}.assignee: a profile lastname or null`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(i.updated))) throw new Error(`demo.config.json issues.${ref}.updated: YYYY-MM-DD`);
+    if (typeof i.title !== 'string' || !i.title.trim()) throw new Error(`demo.config.json issues.${ref}.title is empty`);
+  }
+  return Object.fromEntries(Object.entries(issues).map(([ref, i]) => [ref, {
+    title: i.title, status: i.status, assignee: i.assignee, updated: i.updated, team: i.team,
+  }]));
+}
+
+/**
+ * Everything /demo reads, built in memory from site/demo-vault and
+ * demo.config.json: {ws, people, vault, settings, details[], transcripts[]}.
+ * buildDemo() writes it to dist/demo; tests read it directly.
+ */
+export function demoData() {
   const demo = JSON.parse(fs.readFileSync(path.join(ROOT, 'demo.config.json'), 'utf8'));
   if (demo._demo_only !== true) throw new Error('demo.config.json must be marked "_demo_only": true');
+  // The demo's clock: the workspace freezes "now" here (the last call's morning, 19 Oct 11:05).
+  const demoNow = demo.demo_now;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/.test(String(demoNow)) || !Number.isFinite(Date.parse(demoNow))) {
+    throw new Error('demo.config.json demo_now must be an ISO time with a zone, e.g. 2026-10-19T11:05:00+01:00');
+  }
   const root = path.join(ROOT, 'demo-vault');
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true })
     .flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
@@ -207,7 +263,6 @@ function buildDemo(out) {
   const members = of('member').map((p) => parseMember(p, read(p)));
   const tenant = of('tenant').length ? parseTenant(read('tenant.yaml')) : null;
   const training = of('training').flatMap((p) => parseTrainingLog(read(p)));
-  const latest = calls.map((c) => c.date).sort().pop() || new Date().toISOString().slice(0, 10);
   const idOf = (callPath) => {
     if (!calls.some((c) => c.path === callPath)) throw new Error(`demo.config.json: no call at ${callPath}`);
     return callId(callPath, dateFromName(callPath).date);
@@ -226,8 +281,8 @@ function buildDemo(out) {
     tasks,
     members,
     company: of('company').length ? parseCompany(read('docs/company.md')) : null,
-    // A fixed "now" keeps the demo's "last 30 days" stable as real time passes.
-    now: new Date(`${latest}T23:59:59Z`).toISOString(),
+    // A fixed "now" keeps the demo's "last 30 days" and its waiting times stable as real time passes.
+    now: demoNow,
     tenant,
     files,
     training,
@@ -306,8 +361,13 @@ function buildDemo(out) {
       channels_available: channelsAvailable,
       preview_call_id: demo.slack && demo.slack.preview_call ? idOf(demo.slack.preview_call) : null,
     },
+    issues: checkIssues(demo.issues || {}, ws.task_log, {
+      teamKeys: Object.values(fromVault.sources.find((s) => s.id === 'linear').settings.team_mapping),
+      people: members.map((m) => m.lastname),
+    }),
   };
   ws.workspace.integrations = Object.fromEntries(sources.map((s) => [s.id, s.status === 'connected']));
+  ws.workspace.demo_now = demoNow;
 
   const suggestions = (demo.people && demo.people.suggestions) || {};
   for (const s of Object.values(suggestions)) {
@@ -322,24 +382,30 @@ function buildDemo(out) {
     readmes,
   });
 
-  const dir = path.join(out, 'demo');
-  for (const sub of ['calls', 'transcripts']) fs.mkdirSync(path.join(dir, sub), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'workspace.json'), JSON.stringify(workspaceJson(ws)));
-  fs.writeFileSync(path.join(dir, 'people.json'), JSON.stringify(people));
-  fs.writeFileSync(path.join(dir, 'vault.json'), JSON.stringify(vault));
-  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(settings));
+  const details = [];
+  const transcripts = [];
   for (const c of ws.calls) {
     const detail = ws._detail(c.id);
     withOnApprove(detail.task_log);
     detail.vault_file_url = config.demo.file_url_base
       ? config.demo.file_url_base + c.path.split('/').map(encodeURIComponent).join('/')
       : null;
-    fs.writeFileSync(path.join(dir, 'calls', `${c.id}.json`), JSON.stringify(detail));
-    if (detail.transcript.available) {
-      const t = transcriptDetail(detail, read(transcriptPathFor(detail)), members);
-      fs.writeFileSync(path.join(dir, 'transcripts', `${c.id}.json`), JSON.stringify(t));
-    }
+    details.push(detail);
+    if (detail.transcript.available) transcripts.push(transcriptDetail(detail, read(transcriptPathFor(detail)), members));
   }
+  return { ws: workspaceJson(ws), people, vault, settings, details, transcripts };
+}
+
+function buildDemo(out) {
+  const { ws, people, vault, settings, details, transcripts } = demoData();
+  const dir = path.join(out, 'demo');
+  for (const sub of ['calls', 'transcripts']) fs.mkdirSync(path.join(dir, sub), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'workspace.json'), JSON.stringify(ws));
+  fs.writeFileSync(path.join(dir, 'people.json'), JSON.stringify(people));
+  fs.writeFileSync(path.join(dir, 'vault.json'), JSON.stringify(vault));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(settings));
+  for (const d of details) fs.writeFileSync(path.join(dir, 'calls', `${d.id}.json`), JSON.stringify(d));
+  for (const t of transcripts) fs.writeFileSync(path.join(dir, 'transcripts', `${t.call_id}.json`), JSON.stringify(t));
   return ws.calls.length;
 }
 

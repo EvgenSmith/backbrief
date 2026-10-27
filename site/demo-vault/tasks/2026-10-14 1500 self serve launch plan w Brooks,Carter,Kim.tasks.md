@@ -6,8 +6,8 @@ team: product
 date: 2026-10-14
 tracker: linear
 autonomy_level: L0
-generated: 2026-10-14T15:58:00Z
-counts: { extracted: 3, created: 1, commented: 1, skipped: 1 }
+generated: 2026-10-14T14:58:00Z
+counts: { extracted: 4, created: 1, commented: 1, skipped: 2 }
 ---
 
 # Tasks — Self-serve launch plan (2026-10-14)
@@ -29,6 +29,10 @@ counts: { extracted: 3, created: 1, commented: 1, skipped: 1 }
 - a decision, not a task: "make the call" language routed as CREATE
 - quote: "I'll make the call on annual once legal answers"
 - **decision: skipped by user** ("Brooks decides, no ticket needed")
+
+## 4. 🔁 DUPLICATE — Finish the billing estimate for monthly plans
+- matches [ENG-311](https://linear.app/acme/issue/ENG-311) "Estimate the billing work for the self-serve tier", done on this call (01:30)
+- **decision: skipped by user** ("Already done")
 
 ---
 _Decisions above are logged to `.backbrief/training/task-decisions.jsonl` — this team's

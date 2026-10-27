@@ -6,8 +6,8 @@ team: engineering
 date: 2026-10-12
 tracker: linear
 autonomy_level: L0
-generated: 2026-10-12T10:51:00Z
-counts: { extracted: 3, created: 2, commented: 1, skipped: 0 }
+generated: 2026-10-12T09:51:00Z
+counts: { extracted: 3, created: 1, commented: 1, skipped: 1 }
 ---
 
 # Tasks — API rate limit incident review (2026-10-12)
@@ -27,7 +27,7 @@ counts: { extracted: 3, created: 2, commented: 1, skipped: 0 }
 ## 3. ✏️ CREATE — Write the customer-facing incident note
 - owner: **Hughes** (engineering) · priority: high · (33:40)
 - quote: "I'll write the note to the affected clinics today"
-- **decision: accepted — file-only (customer comms are not tracked in Linear)**
+- **decision: skipped by user** ("Wrong team")
 
 ---
 _Decisions above are logged to `.backbrief/training/task-decisions.jsonl` — this team's

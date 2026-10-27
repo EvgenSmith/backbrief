@@ -57,7 +57,7 @@ action_items:
 
 ## Decisions
 
-1. Rate limits become per clinic, with the global limit kept as a backstop (12:30)
+1. Rate limits become per clinic, with the global limit kept as a backstop — one client's retry loop used up the global limit for every clinic (12:30)
 
 ## Agreements
 

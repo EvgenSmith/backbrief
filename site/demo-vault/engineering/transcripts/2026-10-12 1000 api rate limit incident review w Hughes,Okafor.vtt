@@ -1,37 +1,153 @@
 WEBVTT
 
 1
+00:01:05.000 --> 00:01:07.000
+Anna H.: Let's review Saturday's incident.
+
+2
+00:01:25.000 --> 00:01:29.000
+Chidi O.: Go ahead, I have the logs open.
+
+3
 00:01:45.000 --> 00:01:58.000
 Anna H.: Saturday, 09:10 to 09:52. One clinic chain's integration retried in a loop and exhausted the global API rate limit. 212 clinics saw booking errors for 42 minutes; no data was lost.
 
-2
+4
 00:02:05.000 --> 00:02:13.000
 Anna H.: Shah from support says 31 clinics wrote in during the outage, and every ticket was answered within the hour.
 
-3
+5
+00:02:20.000 --> 00:02:23.000
+Chidi O.: That's faster than last time.
+
+6
+00:07:20.000 --> 00:07:24.000
+Anna H.: So why could one client take everyone down?
+
+7
+00:07:40.000 --> 00:07:43.000
+Chidi O.: I went through the gateway config.
+
+8
 00:08:00.000 --> 00:08:12.000
 Chidi O.: Root cause: limits are global, not per clinic, so one noisy client affects everyone. And the 429 alert only fired on the hourly rollup.
 
-4
+9
+00:08:15.000 --> 00:08:19.000
+Anna H.: So we were blind for most of it.
+
+10
+00:08:28.000 --> 00:08:31.000
+Chidi O.: For about forty minutes, yes.
+
+11
+00:11:50.000 --> 00:11:55.000
+Anna H.: One chain shouldn't be able to take down 212 clinics again.
+
+12
+00:12:10.000 --> 00:12:15.000
+Chidi O.: Then the limit has to follow the clinic, not the whole API.
+
+13
 00:12:30.000 --> 00:12:39.000
 Chidi O.: Rate limits become per clinic, with the global one as a backstop: per-clinic limits, this week, nothing else goes in first.
 
-5
+14
+00:12:42.000 --> 00:12:45.000
+Anna H.: Agreed. Take it this week.
+
+15
+00:12:52.000 --> 00:12:55.000
+Chidi O.: I'll start on the gateway today.
+
+16
+00:13:35.000 --> 00:13:38.000
+Anna H.: What about the webhook work?
+
+17
+00:13:50.000 --> 00:13:53.000
+Chidi O.: It can wait a week.
+
+18
 00:14:05.000 --> 00:14:11.000
 Anna H.: Agreed: the per-clinic limit ships before any new API feature.
 
-6
+19
+00:14:15.000 --> 00:14:17.000
+Chidi O.: Deal.
+
+20
+00:14:25.000 --> 00:14:29.000
+Anna H.: Let's come back to alerting after the timeline.
+
+21
+00:25:30.000 --> 00:25:35.000
+Anna H.: Alerting. Why did we hear about it from support first?
+
+22
+00:25:50.000 --> 00:25:55.000
+Chidi O.: Because the 429 alert only looks at the hourly rollup.
+
+23
 00:26:15.000 --> 00:26:23.000
 Chidi O.: On alerting, we need a five-minute alert, not the hourly one: 429s above 1% for five minutes.
 
-7
+24
+00:26:28.000 --> 00:26:31.000
+Anna H.: Add that to the alerting ticket.
+
+25
+00:26:40.000 --> 00:26:43.000
+Chidi O.: I'll put the threshold there.
+
+26
 00:27:00.000 --> 00:27:07.000
 Anna H.: A monitoring gap turned a five-minute problem into a 42-minute outage.
 
-8
+27
+00:27:12.000 --> 00:27:15.000
+Chidi O.: The threshold was never the problem.
+
+28
+00:27:25.000 --> 00:27:27.000
+Anna H.: Right. The window was.
+
+29
+00:33:00.000 --> 00:33:04.000
+Chidi O.: Have the affected clinics heard from us yet?
+
+30
+00:33:20.000 --> 00:33:23.000
+Anna H.: Only through support tickets so far.
+
+31
 00:33:40.000 --> 00:33:47.000
 Anna H.: Shah can help with the wording. I'll write the note to the affected clinics today.
 
-9
+32
+00:33:52.000 --> 00:33:56.000
+Chidi O.: I can pull the list of affected clinics.
+
+33
+00:34:05.000 --> 00:34:10.000
+Anna H.: Please do. Support usually sends these, so I'll write it with Shah.
+
+34
+00:36:40.000 --> 00:36:44.000
+Anna H.: Last thing: the chain that caused it.
+
+35
+00:37:00.000 --> 00:37:04.000
+Chidi O.: Their retry logic has no backoff at all.
+
+36
 00:37:20.000 --> 00:37:30.000
 Chidi O.: Should the noisy chain get a dedicated limit, or should we ask them to fix their retries? We're waiting on their engineering contact.
+
+37
+00:37:32.000 --> 00:37:36.000
+Anna H.: Let's wait for their contact before we decide.
+
+38
+00:37:45.000 --> 00:37:47.000
+Chidi O.: Fine by me.

@@ -40,7 +40,14 @@ action_items:
     status: done-on-call
     priority: medium
     ts: "15:20"
-    tracker_ref: null
+    tracker_ref: ENG-318
+  - title: "Pricing page finished for the self-serve launch"
+    owner: Kim
+    helpers: []
+    status: done-on-call
+    priority: high
+    ts: "01:40"
+    tracker_ref: GRW-214
 ---
 
 # Weekly sync: launch readiness — 2026-10-19
@@ -60,7 +67,7 @@ action_items:
 
 ## Decisions
 
-1. Clinics mid-trial keep their old trial terms; new pricing applies from their first invoice (09:45)
+1. Clinics mid-trial keep their old trial terms; new pricing applies from their first invoice — no clinic should pay more halfway through a trial (09:45)
 
 ## Agreements
 
@@ -76,6 +83,7 @@ action_items:
 
 ### ✅ Done on call
 1. Per-clinic rate limits shipped — **Hughes** (15:20)
+2. Pricing page finished for the self-serve launch — **Kim** (01:40)
 
 ### 👀 Monitoring
 None.

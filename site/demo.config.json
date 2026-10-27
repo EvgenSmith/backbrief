@@ -1,6 +1,7 @@
 {
   "_demo_only": true,
-  "_about": "Facts no vault holds, for the public demo at /demo only: connection status and accounts, scope wording, Slack delivery toggles and the channels the bot can post to, the dates the workspace was set up, the ids a click would create and the issue bodies of the waiting proposals, and the role, zone and account suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
+  "_about": "Facts no vault holds, for the public demo at /demo only: the demo's frozen clock, connection status and accounts, scope wording, Slack delivery toggles and the channels the bot can post to, the dates the workspace was set up, what the tracker says about each issue a proposal names, the ids a click would create and the issue bodies of the waiting proposals, and the role, zone and account suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
+  "demo_now": "2026-10-19T11:05:00+01:00",
   "sources": {
     "zoom": {
       "status": "connected",
@@ -48,6 +49,19 @@
     "locked": ["summary"],
     "channels_available": ["#call-digests", "#product-sync", "#growth", "#engineering", "#general"],
     "preview_call": "product/transcripts/2026-10-07 1300 pricing model review w Carter,Brooks.md"
+  },
+  "issues": {
+    "GRW-102": { "title": "Billing FAQ refresh", "status": "Open", "assignee": "Carter", "updated": "2026-10-03", "team": "GRW" },
+    "GRW-180": { "title": "Pricing revamp", "status": "In Progress", "assignee": "Carter", "updated": "2026-10-07", "team": "GRW" },
+    "GRW-205": { "title": "Share the onboarding drop-off numbers by step", "status": "Done", "assignee": "Carter", "updated": "2026-10-08", "team": "GRW" },
+    "GRW-214": { "title": "Rewrite pricing page copy for the self-serve tier", "status": "Done", "assignee": "Kim", "updated": "2026-10-16", "team": "GRW" },
+    "GRW-219": { "title": "Rewrite the second onboarding email around connecting a calendar", "status": "In Progress", "assignee": "Carter", "updated": "2026-10-16", "team": "GRW" },
+    "GRW-221": { "title": "Mock up an in-app checklist for the first three steps", "status": "Done", "assignee": "Kim", "updated": "2026-10-12", "team": "GRW" },
+    "GRW-224": { "title": "Prepare the launch email to the waitlist of 340 clinics", "status": "In Review", "assignee": "Carter", "updated": "2026-10-16", "team": "GRW" },
+    "ENG-296": { "title": "SMS provider switch", "status": "In Progress", "assignee": "Hughes", "updated": "2026-10-02", "team": "ENG" },
+    "ENG-302": { "title": "Booking API alerting", "status": "In Progress", "assignee": "Okafor", "updated": "2026-10-16", "team": "ENG" },
+    "ENG-311": { "title": "Estimate the billing work for the self-serve tier", "status": "In Progress", "assignee": "Hughes", "updated": "2026-10-14", "team": "ENG" },
+    "ENG-318": { "title": "Add per-clinic rate limits to the public booking API", "status": "Done", "assignee": "Okafor", "updated": "2026-10-16", "team": "ENG" }
   },
   "on_approve": {
     "tasks/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.tasks.md": {
