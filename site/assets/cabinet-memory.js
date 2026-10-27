@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: MIT
 /*
  * cabinet-memory.js — Company memory (spec §3.9). The page leads with what
- * the memory is for: a question an AI agent answers from the files, quoting
- * the decision with its reason and minute, and citing the file. Then what the
- * repository holds (a tree with plain-English descriptions and who writes
- * each part; a selected call file shows its frontmatter and Decisions
- * section), how one call links up (a clickable chain with an excerpt of each
- * file, the linking lines marked) and, folded away for engineers, how agents
- * find things (AGENTS.md). Reads vault.json (tree, edges, counts, agents),
- * call details and people.json. Styles live in cabinet-people.css. API: the
- * BB block at the top of cabinet.js.
+ * the memory is for: ask about a decision (type a question or pick an example
+ * built from the workspace's decisions) and get the answer an agent would give
+ * from the files, quoting the decision with its reason and minute, and citing
+ * the file; the search runs over the decisions and call lines in the browser.
+ * Then what the repository holds (a tree with plain-English descriptions and
+ * who writes each part; a selected call file shows its frontmatter and
+ * Decisions section), how one call links up (a clickable chain with an
+ * excerpt of each file, the linking lines marked) and, folded away for
+ * engineers, how agents find things (AGENTS.md). Reads workspace.json
+ * (decisions, search lines), vault.json (tree, edges, counts, agents), call
+ * details and people.json. Styles live in cabinet-people.css. API: the BB
+ * block at the top of cabinet.js.
  *
  * Every excerpt is rebuilt here from the JSON the demo already loads,
  * escaped, in the file's own format; no file body is fetched or rendered.
@@ -519,59 +522,263 @@
   }
 
   // ------------------------------------------------------------ ask the memory
+  // A question about a decision, answered from the workspace's decisions (title
+  // and why) and what was said on its calls (search_lines), the way an agent
+  // answers from the files: the decision with its reason and minute, the call,
+  // and the file it cites. The search runs here, in the browser; nothing is sent.
 
-  /** The call the example question answers from: the chain's call, else the Slack preview call, else any call with a decision. */
-  function askCallId(ch) {
-    if (ch) return ch.callId;
-    const st = BB.cached('settings');
-    const pref = st && st.slack && st.slack.preview_call_id;
-    const calls = ws() ? ws().calls : [];
-    if (pref && calls.some((c) => c.id === pref)) return pref;
-    const c = calls.find((x) => x.decisions_count > 0);
-    return c ? c.id : null;
+  let askQ = null; // the question on screen; null shows the first example
+  const ASK_STOP = new Set(('a about after all also am an and any are as at be because been before but by can could did do does doing done '
+    + 'for from get got had has have how i if in into is it its just me my of on or our per pick picked picks choose chose chosen decide '
+    + 'decided decides decision decisions reason reasons explain tell say said should so than that the their them then there these they '
+    + 'this those to up us was we were what when where which who whom whose why will with would you your go went make made end ended '
+    + 'own owns owned owner owners').split(' '));
+
+  /** A word as the search compares it: plural and -ing/-ed endings dropped, numbers as they are ("$19" → "19"). */
+  function stem(word) {
+    let s = word;
+    if (/^\d/.test(s)) return s;
+    if (s.length > 5 && /(ing|ed)$/.test(s)) {
+      s = s.replace(/(ing|ed)$/, '');
+      if (/([b-df-hj-np-tv-z])\1$/.test(s)) s = s.slice(0, -1);
+    } else if (s.length > 4 && /ies$/.test(s)) s = s.replace(/ies$/, 'y');
+    else if (s.length > 3 && /[^s]s$/.test(s)) s = s.slice(0, -1);
+    if (s.length > 4 && /e$/.test(s)) s = s.slice(0, -1);
+    return s;
+  }
+  /** Lower-case words, a hyphenated one kept whole ("self-serve"); contractions ("I'll") and single letters dropped. */
+  const words = (text) => String(text || '').toLowerCase().replace(/\$(?=\d)/g, ' ').replace(/['’]s\b/g, '').split(/[^a-z0-9'’-]+/)
+    .map((w) => w.replace(/^[-'’]+|[-'’]+$/g, '')).filter((w) => w && !/['’]/.test(w) && (w.length > 1 || /\d/.test(w)));
+  const keep = (w) => w && (w.length > 1 || /\d/.test(w)) && !ASK_STOP.has(w);
+  /** The terms of a question: each word stemmed, a hyphenated word as one term ("self-serve" counts once). */
+  const stems = (text) => new Set(words(text).flatMap((w) => {
+    const parts = w.split('-').filter(keep);
+    if (!parts.length) return [];
+    return [parts.map(stem).join('-')];
+  }));
+  /** The terms of a searched text: its question terms, plus the parts of each hyphenated word. */
+  const docStems = (text) => new Set(words(text).flatMap((w) => {
+    const parts = w.split('-').filter(keep).map(stem);
+    return parts.length > 1 ? [parts.join('-'), ...parts] : parts;
+  }));
+  /** A text holds a term: the term itself, or every part of a hyphenated one ("per-clinic" ~ "per clinic"). */
+  const holds = (set, t) => set.has(t) || (t.includes('-') && t.split('-').every((p) => set.has(p)));
+
+  /** What the question is about, as typed ("$19", "self-serve"), for the line that says what was searched. */
+  const askTerms = (q) => String(q || '').split(/\s+/).map((w) => w.replace(/^[^\w$]+|[^\w%]+$/g, ''))
+    .filter((w) => w && words(w).some((x) => x.split('-').some(keep)));
+
+  // Lines that say what was said on a call; the topic, people and tag lines only name it.
+  const SAID = new Set(['summary', 'decision', 'agreement', 'action_item', 'open_question', 'key_insight', 'quote', 'proposal']);
+  const KIND_LABEL = {
+    summary: 'Summary', decision: 'Decision', agreement: 'Agreement', action_item: 'Action item', open_question: 'Open question',
+    key_insight: 'Key insight', quote: 'Quote', proposal: 'Task proposal',
+  };
+
+  /** The decisions and call lines to search, each with its words; built once per workspace load. */
+  let askIndex = null;
+  function askDocs() {
+    const w = ws();
+    if (!w) return null;
+    if (askIndex && askIndex.w === w) return askIndex;
+    const decisions = (w.decisions || []).map((d) => ({ d, title: docStems(d.title), why: docStems(d.why) }));
+    const lines = w.calls.flatMap((c) => (c.search_lines || [])
+      .filter((l) => SAID.has(l.kind) && l.kind !== 'decision' && l.text)
+      .map((l) => ({ c, l, words: docStems(l.text) })));
+    const docs = [...decisions.map((x) => new Set([...x.title, ...x.why])), ...lines.map((x) => x.words)];
+    askIndex = { w, decisions, lines, docs };
+    return askIndex;
   }
 
-  function askHtml(c) {
-    const decs = (c && c.digest && c.digest.decisions) || [];
-    const dec = decs.find((d) => /\$\d/.test(d.title)) || decs[0];
-    if (!dec) return '';
-    const price = (String(dec.title).match(/\$\d[\d,.]*/) || [])[0] || null;
-    const q = price
-      ? `Why did we pick ${price}${/self-serve/i.test(dec.title) ? ' for self-serve' : ''}?`
-      : `Why did we decide to ${dec.title.charAt(0).toLowerCase()}${dec.title.slice(1)}?`;
-    const quote = `${dec.title}${dec.why ? ` — ${dec.why}` : ''}`.replace(/\.?$/, '.');
-    // The reasoning behind a price is usually in the Summary: the points that name it, with their minute.
-    const themes = (c.digest.themes || []).map((t) => ({ ts: t.ts, points: (t.points || []).filter((p) => price && String(p).includes(price)) })).filter((t) => t.points.length);
-    const points = themes.flatMap((t) => t.points).slice(0, 3);
-    const reason = points.length
-      ? `<p>The Summary of that call gives the reasoning behind the price${themes[0].ts ? ` ${BB.ts(c.id, themes[0].ts)}` : ''}:</p>
-         <ul class="ask-points">${points.map((p) => `<li>${BB.inline(p)}</li>`).join('')}</ul>`
+  /**
+   * The best answers to a question: decisions whose title or reason carry most
+   * of its words (rare words weigh more), each with the lines its call adds, and
+   * when no decision fits, the lines that do.
+   */
+  function askSearch(q) {
+    const ix = askDocs();
+    const qs = [...stems(q)];
+    if (!ix || !qs.length) return { decisions: [], lines: [], terms: askTerms(q) };
+    // Rare words weigh more; a word no call uses weighs as much as the rarest one, so missing it still counts.
+    const weights = new Map(qs.map((t) => [t, Math.log(1 + ix.docs.length / Math.max(1, ix.docs.filter((s) => holds(s, t)).length))]));
+    const weight = (t) => weights.get(t);
+    const total = qs.reduce((s, t) => s + weight(t), 0);
+    const lineScore = (x) => qs.reduce((s, t) => s + (holds(x.words, t) ? weight(t) : 0), 0);
+    const scoredLines = ix.lines.map((x) => ({ ...x, score: lineScore(x) })).filter((x) => x.score > 0);
+    const decisions = ix.decisions.map((x) => {
+      let score = 0;
+      let covered = 0;
+      for (const t of qs) {
+        if (holds(x.title, t)) { score += 1.5 * weight(t); covered += weight(t); } else if (holds(x.why, t)) { score += weight(t); covered += weight(t); }
+      }
+      const said = scoredLines.filter((y) => y.c.id === x.d.call_id).sort((a, b) => b.score - a.score);
+      return { d: x.d, score: score + (said.length ? 0.3 * said[0].score : 0), coverage: covered / total, said };
+    }).filter((x) => x.coverage >= 0.5).sort((a, b) => b.score - a.score);
+    const top = decisions[0];
+    const shown = top ? [top, ...decisions.slice(1).filter((x) => x.score >= 0.6 * top.score).slice(0, 1)] : [];
+    const lines = shown.length ? [] : scoredLines.filter((x) => x.score >= 0.5 * total).sort((a, b) => b.score - a.score).slice(0, 4);
+    return { decisions: shown, lines, terms: askTerms(q) };
+  }
+
+  /** "Why did we pick $19 for self-serve?": a question in the team's own words, from a decision's title. */
+  const lowerFirst = (s) => (/^[A-Z]{2,}\b/.test(s) ? s : s.charAt(0).toLowerCase() + s.slice(1));
+  const ORDERS = /^(ship|launch|run|keep|move|add|use|drop|stop|start|delay|hold|cut|raise|lower|switch|build|hire|pause|test|send|make|price|charge|offer)\b/i;
+  function questionFor(d) {
+    const t = String(d.title || '').trim();
+    const price = (t.match(/\$\d[\d,.]*/) || [])[0];
+    if (price) return { q: `Why did we pick ${price}${/self-serve/i.test(t) ? ' for self-serve' : ''}?`, rank: 0 };
+    let m = t.match(/\bwith (.+?) only\b/i);
+    if (m) return { q: `Why ${m[1].toLowerCase()} only${/^launch\b/i.test(t) ? ' at launch' : ''}?`, rank: 1 };
+    m = t.match(/^the (.+?) wins\b/i);
+    if (m) return { q: `Why did the ${m[1].toLowerCase()} win?`, rank: 2 };
+    m = t.match(/^(.+?) becomes? ([^,;—]+)/i);
+    if (m && m[1].split(/\s+/).length <= 4) return { q: `Why did ${lowerFirst(m[1])} become ${m[2].trim()}?`, rank: 2 };
+    const short = lowerFirst(t.split(/[,;—]/)[0].trim());
+    return { q: ORDERS.test(t) ? `Why did we decide to ${short}?` : `Why was it decided that ${short}?`, rank: 3 };
+  }
+
+  /** Three example questions from the workspace's decisions: the clearest first, newest first within each. */
+  function askExamples() {
+    const list = ((ws() && ws().decisions) || []).map((d, i) => ({ ...questionFor(d), i }));
+    const seen = new Set();
+    return list.sort((a, b) => a.rank - b.rank || a.i - b.i)
+      .filter((x) => !seen.has(x.q) && seen.add(x.q)).slice(0, 3).map((x) => x.q);
+  }
+
+  /** One decision as the agent quotes it: the decision with its reason and ▶, the call, the file. */
+  function decisionAnswer(x, lead) {
+    const d = x.d;
+    const c = callOf(d.call_id);
+    const day = BB.fmtDay(d.date);
+    const quote = `${d.title}${d.why ? ` — ${d.why}` : ''}`.replace(/\.?$/, '.');
+    // The lines that carry the question best (a heading or a passing mention stays out).
+    const said = x.said.filter((y) => y.score >= 0.75 * (x.said[0] ? x.said[0].score : 0) && y.l.text.length > 30).slice(0, 3);
+    const callLink = `<a href="${esc(href('call', d.call_id))}">${esc(d.topic)}</a>`;
+    return `${lead ? `<p>${callLink} decided it on ${esc(day)}. From the call file's Decisions section:</p>` : `<p class="ask-also">Also on record, from ${callLink}, ${esc(day)}:</p>`}
+      <blockquote class="evidence ask-quote"><p>${esc(quote)}</p><span class="evidence-src">Decisions · ${esc(d.topic)} · ${esc(day)} · ${BB.ts(d.call_id, d.ts)}</span></blockquote>
+      ${lead && said.length ? `<p>What was said around it on that call:</p>
+        <ul class="ask-points">${said.map((y) => `<li><span class="ask-kind">${esc(KIND_LABEL[y.l.kind] || 'Line')}</span> ${esc(y.l.text)} ${BB.ts(d.call_id, y.l.ts)}</li>`).join('')}</ul>` : ''}
+      ${c && c.path ? `<p class="ask-src"><span class="ask-src-k">Source</span> <a class="mono" href="${esc(href('memory', { node: c.path }))}">${esc(c.path)}</a></p>` : ''}`;
+  }
+
+  /** No decision fits, but calls talk about it: their lines, grouped by call, each call with its file. */
+  function linesAnswer(lines) {
+    const byCall = new Map();
+    for (const y of lines) byCall.set(y.c.id, [...(byCall.get(y.c.id) || []), y]);
+    return `<p>No decision on record answers that. This is what was said about it on ${esc(plural(byCall.size, 'call'))}:</p>
+      ${[...byCall.values()].slice(0, 2).map((list) => {
+    const c = list[0].c;
+    return `<div class="ask-call">
+          <p class="ask-call-head"><a href="${esc(href('call', c.id))}">${esc(c.topic)}</a> <span class="mono">${esc(BB.fmtDay(c.date))}</span></p>
+          <ul class="ask-points">${list.slice(0, 2).map((y) => `<li><span class="ask-kind">${esc(KIND_LABEL[y.l.kind] || 'Line')}</span> ${esc(y.l.text)} ${BB.ts(c.id, y.l.ts)}</li>`).join('')}</ul>
+          ${c.path ? `<p class="ask-src"><span class="ask-src-k">Source</span> <a class="mono" href="${esc(href('memory', { node: c.path }))}">${esc(c.path)}</a></p>` : ''}
+        </div>`;
+  }).join('')}`;
+  }
+
+  const NOTHING = 'Nothing on a call answers that yet. Agents only answer from what was said on recorded calls.';
+
+  /** The exchange: the question, then the answer (or the line that says there is none). */
+  function exchangeHtml(q) {
+    const r = askSearch(q);
+    let answer;
+    if (r.decisions.length) answer = r.decisions.map((x, i) => decisionAnswer(x, i === 0)).join('');
+    else if (r.lines.length) answer = linesAnswer(r.lines);
+    else answer = `<p class="ask-none">${esc(NOTHING)}</p>`;
+    const searched = r.terms.length && (r.decisions.length || r.lines.length)
+      ? `<p class="ask-searched">${esc(`Searched ${plural(((ws() && ws().decisions) || []).length, 'decision')} and ${plural((ws() ? ws().calls : []).length, 'call file')} for ${BB.joinAnd(r.terms.slice(0, 4).map((t) => `“${t}”`))}.`)}</p>`
       : '';
-    const file = href('memory', { node: c.path });
-    const term = price ? ` for “${esc(price)}”` : '';
+    const status = r.decisions.length
+      ? `${plural(r.decisions.length, 'decision')} found: ${r.decisions[0].d.title}.`
+      : r.lines.length ? 'No decision found; lines from the calls are shown.' : NOTHING;
+    return {
+      status,
+      html: `<div class="ask-turn ask-q">
+          <p class="ask-who">You</p>
+          <p class="ask-text">${esc(q)}</p>
+        </div>
+        <div class="ask-turn ask-a">
+          <p class="ask-who">Agent</p>
+          <div class="ask-text">${answer}${searched}</div>
+        </div>`,
+    };
+  }
+
+  function askHtml() {
+    const examples = askExamples();
+    if (!examples.length) return '';
+    const q = askQ || examples[0];
+    const ex = exchangeHtml(q);
+    const note = BB.isDemo
+      ? 'In your workspace, your own AI agent answers from these files; here the demo searches them in your browser.'
+      : 'Your own AI agent answers from these files; this box searches them in your browser.';
     return `<section class="memory-ask" aria-labelledby="h-ask">
         <h2 class="memory-h" id="h-ask">Ask the memory</h2>
-        <p class="memory-sub">Any AI agent your team runs, on Claude or GPT, answers from these files and says where it found the answer.</p>
-        <div class="win memory-ask-win">
-          <div class="win-bar"><span class="win-app">AI agent</span><span class="win-path">reads ${esc(repo())}</span></div>
-          <div class="memory-ask-body">
-            <div class="ask-turn ask-q">
-              <p class="ask-who">You</p>
-              <p class="ask-text">${esc(q)}</p>
-            </div>
-            <div class="ask-turn ask-a">
-              <p class="ask-who">Agent</p>
-              <div class="ask-text">
-                <p>${esc(c.topic)} decided it on ${esc(BB.fmtDay(c.date))}. From the call file's Decisions section:</p>
-                <blockquote class="evidence ask-quote"><p>${BB.inline(quote)}</p><span class="evidence-src">Decisions · ${esc(c.topic)} · ${esc(BB.fmtDay(c.date))} · ${BB.ts(c.id, dec.ts)}</span></blockquote>
-                ${reason}
-                <p class="ask-src"><span class="ask-src-k">Source</span> <a class="mono" href="${esc(file)}">${esc(c.path)}</a></p>
-              </div>
-            </div>
+        <p class="memory-sub">Ask why something was decided. The answer quotes the decision with its reason and the minute it was said, and cites the file.</p>
+        <form class="form memory-ask-form" role="search" aria-label="Ask the memory" novalidate data-ask-form>
+          <label for="ask-q">Ask about a decision</label>
+          <div class="memory-ask-row">
+            <input id="ask-q" name="q" type="search" maxlength="200" autocomplete="off" spellcheck="false" placeholder="${esc(examples[0])}" aria-describedby="ask-q-err">
+            <button class="btn" type="submit" data-key="ask-go">Ask</button>
           </div>
+          <p class="error" id="ask-q-err" role="alert" hidden></p>
+          <div class="memory-ask-try">
+            <p class="memory-ask-try-k" id="ask-try-k">Try</p>
+            <ul class="ask-chips" aria-labelledby="ask-try-k">${examples.map((x, i) => `<li><button class="ask-chip" type="button" data-ask="${esc(x)}" data-key="ask-chip-${i}"${x === q ? ' aria-pressed="true"' : ' aria-pressed="false"'}>${esc(x)}</button></li>`).join('')}</ul>
+          </div>
+        </form>
+        <div class="win memory-ask-win">
+          <div class="win-bar"><span class="win-app">Ask the memory</span><span class="win-path">reads ${esc(repo())}</span></div>
+          <div class="memory-ask-body" data-ask-answer>${ex.html}</div>
         </div>
-        <p class="memory-ask-how">To answer, the agent read AGENTS.md, searched the call files${term} and read the Decisions section. <a href="#memory-agents" data-open-eng>For engineers: how agents find things ↓</a></p>
+        <p class="sr-only" role="status" data-ask-status></p>
+        <p class="memory-ask-how">${esc(note)} <a href="#memory-agents" data-open-eng>For engineers: how agents find things ↓</a></p>
       </section>`;
+  }
+
+  /** Ask: answer in place (no re-render), keep focus where it was, and say what was found. */
+  function wireAsk() {
+    const form = $('[data-ask-form]');
+    if (!form) return;
+    const input = $('#ask-q', form);
+    const err = $('#ask-q-err', form);
+    const box = $('[data-ask-answer]');
+    const status = $('[data-ask-status]');
+    const answer = (q) => {
+      askQ = q;
+      const ex = exchangeHtml(q);
+      box.innerHTML = ex.html;
+      status.textContent = ex.status;
+      for (const b of form.querySelectorAll('[data-ask]')) b.setAttribute('aria-pressed', String(b.dataset.ask === q));
+      // On a phone the answer starts below the fold: bring its top into view; focus stays put.
+      const win = box.closest('.memory-ask-win');
+      if (win && win.getBoundingClientRect().top > window.innerHeight * 0.7) win.scrollIntoView({ block: 'start', behavior: 'instant' });
+    };
+    input.addEventListener('input', () => {
+      if (err.hidden) return;
+      err.hidden = true;
+      input.removeAttribute('aria-invalid');
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) {
+        err.textContent = 'Type a question, or pick one of the examples.';
+        err.hidden = false;
+        input.setAttribute('aria-invalid', 'true');
+        input.focus();
+        return;
+      }
+      answer(q);
+    });
+    form.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-ask]');
+      if (!b) return;
+      input.value = b.dataset.ask;
+      err.hidden = true;
+      input.removeAttribute('aria-invalid');
+      answer(b.dataset.ask);
+    });
   }
 
   // ------------------------------------------------------------ for engineers
@@ -705,11 +912,9 @@
     const ch = v.partial ? null : pickChain(v);
     const chainReady = ch && BB.cached(`call:${ch.callId}`) && BB.cached(`call:${ch.laterId}`);
     const chainCall = ch ? BB.cached(`call:${ch.callId}`) : null;
-    const askId = v.partial ? null : askCallId(ch);
-    const askCall = askId ? BB.cached(`call:${askId}`) : null;
     const sel = selected ? model.byPath.get(selected) : null;
     const html = `
-      ${askCall ? askHtml(askCall) : ''}
+      ${askHtml()}
       <div class="memory-layout">
         <section class="panel memory-tree" aria-labelledby="h-inside">
           <div class="panel-head"><h2 id="h-inside">What's inside</h2>${c.files ? `<span class="mono small muted">${esc(plural(c.files, 'file'))}</span>` : ''}</div>
@@ -733,6 +938,7 @@
       focus: node && selected ? () => $(`[data-node="${CSS.escape(selected)}"]`) : null,
     });
     wire(v, ch && chainReady ? ch : null);
+    wireAsk();
     revealMark($('[data-excerpt]'));
     // Arriving on a call file ("Show the file"): its row at the top, the file right under it.
     if (fresh && sel && kindOf(sel) === 'call') {
@@ -822,13 +1028,11 @@
     const v = BB.cached('vault') || (BB.isDemo ? null : synthVault());
     if (!v) { appView(); return; }
     ensureModel(v);
-    // Everything the first screen shows loads with the page: the chain's two calls, the
-    // call the example question answers from, and a call file picked by ?node=.
+    // Everything the first screen shows loads with the page: the chain's two calls and a
+    // call file picked by ?node=. Ask the memory needs only the workspace.
     const ch = v.partial ? null : pickChain(v);
     const ids = new Set();
     if (ch) { ids.add(ch.callId); ids.add(ch.laterId); }
-    const ask = v.partial ? null : askCallId(ch);
-    if (ask) ids.add(ask);
     const picked = callIdOfPath(query.node);
     if (picked) ids.add(picked);
     const missing = [...ids].filter((id) => BB.cached(`call:${id}`) === undefined && !failed.has(id));
@@ -839,5 +1043,5 @@
     view(v, query);
   }, { nav: 'memory', title: 'Company memory', needs: ['workspace', 'vault', 'people?', 'settings?'], loading: 'repository map' });
 
-  BB.on('reset', () => { chainAt = 0; });
+  BB.on('reset', () => { chainAt = 0; askQ = null; });
 })();

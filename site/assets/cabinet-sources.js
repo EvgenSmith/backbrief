@@ -4,8 +4,10 @@
  * Backbrief reads from and writes to (call recordings, chat, tracker, the
  * record repository, context repositories, imports, what comes next), and a
  * page per source: health, what it does (for Zoom, what gets processed and
- * who can read it), access with a reason for each permission (Slack: what it
- * can and never can do), settings, activity, disconnect. In the demo, Connect
+ * who can read it, every digest channel included, then the processing rules
+ * that are coming next, shown disabled), access with a reason for each
+ * permission (Slack: what it can and never can do), settings, activity,
+ * disconnect. In the demo, Connect
  * walks the steps of the setup call, with a stand-in for the tool's approval
  * screen, and Request offers a demo call; every change goes to the overlay
  * (sources, requests, imports). Styles live
@@ -75,17 +77,18 @@
     'cloud_recording:read:list_user_recordings:admin': 'List past recordings, for history import',
   };
   const ZOOM_EVENTS = { 'recording.completed': 'Recording finished', 'recording.transcript_completed': 'Transcript ready' };
-  // Everything Slack's scopes allow, grouped under the "Can" line; nothing in this list reads
-  // a direct message or a channel the app isn't in.
+  // Everything Slack's scopes allow, grouped under the "Can" line. channels:history reads the
+  // whole history of every channel the app is invited to, so the line says so; nothing in this
+  // list reads a direct message or a channel the app isn't in.
   const SLACK_GROUPS = [
     ['Post in the channels you choose', ['chat:write', 'chat:write.public']],
     ['See the channel list, so you can choose', ['channels:read', 'groups:read']],
     ["Message a call's owner if processing fails", ['im:write']],
-    ['Read replies in threads it started', ['channels:history', 'groups:history']],
+    ["Read messages in channels it's invited to; it only uses replies in threads it started", ['channels:history', 'groups:history']],
     ['Match people by email', ['users:read', 'users:read.email']],
     ['Add and read reactions on its own posts', ['reactions:read', 'reactions:write']],
   ];
-  const SLACK_CAN = 'post in the channels you choose · read replies in threads it started · match people by email · add reactions to its own posts.';
+  const SLACK_CAN = "post in the channels you choose · read messages in channels it's invited to; it only uses replies in threads it started · match people by email · add reactions to its own posts.";
   const SLACK_NEVER = "read channels it isn't invited to · read direct messages.";
   const LINEAR_WHY = [
     ['read issues', 'Check each proposal against your backlog'],
@@ -133,7 +136,7 @@
           <p class="access-line"><span class="access-k">Can</span> <span>${esc(SLACK_CAN)}</span></p>
           <ul class="access access-under">${rows}</ul>
           <p class="access-line is-never"><span class="access-k">Never</span> <span>${esc(SLACK_NEVER)}</span></p>
-          <p class="access-never-why">Slack only lets it read channels it's invited to, and it has no <code>im:history</code> scope, so it can't read direct messages.</p>
+          <p class="access-never-why">Slack lets it read only the channels it's invited to, though in those it can read every message, older ones included (<code>channels:history</code>). It has no <code>im:history</code> scope, so it can't read direct messages.</p>
         </div>`;
     }
     const events = s.id === 'zoom' ? ((s.events && s.events.length ? s.events : Object.keys(ZOOM_EVENTS)).map((e) => ZOOM_EVENTS[e] || e)) : [];
@@ -142,17 +145,63 @@
 
   // ------------------------------------------------------------ what a source means for your calls
 
-  /** The Zoom statement: what gets processed and who can read it. */
-  function zoomStatement(s) {
+  const KEEP_OFF = 'Keep 1:1, board and HR calls off the cloud recording.';
+
+  /** Where digests are posted, as Slack delivery has it now: the default channel, then each team's own. */
+  function digestChannels() {
+    const sl = BB.effectiveSlack();
+    return [...new Set([sl.channel, ...Object.values(sl.per_team_channels || {})].filter(Boolean))];
+  }
+
+  /**
+   * The Zoom statement: what gets processed and who can read it, with every
+   * channel a digest goes to. `advice: false` leaves out the closing advice
+   * where the processing rules block says it.
+   */
+  function zoomStatement(s, { advice = true } = {}) {
     const set = s.settings || {};
     const min = Number(set.min_duration_min);
     const longer = set.min_duration_min !== undefined && set.min_duration_min !== null && Number.isFinite(min) && min > 0
       ? ` longer than ${plural(min, 'minute')}` : '';
     const slack = BB.effectiveSources().find((x) => x.id === 'slack');
+    const chans = digestChannels();
     const readers = slack && slack.status === 'connected'
-      ? `everyone in this workspace and ${BB.effectiveSlack().channel || 'the digest channel'} can read it`
+      ? `everyone in this workspace and ${chans.length ? `in ${BB.joinAnd(chans)}` : 'in the digest channel'} can read it`
       : 'everyone in this workspace can read it';
-    return `${s.status === 'connected' ? 'Every' : 'Once connected, every'} cloud recording on ${s.account || 'your Zoom account'}${longer} is processed, and ${readers}. Keep 1:1, board and HR calls off the cloud recording.`;
+    return `${s.status === 'connected' ? 'Every' : 'Once connected, every'} cloud recording on ${s.account || 'your Zoom account'}${longer} is processed, and ${readers}.${advice ? ` ${KEEP_OFF}` : ''}`;
+  }
+
+  // ------------------------------------------------------------ processing rules (coming next)
+  // What the product will offer to keep private calls out. Not live: every input is disabled,
+  // the block says so, and the only action asks for early access.
+
+  const RULES_KEY = 'processing-rules';
+  const RULES = [
+    { id: 'skip', kind: 'text', label: 'Skip calls whose title contains', value: '1:1, board, HR, interview' },
+    { id: 'hosts', kind: 'text', label: 'Only process calls hosted by', value: '…' },
+    { id: 'hold', kind: 'switch', label: "Hold the digest for review before it's posted" },
+    { id: 'participants', kind: 'switch', label: 'Show a call only to its participants' },
+  ];
+
+  function rulesHtml() {
+    const rows = RULES.map((r) => `<div class="source-rule">
+        <label for="pr-${r.id}">${esc(r.label)}</label>
+        ${r.kind === 'text'
+    ? `<input id="pr-${r.id}" type="text" value="${esc(r.value)}" disabled aria-describedby="pr-note">`
+    : `<input class="switch" id="pr-${r.id}" type="checkbox" role="switch" disabled aria-describedby="pr-note">`}
+      </div>`).join('');
+    const ask = !BB.isDemo
+      ? `<p class="small muted">Want them first? Write to us at <a href="mailto:${esc(BB.contact)}">${esc(BB.contact)}</a>.</p>`
+      : requested(RULES_KEY)
+        ? `<p class="source-rules-do"><button class="btn btn-small btn-ghost source-req is-done" type="button" aria-disabled="true" data-key="req-${RULES_KEY}"><span aria-hidden="true">✓ </span>Early access requested</button></p>`
+        : `<p class="source-rules-do"><button class="btn btn-small" type="button" data-request="${RULES_KEY}" data-label="Processing rules" data-key="req-${RULES_KEY}">Ask for early access</button></p>`;
+    return `<p class="source-rules-lede">Rules that keep private calls out before anything is processed or posted.</p>
+      <fieldset class="source-rules" disabled aria-describedby="pr-note">
+        <legend class="sr-only">Processing rules, not live yet</legend>
+        ${rows}
+      </fieldset>
+      <p class="source-rules-note" id="pr-note"><strong>Not live yet.</strong> Until then, ${KEEP_OFF.charAt(0).toLowerCase()}${KEEP_OFF.slice(1)}</p>
+      ${ask}`;
   }
 
   // ------------------------------------------------------------ health
@@ -499,7 +548,9 @@
     const name = NAMES[s.id] || s.id;
     const hist = historyOf(s).map((h) => `<li>${esc(HISTORY_WORD[h.status] || h.status)} <span class="mono">${esc(BB.stamp(h.at))}</span></li>`).join('');
     const blocks = [
-      ['What it does', `<p>${esc(DOES[s.id] ? DOES[s.id]() : '')}</p>${s.id === 'zoom' ? `<p class="source-statement">${esc(zoomStatement(s))}</p>` : ''}`],
+      // On Zoom's page the processing rules follow right away, with the advice the statement ends on elsewhere.
+      ['What it does', `<p>${esc(DOES[s.id] ? DOES[s.id]() : '')}</p>${s.id === 'zoom' ? `<p class="source-statement">${esc(zoomStatement(s, { advice: false }))}</p>` : ''}`],
+      ...(s.id === 'zoom' ? [['Processing rules', rulesHtml(), '<span class="soon-tag">Coming next</span>']] : []),
       ['Access', accessHtml(s)],
       ['Settings', settingsHtml(s)],
       ['Activity', `<p>${esc(activityOf(s).line)}</p>${hist ? `<ul class="source-history" aria-label="In this browser">${hist}</ul>` : ''}`],
@@ -509,8 +560,8 @@
         ? `<p>${esc(DISCONNECT[s.id] ? DISCONNECT[s.id]() : '')}</p><p><button class="btn btn-small btn-ghost source-danger" type="button" data-disconnect="${esc(s.id)}" data-key="source-${esc(s.id)}-action">Disconnect ${esc(name)}</button></p>`
         : `<p>${esc(name)} is not connected, so nothing new comes in from it.</p><p><button class="btn btn-small" type="button" data-connect="${esc(s.id)}" data-key="source-${esc(s.id)}-action">Connect ${esc(name)}</button></p>`]);
     }
-    const html = `<div class="source-sheet">${blocks.map(([k, body]) => `<section class="source-block" aria-labelledby="sb-${slug(k)}">
-        <h2 class="source-k" id="sb-${slug(k)}">${esc(k)}</h2>
+    const html = `<div class="source-sheet">${blocks.map(([k, body, tag]) => `<section class="source-block${tag ? ' is-soon' : ''}" aria-labelledby="sb-${slug(k)}">
+        <h2 class="source-k" id="sb-${slug(k)}">${esc(k)}${tag ? ` ${tag}` : ''}</h2>
         <div class="source-body">${body}</div>
       </section>`).join('')}</div>`;
     show(name, html, {
@@ -871,17 +922,28 @@
 
   /** The header's own Book a demo link: the static bundles rewrite that href, so reuse it as it is. */
   function bookHref() {
+    if (typeof BB.bookHref === 'function') return BB.bookHref();
     const a = document.querySelector('.app-actions a.btn[href]');
     const raw = a ? a.getAttribute('href') : null;
     return (raw && (BB.safeUrl(raw) || (/^mailto:/i.test(raw) ? raw : null))) || '/book';
   }
 
+  // Requests whose dialog says more than "X is coming next".
+  const REQUESTS = {
+    [RULES_KEY]: {
+      title: 'Ask for early access',
+      text: "Processing rules are coming next: skip calls by title or host, hold a digest for review, and show a call only to its participants. They aren't live yet. Tell us on a 30-minute demo call which calls must stay out; requests decide what we build next.",
+      done: 'Early access requested: processing rules.',
+    },
+  };
+
   /** Request a coming-next tool: the way in is a demo call; "Mark as requested" keeps the demo's record. */
   function requestDialog(key, label, trigger) {
     const verb = key === 'context-repositories' ? 'are' : 'is';
+    const r = REQUESTS[key] || {};
     const h = BB.dialog({
-      title: `Request ${label}`,
-      html: `<p class="source-request-text">${esc(label)} ${verb} coming next. Tell us on a 30-minute demo call; requests decide what we connect next.</p>`,
+      title: r.title || `Request ${label}`,
+      html: `<p class="source-request-text">${esc(r.text || `${label} ${verb} coming next. Tell us on a 30-minute demo call; requests decide what we connect next.`)}</p>`,
       trigger,
       className: 'source-request',
       // Both buttons are secondary (type="button"): the primary action is the Book a demo link.
@@ -907,7 +969,7 @@
     h.result.then((ok) => {
       if (ok !== true) return;
       BB.refresh({ focus: `[data-key="req-${slug(key)}"]` });
-      BB.toast(`${label} requested.`, BB.DEMO_NOTE.browser);
+      BB.toast(r.done || `${label} requested.`, BB.DEMO_NOTE.browser);
     });
   }
 

@@ -3,11 +3,13 @@
  * cabinet-people.js — People (spec §3.7): one card per profile, the profile
  * page (zones with their evidence, the names people use, who they work
  * with, activity, the file itself), and the names heard on calls that have
- * no profile yet. Add person (spec §3.8): 1 Name → 2 What we found (accept
- * one by one or all at once; the team can be one typed in, as a slug) →
- * 3 Review and save (what changes first; on phones the file waits behind a
- * toggle). Saving writes people_added to the demo overlay, so People,
- * Overview and the stats update together. Styles live in
+ * no profile yet. Open items are the ones every screen counts (the core's
+ * BB.openItemsFor when it has one); done ones sit in their own group. Add
+ * person (spec §3.8): 1 Name → 2 What we found (accept one by one or all at
+ * once; the team can be one typed in, as a slug) → 3 Review and save (what
+ * changes and Save first, then the profile in plain words; the file waits
+ * behind a toggle). Saving writes people_added to the demo overlay, so
+ * People, Overview and the stats update together. Styles live in
  * cabinet-people.css (shared with cabinet-memory.js and cabinet-sources.js).
  * API: the BB block at the top of cabinet.js.
  *
@@ -103,11 +105,56 @@
 
   // ------------------------------------------------------------ activity
 
+  /** Still owed, by the rule every screen counts with: open, not done on a later call, not replaced by a later row. */
+  const stillOpen = (a) => (typeof BB.isOpenItem === 'function' ? BB.isOpenItem(a) : a.open !== false) && !a.superseded && !a.closed_by;
+
+  /**
+   * A person's open items, the same set Overview counts by owner. The core's
+   * BB.openItemsFor applies the reviews made in the demo (owner edits, new
+   * issues, skips); without it, the open action items they own.
+   */
+  function openItemsFor(lastname) {
+    if (typeof BB.openItemsFor === 'function') {
+      try {
+        const list = BB.openItemsFor(lastname);
+        if (Array.isArray(list)) return list;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return BB.effectiveActionItems().filter((a) => a.owner === lastname && stillOpen(a));
+  }
+
+  /** Where an item was said to be done: the later call that closed it, else its own call (done on the call). */
+  const doneAt = (a) => a.closed_by
+    || (a.status === 'done-on-call' ? { call_id: a.call_id, topic: a.call_topic, date: a.call_date, ts: a.ts, title: null } : null);
+  const itemAt = (a) => `${a.call_date || ''} ${a.ts || ''}`;
+  const doneTime = (a) => { const d = doneAt(a); return `${d.date || ''} ${d.ts || ''}`; };
+
+  /**
+   * What a person finished, one row per issue (as the build counts `done`): a
+   * commitment that a later call closed stands for its issue, else the "done on
+   * the call" line itself. Newest first.
+   */
+  function doneItemsOf(owned) {
+    const out = [];
+    const byRef = new Map();
+    for (const a of owned.filter(doneAt)) {
+      if (!a.tracker_ref) { out.push(a); continue; }
+      byRef.set(a.tracker_ref, [...(byRef.get(a.tracker_ref) || []), a]);
+    }
+    const newest = (list) => [...list].sort((x, y) => itemAt(y).localeCompare(itemAt(x)))[0];
+    for (const list of byRef.values()) out.push(newest(list.filter((a) => a.closed_by)) || newest(list));
+    return out.sort((x, y) => doneTime(y).localeCompare(doneTime(x)));
+  }
+
   /** Activity from the effective action items and calls; works in /app, where profiles carry none. */
   function activityOf(p) {
     const items = BB.effectiveActionItems();
     const owned = items.filter((a) => a.owner === p.lastname);
-    const helping = items.filter((a) => (a.helpers || []).includes(p.lastname));
+    const open = openItemsFor(p.lastname);
+    // Helping: the open items someone else owns that name them as a helper.
+    const helping = items.filter((a) => (a.helpers || []).includes(p.lastname) && a.owner !== p.lastname && stillOpen(a));
     const attended = allCalls().filter((c) => (c.participants || []).includes(p.lastname));
     const base = p.activity || {};
     const named = Array.isArray(base.call_ids) ? base.call_ids : [];
@@ -122,11 +169,11 @@
     return {
       calls: Math.max(attended.length, Number(base.calls) || 0, ids.length),
       namedOnly: attended.length === 0 && ids.length > 0,
-      open: owned.filter((a) => a.status === 'post-call'),
-      monitoring: owned.filter((a) => a.status === 'monitoring'),
-      done: owned.filter((a) => a.status === 'done-on-call'),
+      open,
+      monitoring: owned.filter((a) => a.status === 'monitoring' && !a.closed_by && !a.superseded),
+      done: doneItemsOf(owned),
       helping,
-      refs: [...new Set(owned.map((a) => a.tracker_ref).filter(Boolean))].sort(),
+      refs: [...new Set([...owned, ...open].map((a) => a.tracker_ref).filter(Boolean))].sort(),
       recent,
       partners,
     };
@@ -288,10 +335,26 @@
     </section>`;
   }
 
-  function itemLine(a) {
+  /** The call an item comes from, as a link, with its day and ▶ minute. */
+  function fromCall(a) {
     const c = callOf(a.call_id);
+    const topic = (c && c.topic) || a.call_topic;
+    const day = BB.fmtDay(a.call_date || (c && c.date));
+    return `${topic && a.call_id ? `<a href="${esc(href('call', a.call_id))}">${esc(topic)}</a>` : ''}${day ? `<span class="mono">${esc(day)}</span>` : ''}${a.ts ? ` ${BB.ts(a.call_id, a.ts)}` : ''}`;
+  }
+
+  function itemLine(a) {
     return `<li>${esc(a.title)}
-      <span class="item-meta">${c ? `<a href="${esc(href('call', c.id))}">${esc(c.topic)}</a>` : ''}<span class="mono">${esc(BB.fmtDay(a.call_date || (c && c.date)))}</span>${a.ts ? ` ${BB.ts(a.call_id, a.ts)}` : ''} ${BB.prio(a.priority)} ${BB.ref(a.tracker_ref)}</span></li>`;
+      <span class="item-meta">${fromCall(a)} ${BB.prio(a.priority)} ${BB.ref(a.tracker_ref)}${a.ref_added ? ' <span class="chip">New · you</span>' : ''}</span></li>`;
+  }
+
+  /** "Done · 19 Oct ▶ 15:20", the day linking to the call that said so, as Open items shows it. */
+  function doneLine(a) {
+    const d = doneAt(a);
+    const said = a.closed_by && a.closed_by.title ? `<span class="item-said">“${esc(a.closed_by.title)}”</span>` : '';
+    return `<li class="is-done">${esc(a.title)}
+      <span class="item-meta"><span class="item-done">Done · <a href="${esc(href('call', d.call_id))}" aria-label="${esc(`Done, said on ${d.topic || 'a call'}, ${BB.fmtDay(d.date)}`)}">${esc(BB.fmtDay(d.date))}</a> ${BB.ts(d.call_id, d.ts)}</span> ${BB.ref(a.tracker_ref)}</span>
+      ${said}</li>`;
   }
 
   function profileView(p) {
@@ -299,7 +362,7 @@
     const a = activityOf(p);
     const counts = [
       `${a.namedOnly ? 'Named on ' : ''}${plural(a.calls, 'call')}`, `${a.open.length} open`, `${a.monitoring.length} monitoring`,
-      `${a.done.length} done on call`, `${a.helping.length} helping`,
+      `${a.done.length} done`, `${a.helping.length} helping`,
     ].join(' · ');
     const partners = (a.partners || []).slice(0, 4);
     const partnerRows = partners.map((x) => {
@@ -342,8 +405,10 @@
         <h2 id="h-activity">Activity</h2>
         <p class="profile-counts">${esc(counts)}</p>
         ${a.refs.length ? `<h3>In Linear</h3><p class="profile-refs">${a.refs.map(BB.ref).join(' ')}</p>` : ''}
-        ${a.open.length ? `<h3>Open items</h3><ul class="item-list">${a.open.map(itemLine).join('')}</ul>` : ''}
+        <h3>Open items</h3>
+        ${a.open.length ? `<ul class="item-list">${a.open.map(itemLine).join('')}</ul>` : `<p class="profile-none">${esc(`Nothing is open for ${p.lastname}.`)}</p>`}
         ${helpingList ? `<h3>Helping</h3><ul class="item-list">${helpingList}</ul>` : ''}
+        ${a.done.length ? `<h3>Done</h3><ul class="item-list profile-done">${a.done.map(doneLine).join('')}</ul>` : ''}
         ${a.recent.length ? `<h3>${a.namedOnly ? `Calls that name ${esc(first)}` : 'Recent calls'}</h3><ol class="call-list">${a.recent.slice(0, 5).map((c) => BB.callRow(c, { compact: true })).join('')}</ol>` : ''}
       </section>
     </aside>`;
@@ -405,7 +470,7 @@
 
   let draft = null;
   let searching = null;
-  let fileShown = false; // step 3 on phones: the file preview waits behind "Show the file"
+  let fileShown = false; // step 3: the file waits behind "Show the file" until asked for
   BB.on('reset', () => { draft = null; searching = null; fileOpenFor = null; fileShown = false; });
 
   const LETTERS = /^[A-Za-z]+(?:['’-][A-Za-z]+)*$/;
@@ -1127,6 +1192,48 @@
     return out;
   }
 
+  /**
+   * Step 3's summary: the profile in plain words (name, role, team, zones with
+   * the call each comes from, the names people use, the accounts), read before
+   * the file it becomes.
+   */
+  function summaryHtml(d, p) {
+    const roleRow = acceptedRow(d, 'role');
+    const accounts = d.rows.find((r) => r.kind === 'accounts') || null;
+    const partnersRow = acceptedRow(d, 'partners');
+    const answer = d.mode === 'none' ? d.manual.team : d.team.answer;
+    const none = (text) => `<span class="muted">${esc(text)}</span>`;
+    let team = none('Not set yet');
+    if (p.team) team = `${esc(p.team)}${d.team.options.includes(p.team) ? '' : ` ${none('· a new team')}`}`;
+    else if (answer === 'none') team = esc('No team: cross-team calls only');
+    const zones = p.zone_evidence.length
+      ? `<ul class="addp-zones">${p.zone_evidence.map((z) => `<li><span class="chip zone-chip">${esc(z.zone)}</span>${z.evidence
+        ? evidenceHtml(z.evidence, d.last) : `<p class="zone-note">${esc('Added by you, not heard on a call yet.')}</p>`}</li>`).join('')}</ul>`
+      : none('None yet. Zones are suggested once a call shows who owns what.');
+    let acc = d.email ? none(`No Slack or Linear account found for ${d.email} yet.`) : none('No work email given, so no accounts were matched.');
+    if (accounts && accounts.state === 'accepted') {
+      acc = `Slack <span class="mono">${esc(accounts.accounts.slack)}</span> · Linear: ${esc(accounts.accounts.tracker)}
+        <span class="addp-fact-note">${esc(`Matched by ${d.email}.`)}</span>`;
+    } else if (accounts) acc = none('Not added.');
+    const rows = [
+      ['Role', p.role ? `${esc(p.role)}${roleRow && roleRow.evidence ? evidenceHtml(roleRow.evidence, d.last) : ''}` : none('Not set yet')],
+      ['Team', team],
+      ['Zones', zones],
+      ['Also heard as', p.aliases.length ? `<span class="addp-chips">${p.aliases.map((x) => `<span class="chip">${esc(x)}</span>`).join(' ')}</span>` : none(`No other names yet. ${p.lastname} still resolves.`)],
+    ];
+    if (partnersRow) rows.push(['Works most with', esc(BB.joinAnd(partnersRow.values.map((x) => { const q = findPerson(x); return q ? nameOf(q) : x; })))]);
+    rows.push(['Accounts', acc]);
+    if (p.email) rows.push(['Work email', `<span class="mono">${esc(p.email)}</span> <span class="addp-fact-note">Kept in the profile to match accounts; never shown in digests.</span>`]);
+    return `<section class="panel addp-summary" aria-labelledby="h-summary">
+        <p class="k">The profile</p>
+        <div class="addp-summary-id">
+          <span class="monogram" aria-hidden="true">${esc(BB.initials(p.name))}</span>
+          <h2 id="h-summary">${esc(p.name)}</h2>
+        </div>
+        <dl class="addp-facts">${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('')}</dl>
+      </section>`;
+  }
+
   function step3() {
     const d = draft;
     const p = personFromDraft(d);
@@ -1145,10 +1252,11 @@
     if (d.calls) changes.push(d.calls === 1 ? `The call that names ${d.first} now links to this profile.` : `The ${d.calls} calls that name ${d.first} now link to this profile.`);
     const skipped = notAdded(d);
     if (skipped.length) changes.push(`Not added: ${BB.joinAnd(skipped)}.`);
-    // "What changes" and Save come first in reading order. On wide screens the file sits on the
-    // left; on phones it waits behind "Show the file" (the toggle is hidden on wider screens).
+    // "What changes" and Save come first in reading order (on wide screens they sit on the
+    // right, beside the summary). The summary says in plain words what the profile holds;
+    // the file itself waits behind "Show the file" at every width.
     const html = `${stepper(3)}
-      <div class="addp addp-review${fileShown ? ' is-file-open' : ''}" data-addp>
+      <div class="addp addp-review" data-addp>
         <section class="panel addp-changes" aria-labelledby="h-changes">
           <h2 id="h-changes">What changes</h2>
           <ul class="plain-list">${changes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
@@ -1158,9 +1266,15 @@
           </div>
           <p class="small muted addp-save-note" data-save-status role="status"></p>
         </section>
-        <div class="addp-file">
-          <button class="btn btn-small btn-ghost addp-file-toggle" type="button" data-file-toggle data-key="addp-file-toggle" aria-expanded="${fileShown}" aria-controls="addp-file-win">${fileShown ? 'Hide' : 'Show'} the file ${esc(path)}</button>
-          <div class="addp-file-win" id="addp-file-win">${fileWin(path, fileLines(p))}</div>
+        <div class="addp-main">
+          ${summaryHtml(d, p)}
+          <div class="addp-file">
+            <button class="btn btn-small btn-ghost addp-file-toggle" type="button" data-file-toggle data-key="addp-file-toggle" aria-expanded="${fileShown}" aria-controls="addp-file-win">${fileShown ? 'Hide' : 'Show'} the file ${esc(path)}</button>
+            <div class="addp-file-win" id="addp-file-win"${fileShown ? '' : ' hidden'}>
+              ${fileWin(path, fileLines(p))}
+              <p class="small muted addp-file-note">${esc(`The file as Backbrief commits it to ${repoText()}.`)}</p>
+            </div>
+          </div>
         </div>
       </div>`;
     show('Review and save', html, {
@@ -1170,10 +1284,11 @@
     const toggle = $('[data-file-toggle]');
     toggle.addEventListener('click', () => {
       fileShown = !fileShown;
-      $('[data-addp]').classList.toggle('is-file-open', fileShown);
+      const win = $('#addp-file-win');
+      win.hidden = !fileShown;
       toggle.setAttribute('aria-expanded', String(fileShown));
       toggle.textContent = `${fileShown ? 'Hide' : 'Show'} the file ${path}`;
-      if (fileShown) $('#addp-file-win').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      if (fileShown) win.scrollIntoView({ block: 'nearest', behavior: 'instant' });
     });
     const btn = $('[data-save]');
     btn.addEventListener('click', async () => {
