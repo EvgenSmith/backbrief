@@ -10,26 +10,16 @@
 
   <section class="hero">
     <div class="wrap hero-grid">
-      <div class="hero-copy">
+      <div class="hero-head">
         <p class="eyebrow">For distributed or AI-native teams</p>
-        <h1>Every call ends with <mark>decisions on record</mark> and <mark>tasks in your tracker</mark>.</h1>
-        <ul class="outputs">
-          <li><span class="dest dest-stack"><span>Chat</span><span>+</span><span>Repo</span></span><span><strong>Everyone knows what was decided on every call.</strong> Nobody writes notes, and your company's knowledge is ready for AI agents.</span></li>
-          <li><span class="dest">Tracker</span><span><strong>Every task reaches the right owner, with a priority.</strong> No lost tasks, no duplicates.</span></li>
-          <li><span class="dest">AI employee</span><span><span class="soon-tag">Soon</span> <strong>Tasks don't just get filed, they get done.</strong> An AI employee picks them up with your company's full context.</span></li>
-        </ul>
-        <div class="cta-row">
-          <a class="btn" href="/book">Book a demo</a>
-          <a class="g2" href="{{ links.g2 }}"><span class="g2-mark" aria-hidden="true">G2</span><span class="g2-text">Reviews on G2</span></a>
-          <!-- @rating -->
-        </div>
+        <h1>Every recorded call ends with <mark>decisions on record</mark> and <mark>tasks in your tracker</mark>.</h1>
       </div>
 
       <div class="hero-visual">
         <div class="transcript" aria-label="Two lines of a call transcript">
           <p class="transcript-head"><span>Transcript</span><span>47 min</span></p>
           <p><span class="tc">16:38</span><span class="who">Brooks</span><span>The creative already assumes $19. We can't move it.</span></p>
-          <p><span class="tc">16:40</span><span class="who">Carter</span><span>Agreed. <mark>We ship the $19 tier before the Q3 campaign.</mark></span></p>
+          <p><span class="tc">16:40</span><span class="who">Carter</span><span>Agreed. <mark>We ship the $19 tier before the Q4 campaign.</mark></span></p>
         </div>
 
         <figure class="thread" aria-label="Example: what lands in Slack after the call">
@@ -41,28 +31,42 @@
               <p class="msg-title">Pricing model review <span class="muted">· 47 min · Carter, Brooks</span></p>
               <div class="msg-block">
                 <p class="label">Decision</p>
-                <p>Ship the $19 self-serve tier before the Q3 campaign <span class="ts">16:40</span></p>
+                <p>Ship the $19 self-serve tier before the Q4 campaign <span class="ts">▶ 16:40</span></p>
               </div>
               <div class="msg-block">
                 <p class="label">Agreement</p>
-                <p>Carter ↔ Brooks: pricing copy freezes Friday so engineering can cut the release on Monday <span class="ts">22:15</span></p>
+                <p>Carter ↔ Brooks: pricing copy freezes Friday so engineering can cut the release on Monday <span class="ts">▶ 22:15</span></p>
               </div>
               <div class="msg-block">
                 <p class="label">Tasks, checked against your backlog</p>
                 <ul class="verdicts">
                   <li><span class="v v-create">Create</span><span>Rewrite pricing page copy <span class="muted">· Carter</span></span><span class="id">GRW-214</span></li>
-                  <li><span class="v v-comment">Comment</span><span>Already tracked: deadline and owner added</span><span class="id">GRW-180</span></li>
-                  <li><span class="v v-flag">Flag</span><span>Update the billing FAQ <span class="muted">· owner unclear</span></span><span class="id">~GRW-102</span></li>
+                  <li><span class="v v-comment">Comment</span><span>Already tracked: add deadline and owner</span><span class="id">GRW-180</span></li>
+                  <li><span class="v v-flag">Flag</span><span>Update the billing FAQ <span class="muted">· possible duplicate, owner unclear</span></span><span class="id">GRW-102</span></li>
                 </ul>
               </div>
               <div class="msg-actions" aria-hidden="true">
-                <span class="sbtn sbtn-main">Approve safe (2)</span>
+                <span class="sbtn sbtn-main">Approve 2 tasks</span>
                 <span class="sbtn">Review flagged</span>
               </div>
             </div>
           </div>
         </figure>
       </div>
+
+      <div class="hero-body">
+        <ul class="outputs">
+          <li><span class="dest dest-stack"><span>Chat</span><span>+</span><span>Repo</span></span><span><strong>Everyone knows what was decided on every call.</strong> Nobody writes notes, and every decision lands in your repository, where Claude Code or Cursor can find it.</span></li>
+          <li><span class="dest">Tracker</span><span><strong>Every task gets an owner and a priority, checked against your backlog.</strong> Nothing is filed until your team approves it.</span></li>
+          <li><span class="dest">AI employee</span><span><span class="soon-tag">Soon</span> <strong>Tasks don't just get filed, they get done.</strong> An AI employee picks them up with your company's full context.</span></li>
+        </ul>
+        <div class="cta-row">
+          <a class="btn" href="/book">Book a demo</a>
+          <a class="g2" href="{{ links.g2 }}"><span class="g2-mark" aria-hidden="true">G2</span><span class="g2-text">Reviews on G2</span></a>
+          <!-- @rating -->
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -118,7 +122,7 @@
             <div class="win-bar"><span class="win-app">GitHub</span><span class="win-path">product/2026-10-14-pricing-review.md</span></div>
             <div class="win-body">
               <pre class="code">## Decisions
-1. Ship the $19 self-serve tier before the Q3
+1. Ship the $19 self-serve tier before the Q4
    campaign: the creative already assumes it (16:40)
 
 ## Agreements

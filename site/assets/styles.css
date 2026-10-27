@@ -123,7 +123,7 @@ h1, h2 {
   font-family: var(--display); font-stretch: 116%; font-weight: 760;
   letter-spacing: -.024em; line-height: 1.04; margin: 0 0 .5em; text-wrap: balance;
 }
-h1 { font-size: clamp(2.3rem, 5.1vw, 4rem); }
+h1 { font-size: clamp(2.3rem, 4.7vw, 3.65rem); }
 h2 { font-size: clamp(1.75rem, 3.2vw, 2.55rem); line-height: 1.08; font-stretch: 110%; }
 h3 { font: 600 1.08rem/1.35 var(--sans); letter-spacing: -.005em; margin: 0 0 .45em; text-wrap: balance; }
 p { margin: 0 0 1em; }
@@ -192,9 +192,13 @@ section { padding-block: 104px; }
 
 /* Hero */
 .hero { padding-block: 80px 112px; }
-.hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 72px; align-items: center; }
-.hero-copy { min-width: 0; }
-.hero-copy h1 { margin-bottom: 32px; }
+.hero-grid {
+  display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  grid-template-areas: "head visual" "body visual"; column-gap: 72px; align-items: start;
+}
+.hero-head { grid-area: head; min-width: 0; align-self: end; }
+.hero-body { grid-area: body; min-width: 0; }
+.hero-head h1 { margin-bottom: 32px; }
 .lede { font-size: 1.2rem; line-height: 1.55; max-width: 36rem; margin-bottom: 26px; }
 .outputs { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); max-width: 38rem; }
 .outputs li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 1rem; }
@@ -211,7 +215,7 @@ section { padding-block: 104px; }
 .g2-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--on-ink); font: 600 .66rem/1 var(--mono); }
 
 /* Hero visual: a transcript line becomes the record in Slack */
-.hero-visual { position: relative; min-width: 0; padding-top: 34px; }
+.hero-visual { grid-area: visual; align-self: center; position: relative; min-width: 0; padding-top: 34px; }
 .transcript {
   position: relative; z-index: 1; width: min(92%, 30rem); margin: 0 0 -26px auto;
   background: var(--tint); border: 1px solid var(--rule); border-radius: var(--radius-lg);
@@ -445,7 +449,9 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   .nav a:not(.nav-mid):not(.nav-login) { display: none; }
 }
 @media (max-width: 1020px) {
-  .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+  .hero-grid { grid-template-columns: 1fr; grid-template-areas: "head" "visual" "body"; row-gap: 36px; }
+  .hero-head h1 { margin-bottom: 0; }
+  .hero-visual { padding-top: 0; }
   .hero-visual { max-width: 620px; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; border-top: 0; }
   .steps li { border-top: 2px solid var(--ink); }
