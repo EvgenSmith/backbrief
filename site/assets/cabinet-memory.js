@@ -178,9 +178,9 @@
       facts.push(['Holds', plural(c.templates || (n.children || []).length, 'template')]);
     } else if (k === 'training') {
       facts.push(['Holds', TASKS_DONE(c.rows || 0)]);
-      onward = { href: '#/tasks/history', label: 'Open Review history' };
+      onward = { href: '#/tasks?status=reviewed', label: 'See reviewed proposals' };
     } else if (k === 'training-log') {
-      onward = { href: '#/tasks/history', label: 'Open Review history' };
+      onward = { href: '#/tasks?status=reviewed', label: 'See reviewed proposals' };
     } else if (k === 'agents') {
       onward = { href: '#memory-agents', label: 'For engineers: how agents find things', jump: true };
     } else if (k === 'tenant.yaml') {

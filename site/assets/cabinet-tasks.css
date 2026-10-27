@@ -119,6 +119,7 @@
 .outcome.is-kept .outcome-result { color: var(--ink); }
 .tl-by { display: block; margin-top: 1px; font: 400 .74rem/1.5 var(--mono); color: var(--muted); }
 .tl-undo-at { display: block; margin-top: 6px; }
+.tl-edit-sum { display: block; margin-top: 2px; font-size: .82rem; color: var(--muted); }
 .outcome-result .tl-undo { font-weight: 500; }
 
 /* "Why?" after a skip: optional reasons, kept as feedback */
@@ -198,7 +199,9 @@
 .tl-open .tl-item-title { margin-right: 4px; }
 .tl-state { white-space: nowrap; }
 .tl-state-monitoring { color: var(--info); }
-.tl-state-done-on-call { color: var(--pos); }
+.tl-state-done { color: var(--pos); font-weight: 500; }
+.tl-state-done a:not(.ts) { color: inherit; text-decoration-color: currentColor; }
+.tl-items-filters .tl-items-note { flex: 1 1 260px; align-self: center; margin: 0; font-size: .86rem; line-height: 1.45; color: var(--muted); }
 .tl-you { color: var(--ink); background: var(--sheet); border-color: var(--ink); }
 .tl-open .chip-ref { white-space: nowrap; }
 

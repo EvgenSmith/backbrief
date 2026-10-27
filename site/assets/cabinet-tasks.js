@@ -72,8 +72,13 @@
   const VERDICTS = ['CREATE', 'COMMENT', 'FLAG', 'DUPLICATE'];
   const VNAME = { CREATE: 'Create', COMMENT: 'Comment', FLAG: 'Flag', DUPLICATE: 'Already tracked' };
   const STATUS = [['all', 'All'], ['waiting', 'Waiting'], ['reviewed', 'Reviewed'], ['approved', 'Approved'], ['skipped', 'Skipped']];
-  const ITEM_STATUS = { open: ['post-call', 'Open'], monitoring: ['monitoring', 'Monitoring'], done: ['done-on-call', 'Done on call'], all: [null, 'All'] };
-  const ITEM_LABEL = { 'post-call': 'Open', monitoring: 'Monitoring', 'done-on-call': 'Done on call' };
+  // Open items filter: Open (default), Monitoring, Done (done on a call, or closed by a later one), All.
+  const ITEM_STATUS = {
+    open: ['Open', (a) => isOpen(a)],
+    monitoring: ['Monitoring', (a) => a.status === 'monitoring'],
+    done: ['Done', (a) => Boolean(a.closed_by) || a.status === 'done-on-call'],
+    all: ['All', () => true],
+  };
   const BODY_HEADS = [['context', '📌 Context'], ['task', '✅ Task'], ['result', '🎯 Expected result'], ['extra', '📎 Additional information']];
   const SWITCHES = [
     ['summary', 'Summary', "What was discussed and decided, who owns what next, and a link to the call's file."],
@@ -325,7 +330,7 @@
   function strip(current) {
     return BB.tabs([
       { key: 'log', href: '#/tasks', label: 'Proposals', count: BB.waitingCount(), mark: true },
-      { key: 'open', href: '#/tasks/open', label: 'Open items', count: BB.effectiveActionItems().filter((a) => a.status === 'post-call').length },
+      { key: 'open', href: '#/tasks/open', label: 'Open items', count: BB.effectiveActionItems().filter(isOpen).length },
       { key: 'slack', href: '#/tasks/slack', label: 'Slack delivery' },
     ], current, { label: 'Action items' });
   }
@@ -537,14 +542,17 @@
     else if (p.verdict === 'FLAG') what = `${esc(p.title)} <span class="tl-dim">· ${joinDot([p.target ? `${hasSim(p) ? `${esc(pct(p.similarity))} similar to` : 'similar to'} ${ref}` : '', who])}</span>`;
     else if (p.verdict === 'DUPLICATE') what = `${esc(p.title)}${p.target ? ` <span class="tl-dim">· already tracked as ${ref}</span>` : ''}`;
     else what = `${esc(p.title)} <span class="tl-dim">· ${who}</span>${p.ts && !o.compact ? ` ${BB.ts(p.call_id, p.ts)}` : ''}`;
-    const by = p.by === 'you' ? `<span class="tl-by">You · ${esc(BB.stamp(p.at))}</span>` : '';
+    // When it was reviewed: "You · today, 14:07" here, or the training log's time for a review made in Slack.
+    const reviewedAt = p.by !== 'you' && p.decided_at && BB.clock(p.decided_at) ? `${fmtDay(p.decided_at)}, ${BB.clock(p.decided_at)}` : '';
+    const by = p.by === 'you' ? `<span class="tl-by">You · ${esc(BB.stamp(p.at))}</span>` : reviewedAt ? `<span class="tl-by">${esc(reviewedAt)}</span>` : '';
+    const editNote = p.edited && p.edit_summary ? `<span class="tl-edit-sum">${esc(p.edit_summary)}</span>` : '';
     const fresh = ui.fresh.get(p.key);
     const undo = BB.isDemo && p.by === 'you' && fresh && fresh.until > Date.now()
       ? `<span class="tl-undo-at"><button class="tl-inline-btn tl-undo" type="button" id="${id}-undo" data-act="undo" data-p="${esc(p.key)}" data-undo="${esc(p.key)}" aria-label="Undo: ${esc(p.title)}">Undo</button></span>`
       : '';
     return `<div class="outcome ${cls}${o.compact ? ' tl-compact' : ''}" id="${id}" tabindex="-1" data-card="${esc(p.key)}">
       ${vchip(p.verdict)}
-      <p class="tl-what">${what}${p.edited ? ' <span class="chip tl-edited">Edited</span>' : ''}</p>
+      <p class="tl-what">${what}${p.edited ? ' <span class="chip tl-edited">Edited</span>' : ''}${editNote}</p>
       <p class="outcome-result">${resultHtml(p)}${by}${undo}</p>
       ${whyHtml(p, id)}
     </div>`;
@@ -646,22 +654,35 @@
     return out;
   }
 
-  /** The team took the path the backlog check proposed (edits allowed). */
-  function asProposed(p) {
+  /**
+   * How a review relates to the proposal (the build's rule): 'agreed' when a
+   * CREATE or COMMENT is approved unedited, a DUPLICATE is skipped, or a FLAG
+   * is skipped or approved as a comment; 'edited' for an approval with edits;
+   * otherwise 'overridden'. A vault row carries the build's own word.
+   */
+  function agreementOf(p) {
+    if (p.status === 'pending') return null;
+    if (p.by !== 'you' && p.agreement) return p.agreement;
     const d = p.decision || {};
-    if (p.verdict === 'DUPLICATE') return p.status === 'skipped';
-    if (p.verdict === 'FLAG') return !p.target || p.status === 'skipped' || d.result === 'commented';
-    return p.status === 'approved' && (d.result === 'created' || d.result === 'commented');
+    if (p.status === 'approved') {
+      const path = p.verdict === 'CREATE' || p.verdict === 'COMMENT' || (p.verdict === 'FLAG' && d.result === 'commented');
+      if (!path) return 'overridden';
+      return p.edited ? 'edited' : 'agreed';
+    }
+    return p.verdict === 'DUPLICATE' || p.verdict === 'FLAG' ? 'agreed' : 'overridden';
   }
 
-  /** A duplicate the backlog check kept out of Linear, confirmed by the review. */
+  /**
+   * A duplicate kept out of Linear, confirmed by the review: a comment instead
+   * of a new issue, or a FLAG or DUPLICATE skipped as already covered or done.
+   */
   function prevented(p) {
+    if (p.by !== 'you' && typeof p.prevents_duplicate === 'boolean') return p.prevents_duplicate;
     const d = p.decision || {};
     if (p.status === 'approved') return d.result === 'commented';
-    if (p.status !== 'skipped') return false;
-    if (p.verdict === 'DUPLICATE') return !d.reason || COVERED.test(d.reason);
-    if (p.verdict === 'FLAG') return Boolean(p.target && d.reason && COVERED.test(d.reason));
-    return false;
+    if (p.status !== 'skipped' || (p.verdict !== 'DUPLICATE' && p.verdict !== 'FLAG')) return false;
+    if (d.reason_kind) return d.reason_kind === 'covered' || d.reason_kind === 'done';
+    return Boolean(d.reason && COVERED.test(d.reason));
   }
 
   function medianOf(xs) {
@@ -700,10 +721,12 @@
     const tr = ws().overview && ws().overview.training;
     const or = (a, b) => (a !== null ? a : b);
     const median = m.samples ? medianWithReviews(m.samples) : null;
+    const count = (list, word) => list.filter((p) => agreementOf(p) === word).length;
+    const baseEdited = base.some((p) => p.agreement) ? count(base, 'edited') : (tr && num(tr.edited)) || 0;
     return {
       reviewed: or(m.reviewed, base.length) + mine.length,
-      agreed: or(m.agreed, base.filter(asProposed).length) + mine.filter(asProposed).length,
-      edited: or(m.edited, (tr && num(tr.edited)) || 0) + mine.filter((p) => p.edited).length,
+      agreed: or(m.agreed, count(base, 'agreed')) + count(mine, 'agreed'),
+      edited: or(m.edited, baseEdited) + count(mine, 'edited'),
       prevented: or(m.prevented, base.filter(prevented).length) + mine.filter(prevented).length,
       medianMin: median !== null ? median : m.medianMin,
       over48: m.over48,
@@ -914,7 +937,8 @@
   // ================================================================ undo
   /** Remember how to undo a review; its outcome row offers Undo for 10 s. */
   function snapFor(key, d, edit) {
-    const snap = { key, at: d && d.at, editTouched: Boolean(edit), prevEdit: edit ? edit.prev : null };
+    // The decision object itself identifies the review: two reviews can share a time on a frozen demo clock.
+    const snap = { key, obj: d, editTouched: Boolean(edit), prevEdit: edit ? edit.prev : null };
     const until = Date.now() + UNDO_MS;
     ui.fresh.set(key, { until, snap });
     setTimeout(() => expireUndo(key, until), UNDO_MS + 30);
@@ -939,7 +963,7 @@
     const done = [];
     for (const s of snaps) {
       const d = BB.state.decisions[s.key];
-      if (!d || d.at !== s.at) continue;
+      if (!d || d !== s.obj) continue;
       delete BB.state.decisions[s.key];
       if (s.editTouched) {
         if (s.prevEdit) BB.state.edits[s.key] = s.prevEdit;
@@ -959,7 +983,7 @@
 
   /** Every approve, comment and skip toast offers Undo (the core shows the action). */
   function reviewToast(line1, snaps) {
-    const list = snaps.filter((s) => s && s.at);
+    const list = snaps.filter((s) => s && s.obj);
     toast(line1, NOTE.linear, list.length ? { action: { label: 'Undo', run: () => undoSnaps(list) } } : undefined);
   }
 
@@ -1022,7 +1046,7 @@
     // Carry on with the next waiting card; the last one keeps the "Saved as feedback." line.
     const callId = callIdOf(key);
     await refreshWith(() => nextCardOf(callId, key) || document.getElementById(`${cardId(key)}-why`));
-    reviewToast('Skipped. Reason saved as feedback.', [{ key, at: d.at, editTouched: false, prevEdit: null }]);
+    reviewToast('Skipped. Reason saved as feedback.', [{ key, obj: d, editTouched: false, prevEdit: null }]);
   }
 
   /** The waiting cards a bulk action covers: those the filters show (Proposals), or all of the call's (call detail). */
@@ -1329,7 +1353,10 @@
   }
 
   // ---------------------------------------------------------------- Post reviews to Slack
+  /** The time a post would carry now, on the workspace clock (the demo's frozen clock when it has one). */
   function nowClock() {
+    const t = BB.clock(BB.now());
+    if (t) return t;
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
@@ -1457,22 +1484,67 @@
   }
 
   // ================================================================ Open items (§3.5)
+  /** Still owed: the build's `open` (post-call, not closed by a later call, not replaced by a later item). */
+  function isOpen(a) {
+    if (typeof a.open === 'boolean') return a.open;
+    return a.status === 'post-call' && !a.closed_by && !a.superseded;
+  }
+  const itemTime = (a) => `${a.call_date || ''} ${a.ts || ''}`;
+
+  /**
+   * One row per issue. Items without an issue key are rows of their own. For
+   * an issue, the latest item stands for it; when that item is the "done on
+   * the call" line that closed an earlier commitment, the commitment shows
+   * instead, as "Done · 19 Oct ▶ 15:20" (its title, owner and call stay).
+   */
+  function itemRows(items) {
+    const rows = [];
+    const byRef = new Map();
+    for (const a of items) {
+      if (!a.tracker_ref) { rows.push(a); continue; }
+      if (!byRef.has(a.tracker_ref)) byRef.set(a.tracker_ref, []);
+      byRef.get(a.tracker_ref).push(a);
+    }
+    const newest = (list) => [...list].sort((x, y) => itemTime(y).localeCompare(itemTime(x)))[0];
+    for (const list of byRef.values()) {
+      const latest = newest(list.filter((a) => !a.superseded)) || newest(list);
+      const closed = latest.status === 'done-on-call'
+        ? list.filter((a) => a.closed_by && a.closed_by.call_id === latest.call_id && (!a.closed_by.ts || a.closed_by.ts === latest.ts))
+        : [];
+      rows.push(closed.length ? newest(closed) : latest);
+    }
+    return rows.sort((x, y) => itemTime(y).localeCompare(itemTime(x)));
+  }
+
+  /** The Status cell: "Open", "Monitoring", or "Done · 19 Oct ▶ 15:20" linking to the call that said so. */
+  function itemState(a) {
+    const done = a.closed_by || (a.status === 'done-on-call' ? { call_id: a.call_id, topic: a.call_topic, date: a.call_date, ts: a.ts } : null);
+    if (done && done.call_id) {
+      const said = a.closed_by && a.closed_by.title ? `<span class="sub">“${esc(a.closed_by.title)}”</span>` : '';
+      return `<span class="tl-state tl-state-done">Done · <a href="${esc(href('call', done.call_id))}" aria-label="${esc(`Done, said on ${done.topic || 'a call'}, ${fmtDay(done.date)}`)}">${esc(fmtDay(done.date))}</a> ${BB.ts(done.call_id, done.ts)}</span>${said}`;
+    }
+    if (a.status === 'monitoring') return '<span class="tl-state tl-state-monitoring">Monitoring</span>';
+    return `<span class="tl-state">${isOpen(a) ? 'Open' : 'Replaced by a later item'}</span>`;
+  }
+
   function openItemsView(parts, query) {
     firstRender();
     const items = BB.effectiveActionItems();
-    const owners = [...new Set(items.map((a) => a.owner).filter(Boolean))].sort();
-    const open = items.filter((a) => a.status === 'post-call').length;
+    const rows = itemRows(items);
+    const owners = [...new Set(rows.map((a) => a.owner).filter(Boolean))].sort();
+    const open = items.filter(isOpen).length;
     const st = ITEM_STATUS[query.status] ? query.status : 'open';
     const owner = query.owner || '';
     if (owner && owner !== 'none' && !owners.includes(owner)) owners.push(owner);
     page('open', `
-      <form class="filters" aria-label="Filter action items" data-items-filters>
-        <label>Status <select name="status">${Object.entries(ITEM_STATUS).map(([k, [, label]]) => `<option value="${k}"${k === st ? ' selected' : ''}>${label}</option>`).join('')}</select></label>
+      <form class="filters tl-items-filters" aria-label="Filter action items" data-items-filters>
+        <label>Status <select name="status">${Object.entries(ITEM_STATUS).map(([k, [label]]) => `<option value="${k}"${k === st ? ' selected' : ''}>${label}</option>`).join('')}</select></label>
         <label>Owner <select name="owner"><option value="">Everyone</option>${owners.map((o) => `<option value="${esc(o)}"${o === owner ? ' selected' : ''}>${esc(o)}</option>`).join('')}<option value="none"${owner === 'none' ? ' selected' : ''}>No owner</option></select></label>
+        <p class="tl-items-note">One row per issue. An item closes when a later call says it's done.</p>
       </form>
       <p class="sr-only" role="status" data-items-status></p>
       <div data-items-box></div>`, {
-      eyebrow: esc(`${open} open · ${items.length} in all`),
+      eyebrow: esc(`${open} open · ${rows.length} in all`),
     });
     const form = $('[data-items-filters]', viewEl());
     const box = $('[data-items-box]', viewEl());
@@ -1490,8 +1562,8 @@
         BB.current.query = f;
         ui.routed = h;
       }
-      const want = ITEM_STATUS[f.status][0];
-      const list = items.filter((a) => (!want || a.status === want) && (!f.owner || (f.owner === 'none' ? !a.owner : a.owner === f.owner)));
+      const want = (ITEM_STATUS[f.status] || ITEM_STATUS.open)[1];
+      const list = rows.filter((a) => want(a) && (!f.owner || (f.owner === 'none' ? !a.owner : a.owner === f.owner)));
       if (!list.length) {
         box.innerHTML = BB.emptyState('<p>Nothing matches these filters.</p><p><button class="btn btn-small btn-ghost" type="button" data-items-clear>Clear filters</button></p>');
         $('[data-items-clear]', box).addEventListener('click', () => {
@@ -1506,7 +1578,7 @@
           <tbody>${list.map((a) => `<tr>
             <td data-label="Action item"><span class="tl-item-title">${esc(a.title)}</span> ${BB.prio(a.priority)}</td>
             <td data-label="Owner">${a.owner ? BB.person(a.owner) : '<span class="muted">No owner</span>'}${a.helpers && a.helpers.length ? `<span class="sub">with ${esc(joinAnd(a.helpers))}</span>` : ''}</td>
-            <td data-label="Status"><span class="tl-state tl-state-${esc(a.status)}">${esc(ITEM_LABEL[a.status] || a.status)}</span></td>
+            <td data-label="Status">${itemState(a)}</td>
             <td data-label="Tracker">${a.tracker_ref ? `${BB.ref(a.tracker_ref)}${a.ref_added ? ' <span class="chip tl-you">New · you</span>' : ''}${linear(a.tracker_ref)}` : '<span class="muted">—</span>'}</td>
             <td data-label="From call"><a href="${esc(href('call', a.call_id))}">${esc(a.call_topic)}</a><span class="sub"><span class="mono">${esc(fmtDay(a.call_date))}</span> ${BB.ts(a.call_id, a.ts)}</span></td>
           </tr>`).join('')}</tbody></table></div>`;
