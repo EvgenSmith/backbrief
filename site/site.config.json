@@ -10,10 +10,6 @@
     "reviewed": false
   },
   "links": {
-    "github": "https://github.com/EvgenSmith/backbrief",
-    "docs": "https://github.com/EvgenSmith/backbrief#readme",
-    "spec": "https://github.com/EvgenSmith/backbrief/blob/main/PRD.md",
-    "telemetry": "https://github.com/EvgenSmith/backbrief/blob/main/docs/telemetry.md",
     "linkedin_company": "TODO: company LinkedIn page URL",
     "book_demo": ""
   },
@@ -45,8 +41,8 @@
   ],
   "demo": {
     "name": "Acme (demo)",
-    "vault_url": "https://github.com/EvgenSmith/backbrief/tree/main/site/demo-vault",
-    "file_url_base": "https://github.com/EvgenSmith/backbrief/blob/main/site/demo-vault/",
+    "vault_url": "",
+    "file_url_base": "",
     "tracker_url": ""
   }
 }

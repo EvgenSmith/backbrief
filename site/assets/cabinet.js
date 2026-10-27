@@ -162,7 +162,9 @@
       <section class="panel"><h2>Pipeline</h2>
         <p>${last ? `Last call filed: <a href="#/call/${esc(last.id)}">${esc(last.topic)}</a>, ${esc(fmtDate(last.date, last.time))}${mode === 'app' ? ` (${esc(daysAgo(last.date))})` : ''}.` : 'No calls filed yet.'}</p>
         <ul class="integrations">${Object.keys(names).map((k) => `<li class="${integ[k] ? 'on' : 'off'}">${integ[k] ? '✓' : '–'} ${esc(names[k])}</li>`).join('')}</ul>
-        <p class="small muted">Everything here is read from the vault at <a href="${esc(ws.workspace.vault_url)}" rel="noopener">${esc(ws.workspace.vault_url.replace(/^https:\/\//, ''))}</a>. Delete ${'Backbrief'} tomorrow and those files stay yours.</p>
+        <p class="small muted">${ws.workspace.vault_url
+          ? `Everything here is read from the vault at <a href="${esc(ws.workspace.vault_url)}" rel="noopener">${esc(ws.workspace.vault_url.replace(/^https:\/\//, ''))}</a>.`
+          : 'Everything here is read from the team\'s own git repository.'} Delete ${'Backbrief'} tomorrow and those files stay yours.</p>
       </section>`;
   }
 

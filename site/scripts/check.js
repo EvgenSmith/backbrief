@@ -113,6 +113,15 @@ for (const id of ['product', 'how', 'security', 'fit', 'plans', 'team', 'beta'])
   if (!ids.has(id)) fail(`index.html: required section #${id} is missing`);
 }
 if (!/<form[^>]+action="\/api\/book"/.test(home)) fail('index.html: book-a-demo form must post to /api/book');
+// Backbrief is presented as a commercial, managed service: no open-source,
+// self-hosting or licence wording, and no links to the public kit repository.
+const COMMERCIAL = [/open[- ]source/i, /self[- ]host/i, /\bMIT\b/, /github\.com\/EvgenSmith/i, /\bn8n\b/i];
+for (const [file, doc] of Object.entries(html)) {
+  for (const re of COMMERCIAL) {
+    const hit = doc.match(re);
+    if (hit) fail(`${file}: open-source or self-hosting wording "${hit[0]}" (the site presents a commercial service)`);
+  }
+}
 for (const f of ['privacy.html', 'terms.html', 'login.html', 'assets/styles.css', 'assets/cabinet.js', '_headers', 'robots.txt']) {
   if (!fs.existsSync(path.join(DIST, f))) fail(`dist is missing ${f}`);
 }

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: MIT */
-/* Backbrief: one stylesheet, self-hosted fonts, no frameworks.
+/* Backbrief: one stylesheet, fonts bundled with the site, no frameworks.
    Layout idea: the page reads like a call record. Ink type on cool paper,
    a highlighter marks what was decided, mono carries minutes and issue IDs,
    and the product appears in real app frames rather than in feature cards. */
@@ -307,14 +307,13 @@ section { padding-block: 104px; }
 .plain-list li { padding-left: 20px; position: relative; }
 .plain-list li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 8px; height: 8px; background: var(--mark); border-radius: 2px; }
 
-/* Hosted or self-hosted */
-.hosting { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 40px; border: 1px solid var(--rule); border-radius: var(--radius-lg); overflow: hidden; }
-.hosting-col { padding: 34px; display: flex; flex-direction: column; background: var(--paper); }
-.hosting-main { background: var(--sheet); border-right: 1px solid var(--rule); }
-.hosting-col h3 { font: 760 1.45rem/1.15 var(--display); font-stretch: 112%; letter-spacing: -.015em; margin-bottom: 18px; }
-.hosting-col ul { padding-left: 1.1em; margin: 0 0 28px; color: var(--muted); flex: 1; display: grid; gap: 8px; align-content: start; }
-.hosting-col li::marker { color: var(--faint); }
-.hosting-col .btn { align-self: flex-start; }
+/* How we start: four steps in one panel */
+.start { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: var(--radius-lg); overflow: hidden; background: var(--sheet); }
+.start li { padding: 28px 26px 30px; border-right: 1px solid var(--rule); min-width: 0; }
+.start li:last-child { border-right: 0; }
+.start p:last-child { color: var(--muted); margin: 0; }
+.start-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; margin-top: 32px; }
+.start-cta p { color: var(--muted); margin: 0; max-width: 40rem; }
 
 /* Team */
 .team-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 64px; align-items: start; }
@@ -405,7 +404,9 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   .hero-visual { max-width: 620px; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 40px; border-top: 0; }
   .steps li { border-top: 2px solid var(--ink); }
-  .ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ledger, .start { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .start li:nth-child(2) { border-right: 0; }
+  .start li:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
   .team-layout, .faq-layout { grid-template-columns: 1fr; gap: 32px; }
   .person { grid-template-columns: 72px minmax(0, 1fr); column-gap: 18px; padding: 22px; }
   .person-photo { width: 72px; height: 72px; }
@@ -417,10 +418,10 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   .nav { display: none; }
   .header-row { justify-content: space-between; }
   .section-head { grid-template-columns: 1fr; margin-bottom: 32px; }
-  .samples, .fit-grid, .ledger, .steps, .footer-grid, .hosting, .book { grid-template-columns: 1fr; }
+  .samples, .fit-grid, .ledger, .steps, .footer-grid, .start, .book { grid-template-columns: 1fr; }
   .samples { gap: 48px; }
-  .hosting-main { border-right: 0; border-bottom: 1px solid var(--rule); }
-  .hosting-col { padding: 26px 22px; }
+  .start li { border-right: 0; border-bottom: 1px solid var(--rule); padding: 22px; }
+  .start li:last-child { border-bottom: 0; }
   .compare-head { display: none; }
   .compare-row { grid-template-columns: 1fr; gap: 12px; padding: 22px 0; }
   .cell-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; display: block; font: 500 .68rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--faint); margin-bottom: 4px; }

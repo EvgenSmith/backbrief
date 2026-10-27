@@ -11,7 +11,7 @@
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="beta-tag">Beta</span> For distributed product teams</p>
+        <p class="eyebrow"><span class="beta-tag">Beta</span> For distributed teams</p>
         <h1>Every call ends with <mark>decisions on record</mark> and <mark>tasks in your tracker</mark>.</h1>
         <p class="lede">Nobody has to write it up. After each call, {{ product }} reads the recording and does the follow-up your team keeps skipping.</p>
         <ul class="outputs">
@@ -26,7 +26,7 @@
         <ul class="facts" aria-label="Facts">
           <li>No bot joins your calls</li>
           <li>English, Russian and mixed-language calls</li>
-          <li>Self-host from <a href="{{ links.github }}">GitHub</a>, MIT</li>
+          <li>The record stays in your own repository</li>
         </ul>
       </div>
 
@@ -213,7 +213,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <p>The digest lands in the call's chat thread, task proposals follow with Approve and Skip, and the call is saved to your git repository.</p>
         </li>
       </ol>
-      <p class="note">Hosted, we run all of this for you. Self-hosted, it runs on your own n8n with your own API keys, and manual mode gets you a first digest in about 15 minutes.</p>
+      <p class="note">We run all of this for you. Your team sees the results: the post in the thread, the task proposals and the file in your repository.</p>
     </div>
   </section>
 
@@ -242,14 +242,14 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <p>Under commercial terms that don't allow training on your data.</p>
         </div>
         <div>
-          <p class="k">Hosted</p>
+          <p class="k">Agreement</p>
           <h3>A written agreement comes first.</h3>
           <p>Before any of your calls is processed we sign a data processing agreement that lists sub-processors, the processing region and retention. See the <a href="/privacy">privacy policy</a>.</p>
         </div>
         <div>
-          <p class="k">Self-hosted</p>
-          <h3>Zero {{ product }} servers.</h3>
-          <p>Your own keys and infrastructure. Telemetry is opt-in and counters only, and <a href="{{ links.telemetry }}">its source is public</a>.</p>
+          <p class="k">Access</p>
+          <h3>Read-only where it can be.</h3>
+          <p>The workspace reads your repository with a read-only key, and people sign in with a one-time link sent to their work email.</p>
         </div>
       </div>
     </div>
@@ -257,13 +257,13 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="fit" class="band">
     <div class="wrap">
-      <h2>Built for product teams like yours</h2>
+      <h2>Built for teams like yours</h2>
       <div class="fit-grid">
         <div>
           <h3>Connected today</h3>
           <ul class="tools" aria-label="Connected today"><li>Zoom</li><li>Slack</li><li>Linear</li><li>GitHub</li></ul>
           <ul class="plain-list">
-            <li>Distributed product teams of about 10 to 50 people</li>
+            <li>Distributed teams of about 10 to 50 people</li>
             <li>Lots of internal calls: syncs, planning, reviews</li>
             <li>Using AI agents like Claude Code or Cursor, or about to</li>
           </ul>
@@ -279,29 +279,35 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="plans">
     <div class="wrap">
-      <h2>Hosted or self-hosted</h2>
-      <div class="hosting">
-        <div class="hosting-col hosting-main">
-          <p class="k">Hosted</p>
-          <h3>We run it for your team</h3>
-          <ul>
-            <li>We connect your call platform, chat and tracker together on one call</li>
-            <li>The record stays in your own git repository</li>
-            <li>A data processing agreement before any call is processed</li>
-            <li>Private handling of 1:1 and board calls, other trackers and single sign-on: tell us what you need</li>
-          </ul>
-          <a class="btn" href="/book">Book a demo</a>
-        </div>
-        <div class="hosting-col">
-          <p class="k">Self-hosted · MIT</p>
-          <h3>Run it on your own infrastructure</h3>
-          <ul>
-            <li>Claude Code plugin and n8n pipeline</li>
-            <li>Your own API keys; nothing passes through us</li>
-            <li>First digest in about 15 minutes in manual mode</li>
-          </ul>
-          <a class="btn btn-ghost" href="{{ links.github }}">Get it on GitHub</a>
-        </div>
+      <div class="section-head">
+        <h2>How we start</h2>
+        <p class="section-lede">{{ product }} is a managed service. We run it; your team gets the results in its own tools.</p>
+      </div>
+      <ol class="start">
+        <li>
+          <p class="k">Demo</p>
+          <h3>Thirty minutes on a call</h3>
+          <p>A week of the demo team's calls, then your stack and your questions.</p>
+        </li>
+        <li>
+          <p class="k">Agreement</p>
+          <h3>Data processing agreement</h3>
+          <p>Sub-processors, processing region and retention, signed before any of your calls is processed.</p>
+        </li>
+        <li>
+          <p class="k">Setup</p>
+          <h3>One setup call</h3>
+          <p>We connect your call platform, chat and tracker together. The record goes to a git repository you own.</p>
+        </li>
+        <li>
+          <p class="k">Live</p>
+          <h3>Your next recorded call</h3>
+          <p>The digest and task proposals arrive in the call's thread, and the team approves what gets filed.</p>
+        </li>
+      </ol>
+      <div class="start-cta">
+        <a class="btn" href="/book">Book a demo</a>
+        <p>Private handling of 1:1 and board calls, other trackers, single sign-on: tell us what you need on the demo call.</p>
       </div>
     </div>
   </section>
@@ -342,11 +348,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </details>
         <details>
           <summary>What happens to our data if {{ product }} goes away?</summary>
-          <p>Nothing. Everything it wrote is already in your chat, your tracker and your git repository as plain files, and the code is open source.</p>
-        </details>
-        <details>
-          <summary>What does the open-source version cost?</summary>
-          <p>Nothing. You pay for your own n8n hosting and your model provider's usage.</p>
+          <p>Nothing. Everything it wrote is already in your chat, your tracker and your git repository as plain files.</p>
         </details>
       </div>
     </div>

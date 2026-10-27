@@ -41,7 +41,7 @@ export const PAGES = [
   {
     src: 'privacy.html', out: 'privacy.html', path: '/privacy',
     title: `Privacy policy | ${config.product}`,
-    description: `How ${config.product} handles personal data on this website, in the self-hosted kit and in the hosted beta.`,
+    description: `How ${config.product} handles personal data on this website and in the hosted beta.`,
   },
   {
     src: 'terms.html', out: 'terms.html', path: '/terms',
@@ -133,12 +133,18 @@ function render(name, page, stack = []) {
   });
 }
 
+// SPDX headers license the source in this repository; the served site is a
+// commercial product page, so they are dropped from everything we publish.
+const SPDX = /^[ \t]*(?:<!--|\/\*|\/\/)\s*SPDX-License-Identifier:[^\n]*\n/gm;
+const stripSpdx = (text) => text.replace(SPDX, '');
+
 function copyDir(from, to) {
   fs.mkdirSync(to, { recursive: true });
   for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
     const a = path.join(from, entry.name);
     const b = path.join(to, entry.name);
     if (entry.isDirectory()) copyDir(a, b);
+    else if (/\.(css|js|svg)$/.test(entry.name)) fs.writeFileSync(b, stripSpdx(fs.readFileSync(a, 'utf8')));
     else fs.copyFileSync(a, b);
   }
 }
@@ -162,7 +168,7 @@ function buildDemo(out) {
       id: 'demo',
       name: config.demo.name,
       mode: 'demo',
-      vault_url: config.demo.vault_url,
+      vault_url: config.demo.vault_url || '',
       tracker_url: config.demo.tracker_url || null,
       integrations: { zoom: true, slack: true, linear: true, github: true },
     },
@@ -180,7 +186,9 @@ function buildDemo(out) {
   fs.writeFileSync(path.join(dir, 'people.json'), JSON.stringify({ people: ws.people }));
   for (const c of ws.calls) {
     const detail = ws._detail(c.id);
-    detail.vault_file_url = config.demo.file_url_base + c.path.split('/').map(encodeURIComponent).join('/');
+    detail.vault_file_url = config.demo.file_url_base
+      ? config.demo.file_url_base + c.path.split('/').map(encodeURIComponent).join('/')
+      : null;
     fs.writeFileSync(path.join(dir, 'calls', `${c.id}.json`), JSON.stringify(detail));
   }
   return ws.calls.length;
@@ -194,7 +202,7 @@ export function build() {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
   for (const page of PAGES) {
-    fs.writeFileSync(path.join(OUT, page.out), render(page.src, page));
+    fs.writeFileSync(path.join(OUT, page.out), stripSpdx(render(page.src, page)));
   }
   copyDir(path.join(ROOT, 'assets'), path.join(OUT, 'assets'));
   buildDemo(OUT);

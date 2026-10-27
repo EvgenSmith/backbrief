@@ -53,6 +53,9 @@ Exemptions (files that cannot or should not carry a header):
 - The demo vault under `site/demo-vault/` — a real vault for a fictional team
   that the public demo workspace is built from. Vault files must open with
   their frontmatter (`---` on line 1), so they carry no header. MIT by path.
+- The site build output under `site/dist/` (gitignored). `site/scripts/build.js`
+  removes SPDX headers from the pages and assets it publishes, because the
+  site presents Backbrief as a commercial service. The sources keep theirs.
 
 CI lints SPDX headers against path (`spdx-lint` job in
 `.github/workflows/ci.yml`); a missing or path-mismatched identifier fails the
