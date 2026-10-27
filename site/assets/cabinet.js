@@ -56,7 +56,7 @@
  *   BB.isOpenItem(item)  still owed: `open` from the build (post-call, not closed
  *     by a later call, latest row for its issue); post-call on older data
  *   BB.bookHref()  the header's "Book a demo" href, as the page was built
- *   BB.deliveryPhrase(delivery)  'summary, recording link and task log'
+ *   BB.deliveryPhrase(delivery)  'summary, transcript link and task log'
  *   BB.DEMO_NOTE.{linear, slack, github, browser, connection}  toast line 2
  *
  * Data
@@ -92,8 +92,18 @@
  *   Selectors (read-only results; copy before sorting):
  *     BB.effectiveProposals()        task_log entries with the overlay applied
  *     BB.effectiveProposals(callId)  one entry, or null
- *     BB.effectiveActionItems(callId?)  BB.effectiveStats()  BB.effectivePeople()
+ *     BB.effectiveActionItems(callId?)  workspace.action_items with the reviews
+ *       made here: an approval moves the commitment at the proposal's minute to
+ *       its edited title, owner and priority and gives it the issue key; a
+ *       created issue with no commitment there adds an open item; a skip takes
+ *       the item out of the open ones (review.status 'skipped')
+ *     BB.openItemsFor(lastname)  one person's effective open items (null: no owner)
+ *     BB.effectiveStats()  BB.effectivePeople()
  *     BB.effectiveSources()  BB.effectiveSlack()  BB.waitingCount()
+ *     BB.taskLogOn()  Slack delivery's Task log switch (on by default): each
+ *       review then updates the call's thread in place, so nothing is posted by hand
+ *     BB.threadNote(entry, {cls, topic})  "Updated in the call's Slack thread ·
+ *       today 11:06" after a review made here while the task log is on, else ''
  *     BB.effectiveMetrics()  overview.metrics recomputed with the reviews made
  *       here: {decisions, reviews, verdict_agreement, duplicates_prevented,
  *       time_to_decision, owner_coverage, processing}
@@ -119,8 +129,9 @@
  *   BB.hooks.callAside(call, el)  render call detail's "Task proposals" into
  *     el (#proposals); runs after every render of the call view. Until a module
  *     sets it, the core lists the proposals with a link to Action items.
- *   BB.hooks.sendLog(callId, trigger)  open "Post reviews to Slack";
- *     Overview's button calls it (without it, the button opens the task log)
+ *   BB.hooks.sendLog(callId, trigger)  open "Post reviews to Slack"; Overview's
+ *     button calls it (without it, the button opens the task log). The button
+ *     shows only while the task log is off (BB.taskLogOn())
  *   BB.hooks.slackThread(call, el)  render the call's Slack thread into el;
  *     call detail shows a "Slack thread" tab (#/call/<id>/slack) when it is set
  *   BB.on('state' | 'reset' | 'route', fn) → unsubscribe function
@@ -164,7 +175,9 @@
     view: $('[data-view]'),
     navCount: $('[data-nav-count]'),
     nav: $('.app-nav'),
-    navWrap: $('[data-nav-wrap]'),
+    navMenu: $('[data-nav-menu]'),
+    navMenuCur: $('[data-nav-menu-cur]'),
+    navMenuCount: $('[data-nav-menu-count]'),
     reset: $('[data-reset]'),
     banner: $('[data-demo-banner]'),
     wsName: $('[data-ws-name]'),
@@ -400,6 +413,11 @@
   }
   /** Still owed: the build's `open` (post-call, not done on a later call, latest row for its issue). */
   const isOpenItem = (a) => Boolean(a) && (typeof a.open === 'boolean' ? a.open : a.status === 'post-call');
+  /**
+   * An action item and the proposal made from it share their call and minute
+   * (the ▶ both show); without a minute, the title stands in.
+   */
+  const minuteKey = (callId, ts, title) => `${callId}|${ts || title || ''}`;
   const deliveryPhrase = (d = {}) => joinAnd(['summary', d.transcript_link && 'transcript link', d.recording_link && 'recording link', d.task_log && 'task log']);
 
   const DEMO_NOTE = Object.freeze({
@@ -671,28 +689,91 @@
 
   const waitingCount = () => effectiveProposals().reduce((n, e) => n + e.pending, 0);
 
+  /**
+   * workspace.action_items with the reviews made here applied, so every open
+   * count and list agrees with them. A review reaches the commitment its
+   * proposal came from: the call's post-call item at the proposal's minute
+   * (a done-on-call line is left as it is).
+   *   - Approved: the item takes the edited title, owner and priority, and the
+   *     issue key it was created as or commented on (ref_added when new).
+   *   - Approved as a new issue with no commitment at that minute ("Create new
+   *     instead", "Create anyway"): a new open item (added_here).
+   *   - Skipped: the item is no longer open; nothing was filed.
+   * Items a review touched carry review {status, result, ref, reason, at}.
+   * Reviews kept in the vault are already in the build's items.
+   */
   function effectiveActionItems(callId) {
     const all = memo('items', () => {
       const w = workspace();
-      // An approved CREATE or COMMENT gives the call's action item at the same minute its issue key.
-      const gains = new Map();
+      const out = [...((w && w.action_items) || [])];
+      const taken = new Set();
+      const added = [];
       for (const e of effectiveProposals()) {
         for (const p of e.proposals) {
-          if (p.by === 'you' && p.status === 'approved' && p.decision.ref && p.ts && (p.verdict === 'CREATE' || p.verdict === 'COMMENT')) {
-            gains.set(`${e.call_id}|${p.ts}`, p.decision.ref);
+          if (p.by !== 'you' || p.status === 'pending') continue;
+          const d = p.decision || {};
+          const was = p.original || p;
+          const key = minuteKey(e.call_id, p.ts, was.title);
+          let i = -1;
+          out.forEach((a, j) => {
+            if (taken.has(j) || a.call_id !== e.call_id || a.status !== 'post-call' || minuteKey(a.call_id, a.ts, a.title) !== key) return;
+            if (i < 0 || a.title === was.title) i = j;
+          });
+          const filed = d.result === 'created' || d.result === 'commented' ? d.ref || null : null;
+          const review = { status: p.status, result: d.result || null, ref: filed, reason: d.reason || null, at: p.at || null };
+          if (i >= 0) {
+            taken.add(i);
+            const a = out[i];
+            if (p.status === 'skipped') {
+              out[i] = { ...a, open: false, review };
+              continue;
+            }
+            const ch = p.changed || [];
+            out[i] = {
+              ...a,
+              ...(ch.includes('title') ? { title: p.title } : {}),
+              ...(ch.includes('owner') ? { owner: p.owner || null } : {}),
+              ...(ch.includes('priority') ? { priority: p.priority || null } : {}),
+              ...(filed && filed !== a.tracker_ref ? { tracker_ref: filed, ref_added: true } : {}),
+              review,
+            };
+          } else if (p.status === 'approved' && d.result === 'created') {
+            added.push({
+              title: p.title, owner: p.owner || null, helpers: [], status: 'post-call', priority: p.priority || null, ts: p.ts || null,
+              tracker_ref: filed, call_id: e.call_id, call_topic: e.topic, call_date: e.date,
+              closed_by: null, superseded: false, open: true, ref_added: Boolean(filed), added_here: true, review,
+            });
           }
         }
       }
-      return (w ? w.action_items : []).map((a) => {
-        const g = gains.get(`${a.call_id}|${a.ts}`);
-        return g && !a.tracker_ref ? { ...a, tracker_ref: g, ref_added: true } : a;
-      });
+      // A new item follows its call's other commitments (else its call's items, else its date).
+      for (const a of added) {
+        let at = -1;
+        let last = -1;
+        out.forEach((x, j) => {
+          if (x.call_id !== a.call_id) return;
+          last = j;
+          if (x.status === 'post-call') at = j;
+        });
+        if (at < 0) at = last;
+        if (at < 0) {
+          at = out.findIndex((x) => String(x.call_date || '') < String(a.call_date || ''));
+          out.splice(at < 0 ? out.length : at, 0, a);
+        } else out.splice(at + 1, 0, a);
+      }
+      return out;
     });
     if (callId === undefined) return all;
     const mine = all.filter((a) => a.call_id === callId);
     if (mine.length || (workspace() && workspace().calls.some((c) => c.id === callId))) return mine;
     const d = cached(`call:${callId}`);
     return d ? (d.action_items || []).map((a) => ({ ...a, call_id: callId, call_topic: d.topic, call_date: d.date })) : [];
+  }
+
+  /** One person's open items, with the reviews made here ('Hughes'; null or '' for the items no one owns). */
+  function openItemsFor(lastname) {
+    const who = lastname || null;
+    return effectiveActionItems().filter((a) => isOpenItem(a) && (a.owner || null) === who);
   }
 
   function effectivePeople() {
@@ -871,12 +952,13 @@
         return { ...c, decided_at: last ? new Date(last).toISOString() : null, minutes: last ? Math.round((last - end) / 60000) : null, pending: e.pending };
       });
 
-      // Owner coverage: a task filed here counts, unless an open action item already sits at its minute.
+      // Owner coverage: a task filed here counts, unless an open action item already sat at its minute
+      // (the build's items: the effective ones already hold what was filed here).
       let owners = isObj(m.owner_coverage) ? { ...m.owner_coverage } : null;
       if (owners) {
-        const openAt = new Set(effectiveActionItems().filter(isOpenItem).map((a) => `${a.call_id}|${a.ts || a.title}`));
+        const openAt = new Set((w.action_items || []).filter(isOpenItem).map((a) => minuteKey(a.call_id, a.ts, a.title)));
         for (const p of mine) {
-          if (p.status !== 'approved' || p.decision.result !== 'created' || openAt.has(`${p.call_id}|${p.ts || p.title}`)) continue;
+          if (p.status !== 'approved' || p.decision.result !== 'created' || openAt.has(minuteKey(p.call_id, p.ts, (p.original || p).title))) continue;
           owners = { ...owners, total: owners.total + 1, with_owner: owners.with_owner + (p.owner ? 1 : 0) };
         }
       }
@@ -899,6 +981,45 @@
 
   /** The teammate Overview is viewing as (a lastname), or '' for everyone. */
   const viewingAs = () => (isObj(state.prefs) && typeof state.prefs.viewing_as === 'string' ? state.prefs.viewing_as : '');
+
+  /**
+   * Slack delivery's Task log switch (on by default). While it is on, the
+   * call's thread carries the task log and each review updates it in place,
+   * so there is nothing to post by hand. Unknown (no settings) reads as on.
+   */
+  function taskLogOn() {
+    if (!cached('settings') && !isObj(state.delivery)) return true;
+    return Boolean(effectiveSlack().delivery.task_log);
+  }
+
+  /** When the last review made here updated the call's Slack thread (ISO), or null. */
+  function threadUpdatedAt(e) {
+    if (!isDemo || !e || !Array.isArray(e.proposals) || !taskLogOn()) return null;
+    const slack = effectiveSources().find((s) => s.id === 'slack');
+    if (slack && slack.status !== 'connected') return null;
+    let last = NaN;
+    for (const p of e.proposals) {
+      const t = p.by === 'you' ? Date.parse(p.at) : NaN;
+      if (Number.isFinite(t) && !(t <= last)) last = t;
+    }
+    return Number.isFinite(last) ? new Date(last).toISOString() : null;
+  }
+
+  /**
+   * "Updated in the call's Slack thread · today 11:06": the quiet line after a
+   * review made here while the task log is on (HTML; '' otherwise). The thread
+   * links to the call's Slack thread tab. opts.topic leads with the call's
+   * topic (several calls in one panel); opts.cls adds a class.
+   */
+  function threadNote(e, opts = {}) {
+    const at = threadUpdatedAt(e);
+    if (!at) return '';
+    const where = typeof hooks.slackThread === 'function'
+      ? `<a href="${esc(href('call', e.call_id, 'slack'))}">the call's Slack thread</a>`
+      : "the call's Slack thread";
+    const lead = opts.topic ? `${esc(e.topic)}: updated` : 'Updated';
+    return `<p class="thread-note${opts.cls ? ` ${esc(opts.cls)}` : ''}">${lead} in ${where} · ${esc(stamp(at, ' '))}</p>`;
+  }
 
   // ================================================================ events and hooks
   const listeners = {};
@@ -1173,29 +1294,83 @@
     return best;
   }
 
+  let navNow = 'overview';
   function setNav(key) {
+    navNow = key || 'overview';
     for (const a of $$('[data-nav]')) {
       if (a.dataset.nav === key) a.setAttribute('aria-current', 'page');
       else a.removeAttribute('aria-current');
     }
   }
 
-  /** In a strip that scrolls sideways (the phone nav, tab strips), bring the current item into view. */
+  /** The nav's sections as the nav lists them: {key, href, label, group} (the label without its count). */
+  function navItems() {
+    let group = 0;
+    return [...(ui.nav ? ui.nav.children : [])].flatMap((el) => {
+      if (el.matches('.nav-rule')) { group++; return []; }
+      if (!el.matches('a[data-nav]')) return [];
+      const label = [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('').trim();
+      return [{ key: el.dataset.nav, href: el.getAttribute('href'), label, group }];
+    });
+  }
+
+  /** The waiting count as the nav shows it: the number, read out as "N waiting". */
+  const countHtml = (n) => (n ? `<span class="sr-only">, </span>${n}<span class="sr-only"> waiting</span>` : '');
+
+  /** Phones: the Menu button names the current section and carries the waiting count. */
+  function syncNavMenu(n) {
+    if (!ui.navMenu) return;
+    const items = navItems();
+    const cur = items.find((x) => x.key === navNow) || items[0];
+    if (ui.navMenuCur && cur && ui.navMenuCur.textContent !== cur.label) ui.navMenuCur.textContent = cur.label;
+    if (ui.navMenuCount) {
+      ui.navMenuCount.hidden = !n;
+      const html = n ? `<span class="sr-only">, </span>${n}<span class="sr-only"> waiting in Action items</span>` : '';
+      if (ui.navMenuCount.innerHTML !== html) ui.navMenuCount.innerHTML = html;
+    }
+  }
+
+  /** Phones: the sheet behind the Menu button, with the six sections and the waiting count. */
+  function openNavSheet() {
+    const n = workspace() ? waitingCount() : 0;
+    const items = navItems();
+    const groups = [...new Set(items.map((x) => x.group))].map((g) => items.filter((x) => x.group === g));
+    const li = (x) => `<li><a class="nav-sheet-item" href="${esc(x.href)}"${x.key === navNow ? ' aria-current="page"' : ''}><span>${esc(x.label)}</span>${x.key === 'tasks' && n ? `<span class="nav-count">${countHtml(n)}</span>` : ''}</a></li>`;
+    let offHash = null;
+    dialog({
+      title: 'Menu',
+      className: 'nav-sheet',
+      html: `<nav aria-label="Workspace">${groups.map((g) => `<ul class="nav-sheet-list">${g.map(li).join('')}</ul>`).join('')}</nav>`,
+      actions: [{ label: 'Close', cancel: true }],
+      trigger: ui.navMenu,
+      onOpen: (h) => {
+        const cur = $('[aria-current="page"]', h.body) || $('a', h.body);
+        if (cur) cur.focus();
+        h.body.addEventListener('click', (e) => {
+          const a = e.target.closest && e.target.closest('a[href^="#/"]');
+          // A new tab or window (modifier keys, middle click) leaves the sheet as it is.
+          if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+          const to = a.getAttribute('href');
+          h.close('link');
+          go(to);
+        });
+        // Back or forward while the sheet is open: the sheet closes with it.
+        offHash = () => h.close(null);
+        window.addEventListener('hashchange', offHash);
+      },
+      onClose: () => { if (offHash) window.removeEventListener('hashchange', offHash); },
+    });
+  }
+
+  /** In a strip that scrolls sideways (a tab strip), bring the current item into view. */
   function revealCurrent(root) {
-    for (const strip of $$('.app-nav, .tabs', root)) {
+    for (const strip of $$('.tabs', root)) {
       const cur = $('[aria-current="page"]', strip);
       if (!cur || strip.scrollWidth <= strip.clientWidth) continue;
       const left = cur.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft;
       strip.scrollLeft = Math.max(0, left - (strip.clientWidth - cur.offsetWidth) / 2);
     }
-    navCue();
-  }
-
-  /** The phone nav strip fades at its right edge while more items wait off screen. */
-  function navCue() {
-    const n = ui.nav;
-    if (!n || !ui.navWrap) return;
-    ui.navWrap.classList.toggle('has-more', n.scrollWidth - n.clientWidth - n.scrollLeft > 4);
   }
 
   function setSlot(node, html) {
@@ -1415,9 +1590,10 @@
     const n = waitingCount();
     if (ui.navCount) {
       ui.navCount.hidden = !n;
-      const html = n ? `<span class="sr-only">, </span>${n}<span class="sr-only"> waiting</span>` : '';
+      const html = countHtml(n);
       if (ui.navCount.innerHTML !== html) ui.navCount.innerHTML = html;
     }
+    syncNavMenu(n);
     if (!isDemo) return;
     const c = changeCount();
     const label = c ? `Reset demo · ${plural(c, 'change')}` : 'Reset demo';
@@ -1572,9 +1748,15 @@
     return Number.isNaN(sent) ? mine.length : mine.filter((p) => !(Date.parse(p.at) <= sent)).length;
   }
 
-  /** "Post reviews to Slack" while reviews made here are unposted, else when they were posted. */
-  function postReviews(e, primary = false) {
+  /**
+   * What follows the reviews made here. With the task log on, the call's thread
+   * already updated in place: the quiet "Updated in the call's Slack thread"
+   * line. With it off: "Post reviews to Slack" while reviews are unposted, else
+   * when they were posted.
+   */
+  function afterReviews(e, primary = false) {
     if (!isDemo) return '';
+    if (taskLogOn()) return threadNote(e);
     if (unposted(e)) return `<button class="btn btn-small${primary ? '' : ' btn-ghost'}" type="button" data-send-log="${esc(e.call_id)}">Post reviews to Slack</button>`;
     if (e.log_sent) return `<p class="attn-done">Reviews posted to <span class="mono">${esc(e.log_sent.channel || '#call-digests')}</span>, ${esc(stamp(e.log_sent.at, ' '))}.</p>`;
     return '';
@@ -1605,7 +1787,7 @@
     return done.length ? done : null;
   }
 
-  /** A source that is off, or failing: first in "Waiting for you". */
+  /** A source that is off, or failing: first in "Needs a review". */
   function sourceRows() {
     const rows = [];
     for (const s of effectiveSources()) {
@@ -1646,9 +1828,10 @@
         rows.push(`<div class="attn-row">
           <p class="attn-what"><strong>${plural(waiting.length, 'task proposal')}</strong> from <a href="${esc(href('call', nd.call_id))}">${esc(nd.topic)}</a> <span class="mono muted">· ${esc(fmtDay(nd.date))}</span></p>
           <div class="attn-do"><span class="attn-chips">${chips}</span><a class="btn btn-small" href="${esc(href('tasks', 'call', nd.call_id))}">Review ${plural(waiting.length, 'proposal')}</a></div>
+          ${threadNote(e)}
         </div>`);
       } else if (!closing) {
-        const post = postReviews(e, true);
+        const post = afterReviews(e, true);
         rows.push(`<div class="attn-row is-inline">
           <p class="attn-what">${esc(reviewedLine(nd, e))}</p>
           ${post ? (post.startsWith('<p') ? post : `<div class="attn-do">${post}</div>`) : ''}
@@ -1668,19 +1851,21 @@
     const w = workspace();
     if (!rows.length && !empty) return '';
     const body = rows.length ? rows.join('') : `<div class="attn-row"><p class="attn-what">${w.calls.length
-      ? 'Nothing is waiting for you. Proposals from your next call show up here.'
-      : "Nothing is waiting for you yet. Your first call's proposals show up here."}</p></div>`;
-    return `<section class="panel${rows.length ? ' attn' : ''}" aria-labelledby="h-waiting"><h2 id="h-waiting">Waiting for you</h2>${body}</section>`;
+      ? 'Nothing needs a review. Proposals from your next call show up here.'
+      : "Nothing needs a review yet. Your first call's proposals show up here."}</p></div>`;
+    return `<section class="panel${rows.length ? ' attn' : ''}" aria-labelledby="h-waiting"><h2 id="h-waiting">Needs a review</h2>${body}</section>`;
   }
 
   /** After the last waiting proposal is reviewed in the demo: the loop, and the way to see it on your stack. */
   function closingPanel(done) {
     const head = done.length === 1 ? reviewedLine(done[0].nd, done[0].e) : 'Every proposal that was waiting is reviewed.';
     const lines = done.length > 1 ? `<ul class="plain closing-calls">${done.map(({ nd, e }) => `<li>${esc(reviewedLine(nd, e))}</li>`).join('')}</ul>` : '';
-    const posts = done.map(({ e }) => postReviews(e)).filter(Boolean).join('');
+    // The task log on: each call's thread already shows the reviews. Off: post them by hand.
+    const notes = taskLogOn() ? done.map(({ e }) => threadNote(e, { topic: done.length > 1 })).join('') : '';
+    const posts = taskLogOn() ? '' : done.map(({ e }) => afterReviews(e)).filter(Boolean).join('');
     return `<section class="panel closing" aria-labelledby="h-closing">
       <h2 id="h-closing">${esc(head)}</h2>
-      ${lines}
+      ${lines}${notes}
       <p class="closing-lead">That's the loop after every call: decisions on record, tasks filed with owners, everything kept in your repository.</p>
       <div class="closing-do"><a class="btn" href="${esc(bookHref())}">Book a demo</a>${posts}</div>
     </section>`;
@@ -1689,7 +1874,7 @@
   /**
    * One compact line instead of a panel: "All 4 sources healthy · last call
    * processed 19 Oct, 10:44 (digest 9 min after the call)". A source that is
-   * off or failing turns it into a warning (its row also leads "Waiting for you").
+   * off or failing turns it into a warning (its row also leads "Needs a review").
    */
   function healthLine() {
     const w = workspace();
@@ -1735,8 +1920,8 @@
       },
       { k: 'Proposals reviewed', v: r.reviewed, of: r.total, sub: r.waiting ? `${r.waiting} waiting` : 'none waiting', to: '#/tasks' },
       {
-        k: 'Verdict agreement', v: va.rate === null ? '—' : `${Math.round(va.rate * 100)}%`, to: href('tasks', { status: 'reviewed' }),
-        sub: `reviewed as proposed${va.edited ? ` · ${va.edited} edited` : ''}`,
+        k: 'Accepted as proposed', v: va.rate === null ? '—' : `${Math.round(va.rate * 100)}%`, to: href('tasks', { status: 'reviewed' }),
+        sub: `${va.agreed} of ${plural(va.decided, 'review')}${va.edited ? ` · ${va.edited} edited` : ''}`,
       },
       { k: 'Duplicates prevented', v: m.duplicates_prevented.confirmed, sub: 'confirmed by your team' },
       {
@@ -1812,7 +1997,7 @@
   function minePanel() {
     const me = viewingAs();
     if (!me) return '';
-    const items = effectiveActionItems().filter((a) => a.owner === me && isOpenItem(a));
+    const items = openItemsFor(me);
     const rows = items.map((a) => `<li class="mine-row">
         <p class="mine-title">${esc(a.title)} ${prio(a.priority)}</p>
         <p class="mine-meta">${ts(a.call_id, a.ts)} <a href="${esc(href('call', a.call_id))}">${esc(a.call_topic || 'The call')}</a> <span class="mono">${esc(fmtDay(a.call_date))}</span> ${ref(a.tracker_ref)}</p>
@@ -1975,7 +2160,7 @@
       <form class="filters" role="search" aria-label="Search and filter calls" data-calls-filters>
         <label class="grow">Search <input type="search" name="q" value="${esc(query.q || '')}" placeholder="Search decisions, quotes, names" autocomplete="off"></label>
         <label>Team <select name="team"><option value="">All teams</option>${teams.map((t) => `<option value="${esc(t)}"${t === query.team ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
-        <label class="check"><input type="checkbox" name="waiting" value="1"${query.waiting === '1' ? ' checked' : ''}> Only calls waiting for a decision</label>
+        <label class="check"><input type="checkbox" name="waiting" value="1"${query.waiting === '1' ? ' checked' : ''}> Only calls with proposals to review</label>
       </form>
       <p class="sr-only" role="status" data-calls-status></p>` : '';
     render('Calls', `${callsTabs('calls')}${filters}<div data-calls-list></div>`, 'calls', {
@@ -2273,10 +2458,13 @@
 
   function asideHtml(c) {
     const items = effectiveActionItems(c.id);
+    // A proposal skipped here filed nothing: its item says so (it is no longer an open item).
+    const skipped = (a) => (a.review && a.review.status === 'skipped'
+      ? `<span class="item-skipped">${esc(`Not filed · skipped${a.review.reason ? `: ${a.review.reason}` : ''}`)}</span>` : '');
     const groups = [['post-call', 'Post-call'], ['monitoring', 'Monitoring'], ['done-on-call', 'Done on call']].map(([st, label]) => {
       const list = items.filter((a) => a.status === st);
       return list.length ? `<h3>${label}</h3><ul class="item-list">${list.map((a) => `<li>${esc(a.title)}
-        <span class="item-meta">${a.owner ? person(a.owner) : '<span>no owner</span>'}${a.ts ? ` ${ts(c.id, a.ts)}` : ''} ${prio(a.priority)} ${ref(a.tracker_ref)}</span></li>`).join('')}</ul>` : '';
+        <span class="item-meta">${a.owner ? person(a.owner) : '<span>no owner</span>'}${a.ts ? ` ${ts(c.id, a.ts)}` : ''} ${prio(a.priority)} ${ref(a.tracker_ref)} ${skipped(a)}</span></li>`).join('')}</ul>` : '';
     }).join('');
     const refs = c.references || [];
     return `<aside class="call-aside" aria-label="Proposals, action items and earlier calls">
@@ -2308,7 +2496,7 @@
     }
   }
 
-  function callView(parts) {
+  function callView(parts, query = {}) {
     const [id, tab, at] = parts;
     if (!id) { go('#/calls', { replace: true }); return; }
     const c = cached(`call:${id}`);
@@ -2319,8 +2507,17 @@
     if (!tabOk || (tab === 'slack' && at)) { go(href('call', id), { replace: true }); return; }
     const onTranscript = tab === 'transcript';
     const onSlack = tab === 'slack';
+    const onDigest = !onTranscript && !onSlack;
     const e = effectiveProposals(id);
     const waiting = e ? e.pending : 0;
+    // Phones keep the proposals (and the rest of the aside) on the Digest tab only; the other
+    // tabs carry one link to them instead (#/call/<id>?show=proposals). Wider screens show the
+    // aside beside every tab, so the link is a phone control, like the Digest's own jump.
+    const toReview = `${plural(waiting, 'proposal')} to review ↓`;
+    const jump = !waiting ? ''
+      : onDigest ? ` <button class="chip-mark jump-proposals" type="button" data-jump="proposals">${esc(toReview)}</button>`
+        : ` <a class="chip-mark jump-proposals" href="${esc(href('call', id, { show: 'proposals' }))}">${esc(toReview)}</a>`;
+    const show = query.show === 'proposals';
     const guests = c.external_participants || [];
     const meta = [
       teamChip(c.team),
@@ -2349,16 +2546,24 @@
       : onSlack ? '<section class="slack-tab" aria-label="Slack thread" data-slack-thread></section>' : digestHtml(c);
     const html = `
       <div class="call-bar">${strip}<div class="call-links"><p class="call-info">${info}</p>${buttons ? `<p class="call-btns">${buttons}</p>` : ''}</div></div>
-      <div class="call-layout">
+      <div class="call-layout${onDigest ? '' : ' is-side-tab'}">
         <div class="call-main">${main}</div>
         ${asideHtml(c)}
       </div>`;
     render(c.topic, html, 'calls', {
       eyebrow: '<a href="#/calls">← Calls</a>',
-      lede: `${meta}${waiting ? ` <button class="chip-mark jump-proposals" type="button" data-jump="proposals">${esc(waiting)} waiting ↓</button>` : ''}`,
-      focus: onTranscript && at ? () => cueFor(at) : null,
+      lede: `${meta}${jump}`,
+      focus: show && onDigest ? '#proposals' : onTranscript && at ? () => cueFor(at) : null,
       before: () => { if (onSlack) fillSlack(c); fillProposals(c); },
     });
+    // ?show=proposals did its job (focus on the proposals): keep the call's plain address,
+    // so a refresh after a review keeps focus where the review left it.
+    if (show) {
+      const clean = href('call', ...parts);
+      history.replaceState(null, '', clean);
+      current.hash = clean;
+      current.query = {};
+    }
     if (onTranscript) wireTranscript(at);
     else if (withTranscriptTab && c.transcript && c.transcript.available) load(`transcript:${id}`).catch(() => {});
   }
@@ -2379,8 +2584,8 @@
     route, render, go, current: null, setLeaveGuard,
     // demo state
     state, save, reset, changeCount, decide, refresh,
-    effectiveProposals, effectiveActionItems, effectiveStats, effectivePeople, effectiveSources, effectiveSlack, waitingCount,
-    effectiveMetrics, viewingAs,
+    effectiveProposals, effectiveActionItems, openItemsFor, effectiveStats, effectivePeople, effectiveSources, effectiveSlack, waitingCount,
+    effectiveMetrics, viewingAs, taskLogOn, threadNote,
     // UI kit
     toast, dialog, confirm, tabs,
     // hooks and events
@@ -2417,13 +2622,10 @@
     });
     if (ui.reset) ui.reset.addEventListener('click', () => onReset(ui.reset));
     wireMenu();
+    if (ui.navMenu) ui.navMenu.addEventListener('click', openNavSheet);
     window.addEventListener('hashchange', () => setMenu(false));
-    // The toast never covers what has focus; the phone nav shows when more items wait to its right.
+    // The toast never covers what has focus.
     document.addEventListener('focusin', () => { if (shownToast) keepClear(); });
-    if (ui.nav) ui.nav.addEventListener('scroll', navCue, { passive: true });
-    window.addEventListener('resize', navCue, { passive: true });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(navCue).catch(() => {});
-    navCue();
     try {
       if (API.me) {
         const me = await getJson(API.me);

@@ -567,6 +567,15 @@ body.cabinet:has(dialog[open]) { overflow: hidden; }
 .app-nav a:hover { background: var(--tint); color: var(--ink); }
 .app-nav a[aria-current="page"] { background: var(--ink); color: var(--on-ink); }
 .nav-rule { border: 0; border-top: 1px solid var(--rule); margin: 10px 12px; }
+/* Phones: the nav is one Menu button (the current section, the waiting count) that opens a sheet. */
+.nav-menu-btn { display: none; }
+.nav-sheet .sheet-body { padding-top: 10px; }
+.nav-sheet-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.nav-sheet-list + .nav-sheet-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.nav-sheet-item { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: var(--radius); color: var(--ink); font-weight: 500; text-decoration: none; }
+.nav-sheet-item:hover { background: var(--tint); color: var(--ink); }
+.nav-sheet-item[aria-current="page"] { background: var(--ink); color: var(--on-ink); }
+.nav-sheet-item .nav-count { margin-left: auto; }
 .app-main { padding: 22px 36px 72px; max-width: 1200px; width: 100%; min-width: 0; }
 .app-main:focus { outline: none; }
 .app-main { scroll-margin-top: 58px; }
@@ -673,6 +682,12 @@ a.ts:hover { background: var(--info); color: var(--sheet); }
 .attn-do .btn { margin-left: auto; }
 .attn-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .attn-done { margin: 0; color: var(--pos); font-weight: 500; }
+/* The quiet line after a review made here while the task log is on: the call's Slack thread already shows it. */
+.thread-note { margin: 0; font-size: .86rem; line-height: 1.5; color: var(--muted); }
+.thread-note a { color: inherit; text-decoration-color: var(--faint); }
+.thread-note a:hover { color: var(--ink); text-decoration-color: currentColor; }
+.attn-row .thread-note { flex: 1 1 100%; }
+.closing .thread-note { margin: 0 0 10px; }
 /* A source that is off or failing: the first row, in the warning colour, with its word. */
 .attn-row.is-alert .attn-what { color: var(--neg); }
 .attn-row.is-alert .status-dot { vertical-align: 1px; margin-right: 2px; }
@@ -994,15 +1009,20 @@ a.stat-box .stat-k::after { content: "\00a0→"; }
   .tour li + li::before { content: " · "; margin: 0; white-space: pre-wrap; }
   .banner-x { margin: -3px 0 -4px auto; }
   .app-layout { grid-template-columns: 1fr; min-height: 0; background: none; }
-  /* The nav strip scrolls sideways; a fade on its right edge says more items wait there. */
-  .app-nav-wrap { position: relative; }
-  .app-nav-wrap::after { content: ""; position: absolute; top: 0; right: 0; bottom: 1px; width: 56px; pointer-events: none; background: linear-gradient(to right, color-mix(in srgb, var(--sheet) 0%, transparent), var(--sheet) 85%); opacity: 0; transition: opacity .15s ease; }
-  .app-nav-wrap.has-more::after { opacity: 1; }
-  .app-nav { position: static; flex-direction: row; max-height: none; overflow-x: auto; gap: 4px; padding: 8px 12px; background: var(--sheet); border-bottom: 1px solid var(--rule); scrollbar-width: none; }
-  .app-nav::-webkit-scrollbar { display: none; }
-  .app-nav a { flex: none; min-height: 40px; white-space: nowrap; }
-  .nav-rule { flex: none; margin: 6px 4px; border-top: 0; border-left: 1px solid var(--rule); }
-  .nav-count { margin-left: 2px; }
+  /* The six sections fold into one Menu button: the current section and the waiting count. */
+  .app-nav-wrap { padding: 8px 16px; background: var(--sheet); border-bottom: 1px solid var(--rule); }
+  .app-nav { display: none; }
+  .nav-menu-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 14px;
+    border: 1px solid var(--rule); border-radius: var(--radius); background: var(--paper); color: var(--ink);
+    font: 600 1rem/1.2 var(--sans); text-align: left; cursor: pointer;
+  }
+  .nav-menu-btn:hover { background: var(--tint); }
+  .nav-menu-k { flex: none; padding-right: 10px; border-right: 1px solid var(--rule); font: 500 .75rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  .nav-menu-cur { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-menu-btn .nav-count { margin-left: auto; }
+  .nav-menu-caret { flex: none; margin-left: auto; color: var(--muted); font-size: .9rem; }
+  .nav-menu-btn .nav-count:not([hidden]) + .nav-menu-caret { margin-left: 0; }
   .app-main { padding: 20px 16px 56px; }
   .page-head { margin-bottom: 20px; }
   .page-title h1 { font-size: 1.9rem; }
@@ -1021,6 +1041,10 @@ a.stat-box .stat-k::after { content: "\00a0→"; }
   .call-row, .panel .call-row { grid-template-columns: 1fr; padding: 12px 4px; }
   .call-date { flex-direction: row; gap: 8px; }
   .jump-proposals { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; margin: 8px 0 0; }
+  a.jump-proposals { text-decoration: none; }
+  /* The Transcript and Slack thread tabs leave the aside (proposals, action items, earlier calls) to
+     the Digest tab; the lede's "N proposals to review ↓" leads there. */
+  .call-layout.is-side-tab > .call-aside { display: none; }
   .call-bar { align-items: stretch; }
   .call-links { justify-content: flex-start; }
   .digest { padding: 2px 16px; }
@@ -1055,6 +1079,14 @@ a.stat-box .stat-k::after { content: "\00a0→"; }
   .toast-x-word { display: none; }
   .toast-x-icon { display: inline; }
   body.cabinet.has-toast { padding-bottom: 64px; }
+  /* Tap targets: inline links in lists, tables and rows are at least 32px tall. Padding with an equal
+     negative margin grows a text link's box without moving a line. On a ▶ chip the extra height is a
+     transparent border (the taller vertical radius keeps its corners), so it looks the same. Link
+     chips (Follow-up, people) are 32px pills, like the ▶ pills on cards (cabinet-tasks.css).
+     Module screens (.screen) set their own. */
+  .app-main :is(li, td, .attn-row, .cue, .thread-note) a:not(.screen a):not(.btn, .chip, .chip-ref, .chip-mark, .ts, .call-link, .owner-row, .stat-box) { padding-block: 9px; margin-block: -9px; }
+  .app-main :is(.dec-meta, .mine-meta, .hit, .items td, .item-meta, .digest) a.ts:not(.screen a) { border-block: 8px solid transparent; margin-block: -8px; border-radius: 4px / 12px; background-clip: padding-box; }
+  .app-main :is(li, td, .attn-row) :is(a.chip, a.chip-ref):not(.screen a) { display: inline-flex; align-items: center; min-height: 32px; vertical-align: middle; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cue.is-target, .decision.is-collapsing { animation: none; }

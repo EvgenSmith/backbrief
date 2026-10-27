@@ -154,6 +154,7 @@
 .tl-aside-items { margin-top: 2px; }
 .tl-aside-items > li:last-child > .outcome { border-bottom: 0; }
 .tl-aside-send { margin: 12px 0 0; }
+.tl-aside-note { margin: 12px 0 0; }
 .tl-bulk.tl-compact { gap: 8px; margin-bottom: 12px; }
 .tl-bulk.tl-compact .tl-bulk-btns { gap: 6px; }
 .tl-bulk.tl-compact .btn-small { padding: 0 12px; }
@@ -201,6 +202,8 @@
 .tl-state-monitoring { color: var(--info); }
 .tl-state-done { color: var(--pos); font-weight: 500; }
 .tl-state-done a:not(.ts) { color: inherit; text-decoration-color: currentColor; }
+/* A proposal skipped here filed nothing: "Not filed · skipped: not a task" (listed under All, not Open). */
+.tl-state.tl-state-skipped { white-space: normal; color: var(--muted); }
 .tl-items-filters .tl-items-note { flex: 1 1 260px; align-self: center; margin: 0; font-size: .86rem; line-height: 1.45; color: var(--muted); }
 .tl-you { color: var(--ink); background: var(--sheet); border-color: var(--ink); }
 .tl-open .chip-ref { white-space: nowrap; }

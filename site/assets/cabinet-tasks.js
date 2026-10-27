@@ -11,6 +11,12 @@
  * BB.hooks.sendLog ("Post reviews to Slack") and BB.hooks.slackThread (a
  * call's whole Slack thread, for the Slack thread tab in call detail).
  *
+ * Slack after a review. With the task log on (Slack delivery's default) the
+ * call's thread carries the task log and each review updates it in place:
+ * the group says so in one quiet line (BB.threadNote) and there is nothing to
+ * post. Only with the task log off does "Post reviews to Slack" show; its
+ * dialog then posts the task log alone unless more is ticked.
+ *
  * Words. "Decisions" are what a call decided; approving or skipping a
  * proposal is a review. DUPLICATE reads "Already tracked"; FLAG keeps its
  * chip word and reads "possible duplicate" in prose. Replies and skip
@@ -29,8 +35,8 @@
  *
  * Optional data, read when the build provides it: settings.issues[ref]
  * {title, status, assignee, updated} for the issue a COMMENT, FLAG or
- * DUPLICATE points at, and overview.metrics for "How proposals land"
- * (without it the panel counts from the proposals themselves).
+ * DUPLICATE points at. "How proposals land" shows BB.effectiveMetrics(), the
+ * same figures as the Overview tiles.
  *
  * The Slack preview (§4) is built from the pipeline's English strings, with
  * emoji written out and links shown as their text: nothing in a preview can
@@ -90,8 +96,6 @@
   const PART = { summary: 'Summary', transcript_link: '📄 Transcript link', recording_link: 'Recording link', task_log: '🛠 Task log' };
   const INCLUDE = [['summary', 'Summary'], ['transcript_link', 'Transcript link'], ['recording_link', 'Recording link'], ['task_log', 'Task log']];
   const SIGNATURE = /\s*🤖 via Backbrief — automated comment from the call\s*$/;
-  // A skip reason that confirms the backlog already covers the task.
-  const COVERED = /cover|already|same|duplicate|tracked|exists|in progress|done/i;
 
   /** "Replies and skip reasons are kept in acme/vault as feedback; …" (HTML). */
   function feedbackHtml() {
@@ -389,7 +393,7 @@
     if (a && v && v.contains(a) && a !== v) keepClear(a);
   }
 
-  /** After a review: the next waiting card in the call, else "Post reviews to Slack", else the group or panel. */
+  /** After a review: the next waiting card in the call, else "Post reviews to Slack" (task log off), else the group or panel. */
   function nextFocus(callId, afterKey, origin) {
     return () => {
       const pend = pendingOf(BB.effectiveProposals(callId));
@@ -614,125 +618,6 @@
   }
 
   // ================================================================ How proposals land
-  const num = (v) => (v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
-  function pick(o, keys) {
-    if (!o || typeof o !== 'object') return null;
-    for (const k of keys) { const n = num(o[k]); if (n !== null) return n; }
-    return null;
-  }
-
-  /**
-   * overview.metrics, read loosely: the build may name its fields a little
-   * differently. Anything missing comes back null and is counted instead.
-   */
-  function readMetrics() {
-    const out = { reviewed: null, agreed: null, edited: null, prevented: null, medianMin: null, over48: null, samples: null };
-    const m = ws().overview && ws().overview.metrics;
-    if (!m || typeof m !== 'object') return out;
-    const ag = m.verdict_agreement || m.agreement || null;
-    if (ag && typeof ag === 'object') {
-      out.reviewed = pick(ag, ['reviewed', 'decided', 'total', 'of', 'n', 'rows']);
-      out.agreed = pick(ag, ['as_proposed', 'agreed', 'accepted', 'matched', 'count', 'value']);
-      out.edited = pick(ag, ['edited', 'with_edits']);
-    }
-    const dp = m.duplicates_prevented !== undefined ? m.duplicates_prevented : m.duplicates;
-    out.prevented = dp && typeof dp === 'object' ? pick(dp, ['confirmed', 'count', 'total', 'n', 'value']) : num(dp);
-    const tt = m.time_to_review || m.time_to_decision || m.review_time || null;
-    if (tt && typeof tt === 'object') {
-      const min = pick(tt, ['median_min', 'median_minutes', 'median_mins', 'minutes', 'median']);
-      const hrs = pick(tt, ['median_hours', 'median_h', 'hours']);
-      const sec = pick(tt, ['median_s', 'median_sec', 'median_seconds', 'seconds']);
-      const ms = pick(tt, ['median_ms']);
-      out.medianMin = min !== null ? min : hrs !== null ? hrs * 60 : sec !== null ? sec / 60 : ms !== null ? ms / 60000 : null;
-      out.over48 = pick(tt, ['waiting_over_48h', 'over_48h', 'waiting_48h', 'stale']);
-      // Per-call samples {call_id, ended_at, minutes} let the median take in the reviews made here.
-      if (Array.isArray(tt.calls)) out.samples = tt.calls.filter((c) => c && typeof c === 'object' && c.call_id);
-    } else {
-      out.medianMin = num(tt) !== null ? num(tt) : pick(m, ['median_time_to_review_min', 'median_review_min']);
-    }
-    if (out.over48 === null) out.over48 = pick(m, ['waiting_over_48h']);
-    return out;
-  }
-
-  /**
-   * How a review relates to the proposal (the build's rule): 'agreed' when a
-   * CREATE or COMMENT is approved unedited, a DUPLICATE is skipped, or a FLAG
-   * is skipped or approved as a comment; 'edited' for an approval with edits;
-   * otherwise 'overridden'. A vault row carries the build's own word.
-   */
-  function agreementOf(p) {
-    if (p.status === 'pending') return null;
-    if (p.by !== 'you' && p.agreement) return p.agreement;
-    const d = p.decision || {};
-    if (p.status === 'approved') {
-      const path = p.verdict === 'CREATE' || p.verdict === 'COMMENT' || (p.verdict === 'FLAG' && d.result === 'commented');
-      if (!path) return 'overridden';
-      return p.edited ? 'edited' : 'agreed';
-    }
-    return p.verdict === 'DUPLICATE' || p.verdict === 'FLAG' ? 'agreed' : 'overridden';
-  }
-
-  /**
-   * A duplicate kept out of Linear, confirmed by the review: a comment instead
-   * of a new issue, or a FLAG or DUPLICATE skipped as already covered or done.
-   */
-  function prevented(p) {
-    if (p.by !== 'you' && typeof p.prevents_duplicate === 'boolean') return p.prevents_duplicate;
-    const d = p.decision || {};
-    if (p.status === 'approved') return d.result === 'commented';
-    if (p.status !== 'skipped' || (p.verdict !== 'DUPLICATE' && p.verdict !== 'FLAG')) return false;
-    if (d.reason_kind) return d.reason_kind === 'covered' || d.reason_kind === 'done';
-    return Boolean(d.reason && COVERED.test(d.reason));
-  }
-
-  function medianOf(xs) {
-    const a = xs.filter((x) => Number.isFinite(x)).sort((x, y) => x - y);
-    if (!a.length) return null;
-    const mid = Math.floor(a.length / 2);
-    return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
-  }
-
-  /**
-   * Median minutes from the end of a call to its last review, over the calls
-   * with nothing left waiting: the build's samples, and for a call reviewed
-   * here, the time of its last review.
-   */
-  function medianWithReviews(samples) {
-    const mins = [];
-    for (const c of samples) {
-      const e = BB.effectiveProposals(c.call_id);
-      if (!e || e.pending) continue;
-      const base = num(c.minutes);
-      if (base !== null && !e.decided_here) { mins.push(base); continue; }
-      const end = Date.parse(c.ended_at);
-      const last = Math.max(...e.proposals.filter((p) => p.by === 'you').map((p) => Date.parse(p.at)).filter(Number.isFinite));
-      if (Number.isFinite(end) && Number.isFinite(last) && last > end) mins.push((last - end) / 60000);
-      else if (base !== null) mins.push(base);
-    }
-    return medianOf(mins);
-  }
-
-  /** Verdict agreement, duplicates prevented and time to review: the build's figures plus the reviews made here. */
-  function landFigures() {
-    const reviewed = entries().flatMap((e) => e.proposals).filter((p) => p.status !== 'pending');
-    const mine = reviewed.filter((p) => p.by === 'you');
-    const base = reviewed.filter((p) => p.by !== 'you');
-    const m = readMetrics();
-    const tr = ws().overview && ws().overview.training;
-    const or = (a, b) => (a !== null ? a : b);
-    const median = m.samples ? medianWithReviews(m.samples) : null;
-    const count = (list, word) => list.filter((p) => agreementOf(p) === word).length;
-    const baseEdited = base.some((p) => p.agreement) ? count(base, 'edited') : (tr && num(tr.edited)) || 0;
-    return {
-      reviewed: or(m.reviewed, base.length) + mine.length,
-      agreed: or(m.agreed, count(base, 'agreed')) + count(mine, 'agreed'),
-      edited: or(m.edited, baseEdited) + count(mine, 'edited'),
-      prevented: or(m.prevented, base.filter(prevented).length) + mine.filter(prevented).length,
-      medianMin: median !== null ? median : m.medianMin,
-      over48: m.over48,
-    };
-  }
-
   function fmtDuration(min) {
     const m = Math.max(0, Math.round(min));
     if (m < 60) return `${m} min`;
@@ -740,16 +625,24 @@
     return `${Math.round(m / 144) / 10} days`;
   }
 
+  /**
+   * Accepted as proposed, duplicates prevented and time to review: the core's
+   * BB.effectiveMetrics(), the very figures the Overview tiles show (the
+   * build's values plus the reviews made here), so the two pages never differ.
+   */
   function landHtml(f) {
-    const s = landFigures();
-    if (!s.reviewed) return '';
+    const m = BB.effectiveMetrics();
+    const va = m && m.verdict_agreement;
+    if (!va || !va.decided) return '';
+    const tt = m.time_to_decision || {};
+    const over48 = Number(tt.over_48h) || 0;
     const cells = [
-      [`${s.agreed} of ${s.reviewed}`, `reviewed as proposed${s.edited ? ` · ${s.edited} edited` : ''}`],
-      [String(s.prevented), 'duplicates prevented (confirmed)'],
+      [`${va.agreed} of ${va.decided}`, `accepted as proposed${va.edited ? ` · ${va.edited} edited` : ''}`],
+      [String(m.duplicates_prevented.confirmed), 'duplicates prevented (confirmed)'],
     ];
-    if (s.medianMin !== null) cells.push([fmtDuration(s.medianMin), `median time to review${s.over48 ? ` · ${s.over48} waiting over 48 h` : ''}`]);
-    else if (s.over48) cells.push([String(s.over48), `${s.over48 === 1 ? 'proposal' : 'proposals'} waiting over 48 h`]);
-    // The link counts the rows the Reviewed filter shows, which can differ from the build's figures.
+    if (Number.isFinite(tt.median_minutes)) cells.push([fmtDuration(tt.median_minutes), `median time to review${over48 ? ` · ${over48} waiting over 48 h` : ''}`]);
+    else if (over48) cells.push([String(over48), `${over48 === 1 ? 'proposal' : 'proposals'} waiting over 48 h`]);
+    // The link counts the rows the Reviewed filter shows.
     const rows = entries().reduce((n, e) => n + e.proposals.filter((p) => p.status !== 'pending').length, 0);
     const show = rows
       ? `<button class="btn-link tl-land-show" type="button" data-act="show-reviewed" data-land-show${f && f.status === 'reviewed' ? ' hidden' : ''}>${rows === 1 ? 'Show the reviewed one' : `Show the ${rows} reviewed`}</button>`
@@ -824,14 +717,22 @@
     return Number.isNaN(sent) ? mine.length : mine.filter((p) => !(Date.parse(p.at) <= sent)).length;
   }
 
-  /** "Post reviews to Slack", only while reviews made here wait to be posted. */
+  /**
+   * "Post reviews to Slack": only while the task log is off (with it on, each
+   * review already updated the call's thread in place) and reviews made here
+   * wait to be posted.
+   */
   function sendButton(e) {
-    if (!BB.isDemo || !unpostedCount(e)) return '';
+    if (!BB.isDemo || BB.taskLogOn() || !unpostedCount(e)) return '';
     const primary = !pendingOf(e).length;
     return `<button class="btn btn-small${primary ? '' : ' btn-ghost'}" type="button" id="send-${esc(e.call_id)}" data-act="send-log" data-call="${esc(e.call_id)}">Post reviews to Slack</button>`;
   }
 
-  /** "Posted in #product-sync at 13:52" (the pipeline's task log) and "Reviews posted to … · today 14:07". */
+  /**
+   * "Posted in #product-sync at 13:52" (the pipeline's task log), then either
+   * "Updated in the call's Slack thread · today 11:06" (task log on: the thread
+   * follows each review) or "Reviews posted to … · today 14:07" (posted by hand).
+   */
   function postedLines(e) {
     const out = [];
     const base = settings() && settings().slack;
@@ -839,7 +740,8 @@
       const t = BB.clock(e.generated);
       if (t) out.push(`<p class="tl-sent">Posted in <span class="mono">${esc(threadChannel(e.call_id))}</span> at <span class="mono">${esc(t)}</span></p>`);
     }
-    if (e.log_sent) out.push(`<p class="tl-sent">Reviews posted to <span class="mono">${esc(e.log_sent.channel || threadChannel(e.call_id))}</span> · ${esc(BB.stamp(e.log_sent.at, ' '))}</p>`);
+    if (BB.taskLogOn()) out.push(BB.threadNote(e, { cls: 'tl-sent' }));
+    else if (e.log_sent) out.push(`<p class="tl-sent">Reviews posted to <span class="mono">${esc(e.log_sent.channel || threadChannel(e.call_id))}</span> · ${esc(BB.stamp(e.log_sent.at, ' '))}</p>`);
     return out.join('');
   }
 
@@ -1361,7 +1263,7 @@
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
 
-  /** After posting: the group in Proposals, the proposals panel in call detail, else Overview's "Waiting for you". */
+  /** After posting: the group in Proposals, the proposals panel in call detail, else Overview's "Needs a review". */
   function afterSendFocus(callId) {
     const el = document.getElementById(`send-${callId}`) || document.getElementById(`group-${callId}`) || document.getElementById('proposals');
     if (el) return el;
@@ -1384,12 +1286,13 @@
     const thread = threadChannel(callId);
     const slack = BB.effectiveSlack();
     const channels = [...new Set([thread, slack.channel, ...(slack.channels_available || [])].filter(Boolean))];
-    const dflt = slack.delivery || {};
+    // The button shows only while the task log is off: the thread already has the summary, so what is
+    // missing there is the task log with these reviews. More can be ticked.
     const opts = {
       to: 'thread',
       channel: thread,
       ask: true,
-      include: { summary: dflt.summary !== false, transcript_link: Boolean(dflt.transcript_link), recording_link: Boolean(dflt.recording_link), task_log: Boolean(dflt.task_log) },
+      include: { summary: false, transcript_link: false, recording_link: false, task_log: true },
     };
     const target = () => (opts.to === 'thread' ? thread : opts.channel);
     const html = `<div class="form tl-send">
@@ -1516,12 +1419,19 @@
     return rows.sort((x, y) => itemTime(y).localeCompare(itemTime(x)));
   }
 
-  /** The Status cell: "Open", "Monitoring", or "Done · 19 Oct ▶ 15:20" linking to the call that said so. */
+  /**
+   * The Status cell: "Open", "Monitoring", "Done · 19 Oct ▶ 15:20" linking to
+   * the call that said so, or "Not filed · skipped: not a task" for a proposal
+   * skipped here (no longer open; listed under All).
+   */
   function itemState(a) {
     const done = a.closed_by || (a.status === 'done-on-call' ? { call_id: a.call_id, topic: a.call_topic, date: a.call_date, ts: a.ts } : null);
     if (done && done.call_id) {
       const said = a.closed_by && a.closed_by.title ? `<span class="sub">“${esc(a.closed_by.title)}”</span>` : '';
       return `<span class="tl-state tl-state-done">Done · <a href="${esc(href('call', done.call_id))}" aria-label="${esc(`Done, said on ${done.topic || 'a call'}, ${fmtDay(done.date)}`)}">${esc(fmtDay(done.date))}</a> ${BB.ts(done.call_id, done.ts)}</span>${said}`;
+    }
+    if (a.review && a.review.status === 'skipped') {
+      return `<span class="tl-state tl-state-skipped">${esc(`Not filed · skipped${a.review.reason ? `: ${a.review.reason}` : ''}`)}</span>`;
     }
     if (a.status === 'monitoring') return '<span class="tl-state tl-state-monitoring">Monitoring</span>';
     return `<span class="tl-state">${isOpen(a) ? 'Open' : 'Replaced by a later item'}</span>`;
@@ -1838,7 +1748,8 @@
     section('main.insights_header', dg.key_insights, (x) => `${digestText(x.title, cx)}${x.implication ? ` — ${digestText(x.implication, cx)}` : ''}${tat(x.ts)}`);
     if (t2.length) out.push({ time: at, parts: t2, blk: 'context' });
 
-    const items = BB.effectiveActionItems(call.id);
+    // The call's next steps as the digest posted them: an issue created later from a review is not one.
+    const items = BB.effectiveActionItems(call.id).filter((a) => !a.added_here);
     const next = items.filter((a) => a.status === 'post-call');
     const mon = items.filter((a) => a.status === 'monitoring');
     const t3 = [];
@@ -2256,7 +2167,7 @@
       <p class="panel-note">Checked against the Linear backlog before anything was filed.</p>
       ${bulkHtml(e, null, { compact: true })}
       <ol class="tl-items tl-aside-items" aria-label="Task proposals">${rows}</ol>
-      ${send ? `<p class="tl-aside-send">${send}</p>` : ''}
+      ${send ? `<p class="tl-aside-send">${send}</p>` : BB.threadNote(e, { cls: 'tl-aside-note' })}
       <p class="panel-foot"><a href="${esc(href('tasks', 'call', call.id))}">Open in Action items</a></p>`;
   };
 

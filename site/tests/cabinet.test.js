@@ -301,8 +301,11 @@ test('AGENTS.md: the opening sentence and the "How to find things" recipes; the 
 
 test('demo config: Slack delivery default, setup steps and issue bodies', () => {
   const cfg = demoConfig();
-  // The landing promises proposals with Approve and Skip in the call's thread: combination 7.
-  assert.deepEqual(cfg.slack.delivery, { summary: true, transcript_link: false, recording_link: true, task_log: true });
+  // The landing promises proposals with Approve and Skip in the call's thread, and ▶ times that open the
+  // transcript at their line: combination 6. A recording link in a channel is the leakiest thing a post
+  // carries, so it is off until a workspace turns it on.
+  assert.deepEqual(cfg.slack.delivery, { summary: true, transcript_link: true, recording_link: false, task_log: true });
+  assert.deepEqual(demoData().settings.slack.delivery, cfg.slack.delivery, 'settings.json carries the default as it is');
   assert.ok(cfg.slack.channels_available.every((c) => /^#[a-z0-9-]+$/.test(c)));
   assert.ok(cfg.slack.channels_available.includes('#call-digests') && cfg.slack.channels_available.includes('#product-sync'));
   assert.deepEqual(cfg.overview.setup.map((s) => s.id), ['agreement', 'sources', 'people', 'slack', 'first_call'], 'step 00 is the signed agreement');

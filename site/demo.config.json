@@ -50,7 +50,7 @@
     ]
   },
   "slack": {
-    "delivery": { "summary": true, "transcript_link": false, "recording_link": true, "task_log": true },
+    "delivery": { "summary": true, "transcript_link": true, "recording_link": false, "task_log": true },
     "locked": ["summary"],
     "channels_available": ["#call-digests", "#product-sync", "#growth", "#engineering", "#general"],
     "preview_call": "product/transcripts/2026-10-07 1300 pricing model review w Carter,Brooks.md"
