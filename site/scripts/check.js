@@ -7,7 +7,7 @@
  *   - every page: lang, <title>, meta description, viewport, exactly one <h1>
  *   - no third-party scripts, stylesheets, fonts or frames (CSP is 'self')
  *   - every internal link and #anchor resolves; every <img> has alt
- *   - required home-page sections exist: #how #product #plans #security #team #beta
+ *   - required home-page sections exist: #product #how #security #fit #plans #team #beta
  *   - legal footer present on every page; privacy and terms pages linked
  *   - no wording that ties the product to crypto or to another company
  *     (NVIDIA Inception excludes "companies associated with cryptocurrency";
@@ -107,7 +107,7 @@ for (const [file, doc] of Object.entries(html)) {
 
 const home = html['index.html'] || '';
 const ids = idsOf(home);
-for (const id of ['how', 'product', 'plans', 'security', 'team', 'beta']) {
+for (const id of ['product', 'how', 'security', 'fit', 'plans', 'team', 'beta']) {
   if (!ids.has(id)) fail(`index.html: required section #${id} is missing`);
 }
 if (!/<form[^>]+action="\/api\/waitlist"/.test(home)) fail('index.html: beta form must post to /api/waitlist');
