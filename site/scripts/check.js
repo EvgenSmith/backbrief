@@ -7,7 +7,7 @@
  *   - every page: lang, <title>, meta description, viewport, exactly one <h1>
  *   - no third-party scripts, stylesheets, fonts or frames (CSP is 'self')
  *   - every internal link and #anchor resolves; every <img> has alt
- *   - required home-page sections exist: #product #how #security #fit #plans #team #beta
+ *   - required home-page sections exist: #product #how #security #fit #plans #beta
  *   - legal footer present on every page; privacy and terms pages linked
  *   - no wording that ties the product to crypto or to another company
  *     (NVIDIA Inception excludes "companies associated with cryptocurrency";
@@ -21,7 +21,7 @@
  *     hoja), which LSSI art. 10 requires on the site
  *   - contact email not on the site's own domain (Google, AWS, DigitalOcean,
  *     Cloudflare and NVIDIA all verify the email domain against the website)
- *   - no team member with a LinkedIn profile
+ *   - no team member with a LinkedIn profile (when the landing has a team section)
  * and warns when fewer than two people are listed (NVIDIA asks for two
  * distinct contacts).
  *
@@ -110,7 +110,7 @@ for (const [file, doc] of Object.entries(html)) {
 
 const home = html['index.html'] || '';
 const ids = idsOf(home);
-for (const id of ['product', 'how', 'security', 'fit', 'plans', 'team', 'beta']) {
+for (const id of ['product', 'how', 'security', 'fit', 'plans', 'beta']) {
   if (!ids.has(id)) fail(`index.html: required section #${id} is missing`);
 }
 if (!/<form[^>]+action="\/api\/book"/.test(home)) fail('index.html: book-a-demo form must post to /api/book');
@@ -150,10 +150,14 @@ try {
 }
 
 const team = config.team || [];
-if (!team.some((p) => p.name && p.linkedin)) {
-  (RELEASE ? fail : warn)('team: at least one person with a LinkedIn profile is required');
+if (/id="team"/.test(home)) {
+  if (!team.some((p) => p.name && p.linkedin)) {
+    (RELEASE ? fail : warn)('team: at least one person with a LinkedIn profile is required');
+  }
+  if (team.length < 2) warn(`team: ${team.length} person listed — NVIDIA Inception asks for two distinct contacts`);
+} else {
+  warn('no team section on the landing — grant reviewers (NVIDIA Inception, Google for Startups) look for the people behind the product; only the hosts\' faces on the booking block remain');
 }
-if (team.length < 2) warn(`team: ${team.length} person listed — NVIDIA Inception asks for two distinct contacts`);
 
 const domainSet = typeof config.domain === 'string' && !config.domain.startsWith('TODO');
 const emailSet = typeof config.contact_email === 'string' && !config.contact_email.startsWith('TODO');
