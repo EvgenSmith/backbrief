@@ -310,6 +310,9 @@ section { padding-block: 104px; }
 .tools { list-style: none; padding: 0; margin: 0 0 22px; display: flex; flex-wrap: wrap; gap: 8px; }
 .tools li { font: 500 .86rem/1 var(--mono); padding: 10px 12px; border: 1px solid var(--ink); border-radius: var(--radius); }
 .tools-off li { border-style: dashed; border-color: var(--faint); color: var(--muted); }
+.next-employee { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--rule); }
+.next-employee .k { display: flex; align-items: center; gap: 4px; color: var(--ink); }
+.next-employee p:last-child { margin: 0; }
 .plain-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; color: var(--muted); }
 .plain-list li { padding-left: 20px; position: relative; }
 .plain-list li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 8px; height: 8px; background: var(--mark); border-radius: 2px; }
