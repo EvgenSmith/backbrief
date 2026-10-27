@@ -199,6 +199,7 @@ section { padding-block: 104px; }
 .outputs { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); max-width: 38rem; }
 .outputs li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 1rem; }
 .dest { font: 500 .74rem/1.75 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
+.dest-stack { display: flex; flex-direction: column; align-items: center; justify-self: start; width: max-content; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 32px 0 22px; }
 .facts { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 0; margin: 0; color: var(--muted); font: .82rem/1.5 var(--mono); }
 .facts li { position: relative; padding-left: 14px; }
