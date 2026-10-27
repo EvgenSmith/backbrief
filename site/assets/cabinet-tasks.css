@@ -1,33 +1,48 @@
 /* SPDX-License-Identifier: MIT */
-/* cabinet-tasks.css: screen rules for cabinet-tasks.js (Action items: task
-   log, open items, review history, Slack delivery and its preview).
+/* cabinet-tasks.css: screen rules for cabinet-tasks.js (Action items:
+   Proposals with "How proposals land", Open items, Slack delivery and its
+   preview, the "Post reviews to Slack" dialog, and a call's Slack thread in
+   call detail).
    Loaded after styles.css on /demo and /app. The shared components (.tabs,
    .attn, .decision, .decision-actions, .outcome, .switch, dialog.sheet,
    .toast, .evidence, .chip-mark, .mention, .thread-sep, .form, .items and
    the landing's .thread and .win frames) live in styles.css; use them as
    they are, and build anything new here from the tokens only.
-   Class prefixes: tl- for the task log and its parts, sd- for Slack
-   delivery, slk- for the Slack preview inside the landing's .thread. */
+   Class prefixes: tl- for proposals and their parts, sd- for Slack
+   delivery, slk- for the Slack preview inside the landing's .thread.
+   Small text uses --muted rather than --faint, so it keeps AA contrast. */
 
-/* ------------------------------------------------------------ task log: filters */
+/* ------------------------------------------------------------ How proposals land */
+.tl-land { padding: 14px 20px 14px; margin-bottom: 22px; }
+.tl-land-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin: 0 0 8px; }
+.tl-land-head h2 { margin: 0; font: 500 .74rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.tl-land-show { font-size: .9rem; }
+.tl-land-show[hidden] { display: none; }
+.tl-land-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 28px; }
+.tl-land-grid li { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tl-land-v { font: 760 1.45rem/1.15 var(--display); font-stretch: 112%; letter-spacing: -.015em; color: var(--ink); }
+.tl-land-k { font-size: .86rem; line-height: 1.4; color: var(--muted); }
+.tl-land-foot { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); max-width: 52rem; font-size: .84rem; line-height: 1.5; color: var(--muted); }
+
+/* ------------------------------------------------------------ Proposals: filters */
 .tl-filters { margin-bottom: 26px; }
 .tl-seg-set { margin: 0; padding: 0; border: 0; min-width: 0; }
-.tl-seg-set legend { padding: 0; margin: 0 0 5px; font: 500 .7rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
+.tl-seg-set legend { padding: 0; margin: 0 0 5px; font: 500 .7rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .tl-seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--sheet); overflow: hidden; }
 .tl-filters .tl-seg label {
   position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px;
   border-left: 1px solid var(--rule); font: 500 .92rem/1 var(--sans); text-transform: none; letter-spacing: 0;
-  color: var(--muted); cursor: pointer; white-space: nowrap;
+  color: var(--muted); background: var(--sheet); cursor: pointer; white-space: nowrap;
 }
 .tl-filters .tl-seg label:first-child { border-left: 0; }
 .tl-seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .tl-filters .tl-seg label:hover { color: var(--ink); background: var(--tint); }
 .tl-filters .tl-seg label:has(input:checked) { background: var(--ink); color: var(--on-ink); }
 .tl-filters .tl-seg label:has(input:focus-visible) { outline: 2px solid var(--link); outline-offset: -3px; }
-.tl-n { font: 500 .76rem/1 var(--mono); opacity: .75; }
+.tl-n { font: 500 .76rem/1 var(--mono); opacity: .8; }
 .tl-seg label:has(input:checked) .tl-n { opacity: 1; }
 
-/* ------------------------------------------------------------ task log: call groups */
+/* ------------------------------------------------------------ Proposals: call groups */
 .tl-groups { display: grid; gap: 38px; }
 .tl-group { border-top: 2px solid var(--ink); padding-top: 14px; min-width: 0; }
 .tl-group:focus { outline: none; }
@@ -37,7 +52,7 @@
 .tl-what-call { min-width: 0; }
 .tl-topic { margin: 0; font: 600 1.14rem/1.35 var(--sans); letter-spacing: -.005em; }
 .tl-topic a { color: var(--ink); text-decoration: none; }
-.tl-topic a:hover { text-decoration: underline; text-decoration-color: var(--faint); }
+.tl-topic a:hover { text-decoration: underline; text-decoration-color: var(--muted); }
 .tl-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; margin: 4px 0 0; font-size: .88rem; color: var(--muted); }
 .tl-status { margin: 6px 0 0; font-size: .92rem; font-weight: 600; color: var(--pos); }
 .tl-sent { margin: 4px 0 0; font-size: .86rem; color: var(--muted); }
@@ -50,10 +65,10 @@
 .tl-items { list-style: none; margin: 0; padding: 0; }
 .tl-items > li { min-width: 0; }
 
-/* Bulk bar: Approve all safe, Skip all remaining, or the planning note */
+/* Bulk bar: "Approve 2 tasks", "Skip the rest" (or "Skip 1 shown"), or the planning note */
 .tl-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 14px; }
 .tl-bulk-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-.tl-bulk-note { margin: 0; font-size: .88rem; color: var(--muted); }
+.tl-bulk-note { flex: 1 1 280px; margin: 0; font-size: .88rem; line-height: 1.45; color: var(--muted); }
 .tl-planning {
   flex: 1 1 340px; margin: 0; padding: 9px 14px; font-size: .88rem; line-height: 1.5; color: var(--ink);
   background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 0 var(--radius) var(--radius) 0;
@@ -65,11 +80,34 @@
 .decision-meta.tl-seen { color: var(--warn); font-weight: 500; }
 .decision .decision-title mark, .decision-meta mark { font-weight: inherit; }
 .decision .decision-title { text-wrap: pretty; }
-.tl-edited { margin-left: 6px; vertical-align: 2px; color: var(--ink); border-color: var(--faint); }
+.tl-edited { margin-left: 6px; vertical-align: 2px; color: var(--ink); border-color: var(--muted); }
 .tl-wait { margin: 12px 0 0; padding-left: 10px; border-left: 3px solid var(--mark); font-size: .9rem; color: var(--ink); }
 .decision.is-busy .decision-actions .btn { cursor: progress; }
 
-/* Decided rows: one ruled line each */
+/* DUPLICATE reads "Already tracked" on a neutral chip: a caught duplicate is not an error.
+   It may wrap to two lines inside the 92px verdict column. */
+.v.tl-v-tracked { background: var(--tint); color: var(--muted); white-space: normal; max-width: 100%; line-height: 1.35; padding-block: 3px; }
+
+/* The issue a COMMENT, FLAG or DUPLICATE points at, and the comment it would post there */
+.tl-iss { margin: 10px 0 0; padding: 9px 12px; background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); font-size: .86rem; line-height: 1.5; color: var(--muted); min-width: 0; }
+.tl-iss-line { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.tl-iss-sub { margin: 2px 0 0; overflow-wrap: anywhere; }
+.tl-iss .chip-ref { vertical-align: 1px; }
+.tl-will { display: flex; align-items: flex-start; gap: 6px 10px; margin: 7px 0 0; padding-top: 7px; border-top: 1px solid var(--rule); }
+.tl-will-text {
+  flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+}
+.tl-will-k { color: var(--ink); font-weight: 500; }
+.tl-inline-btn {
+  flex: none; display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 6px;
+  background: var(--sheet); color: var(--ink); font: 500 .82rem/1 var(--sans); cursor: pointer;
+}
+.tl-inline-btn:hover { border-color: var(--muted); background: var(--tint); }
+.tl-inline-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.tl-inline-btn[aria-disabled="true"] { opacity: .55; cursor: progress; }
+
+/* Reviewed rows: one ruled line each */
 .tl-group .outcome { padding: 11px 18px; }
 .tl-items > li:first-child > .outcome,
 .tl-items > li:has(> .decision) + li > .outcome { border-top: 1px solid var(--rule); }
@@ -79,20 +117,22 @@
 .tl-what { margin: 0; min-width: 0; }
 .outcome-result { margin: 0; text-align: right; }
 .outcome.is-kept .outcome-result { color: var(--ink); }
-.tl-by { display: block; margin-top: 1px; font: 400 .74rem/1.5 var(--mono); color: var(--faint); }
+.tl-by { display: block; margin-top: 1px; font: 400 .74rem/1.5 var(--mono); color: var(--muted); }
+.tl-undo-at { display: block; margin-top: 6px; }
+.outcome-result .tl-undo { font-weight: 500; }
 
-/* "Why?" after a skip: optional reasons, kept as training data */
+/* "Why?" after a skip: optional reasons, kept as feedback */
 .tl-why { grid-column: 2 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0 2px; }
 .tl-why:focus { outline: none; }
 .tl-why:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 4px; }
 .tl-why-k { font: 500 .72rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-right: 2px; }
-.tl-why-k .tl-dim { color: var(--faint); text-transform: none; letter-spacing: 0; }
+.tl-why-k .tl-dim { text-transform: none; letter-spacing: 0; }
 .tl-why-chips { display: contents; }
 .tl-chip {
   min-height: 32px; padding: 0 11px; border: 1px solid var(--rule); border-radius: 999px; background: var(--sheet);
   color: var(--ink); font: 500 .84rem/1 var(--sans); cursor: pointer;
 }
-.tl-chip:hover { border-color: var(--faint); background: var(--tint); }
+.tl-chip:hover { border-color: var(--muted); background: var(--tint); }
 .tl-why-saved { font-size: .88rem; color: var(--pos); font-weight: 500; }
 
 /* Call detail aside: compact cards and rows */
@@ -103,6 +143,8 @@
 .decision.tl-compact .decision-meta { font-size: .84rem; }
 .decision.tl-compact .decision-actions { margin-top: 8px; gap: 6px; }
 .decision.tl-compact .tl-edited { margin-left: 4px; }
+.decision.tl-compact .tl-iss { margin-top: 6px; padding: 7px 10px; font-size: .82rem; background: var(--sheet); }
+.decision.tl-compact .tl-will-text { -webkit-line-clamp: 2; line-clamp: 2; }
 .outcome.tl-compact { grid-template-columns: 84px minmax(0, 1fr); gap: 3px 10px; padding: 9px 0; }
 .outcome.tl-compact .tl-what { font-size: .92rem; }
 .outcome.tl-compact .outcome-result { grid-column: 2; text-align: left; font-size: .86rem; }
@@ -110,15 +152,19 @@
 .outcome.tl-compact .tl-why { grid-column: 1 / -1; }
 .tl-aside-items { margin-top: 2px; }
 .tl-aside-items > li:last-child > .outcome { border-bottom: 0; }
+.tl-aside-send { margin: 12px 0 0; }
 .tl-bulk.tl-compact { gap: 8px; margin-bottom: 12px; }
 .tl-bulk.tl-compact .tl-bulk-btns { gap: 6px; }
 .tl-bulk.tl-compact .btn-small { padding: 0 12px; }
 .tl-bulk.tl-compact .tl-planning { flex-basis: 100%; font-size: .84rem; }
-.tl-bulk.tl-compact .tl-bulk-note { font-size: .84rem; }
+.tl-bulk.tl-compact .tl-bulk-note { flex-basis: 100%; font-size: .84rem; }
 
 /* ------------------------------------------------------------ dialogs */
 .tl-dialog-list { margin: 6px 0 16px; color: var(--ink); }
-.tl-dialog-note { margin: 0; font-size: .92rem; color: var(--muted); }
+.tl-dialog-list .v { margin-right: 6px; vertical-align: 1px; }
+.tl-dialog-list .v.tl-v-tracked { white-space: nowrap; }
+.tl-dialog-note { margin: 0 0 10px; font-size: .92rem; color: var(--muted); }
+.tl-skip-why { margin-top: 14px; }
 .tl-edit-on { margin: 0 0 14px; color: var(--muted); }
 /* styles.css: .form :is(input[type="text"], …, textarea) outranks .form textarea; restore the textarea's own box. */
 .form.tl-edit textarea { min-height: 132px; padding: 10px 14px; line-height: 1.5; }
@@ -129,13 +175,21 @@
 .tl-issue p, .tl-issue ul { margin: 0; overflow-wrap: anywhere; }
 .tl-issue ul { padding-left: 1.2em; }
 .tl-issue li { margin: 0 0 2px; }
+.tl-confirm-what { margin: 0 0 6px; color: var(--ink); overflow-wrap: anywhere; }
+.tl-confirm-new { margin: 0 0 18px; font-size: .92rem; color: var(--muted); overflow-wrap: anywhere; }
 .tl-send-to { margin-bottom: 10px; }
 .tl-send-new { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .tl-send-new .check { margin: 0; }
 .form .tl-send-new select { display: inline-block; width: auto; min-width: 190px; min-height: 40px; }
-.tl-send-preview { margin: 16px 0 12px; }
+.form .tl-inc { margin-bottom: 6px; }
+.tl-inc-row { display: flex; flex-wrap: wrap; gap: 2px 20px; }
+.tl-inc-row .check { margin: 0 0 6px; }
+.tl-inc-sub { margin: 2px 0 4px; font-size: .92rem; }
+.tl-inc-sub:has(input:disabled) { color: var(--muted); cursor: not-allowed; }
+.tl-send-preview { margin: 14px 0 12px; }
 .tl-send-preview .thread { box-shadow: none; }
 .tl-send-link { margin: 0; font-size: .92rem; }
+.tl-send-foot { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: .84rem; line-height: 1.5; color: var(--muted); }
 /* Radios, checkboxes and switches keep their own focus ring (the .form halo is for text fields). */
 .form input:is([type="radio"], [type="checkbox"]):focus { box-shadow: none; }
 .form input:is([type="radio"], [type="checkbox"]):focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
@@ -146,26 +200,7 @@
 .tl-state-monitoring { color: var(--info); }
 .tl-state-done-on-call { color: var(--pos); }
 .tl-you { color: var(--ink); background: var(--sheet); border-color: var(--ink); }
-
-/* ------------------------------------------------------------ review history */
-.tl-sum { display: grid; gap: 6px; padding: 18px 22px 20px; }
-.tl-sum-total { margin: 0; font-size: 1.06rem; }
-.tl-sum-by { margin: 0; color: var(--muted); }
-.tl-sum-bars { list-style: none; margin: 8px 0 2px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 30px; }
-.tl-sum-bars li { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
-.tl-sum-k { font: 500 .7rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
-.tl-sum-n { font: 500 .8rem/1 var(--mono); color: var(--muted); }
-.tl-units i.is-off { background: transparent; box-shadow: inset 0 0 0 1.5px var(--faint); }
-.tl-pattern { margin: 10px 0 0; padding: 10px 14px; font-size: .94rem; background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 0 var(--radius) var(--radius) 0; }
-.tl-pattern .k { display: block; margin: 0 0 2px; color: var(--warn); }
-.tl-hist .tl-prop { display: inline-flex; align-items: baseline; gap: 8px; }
-.tl-hist .tl-prop .v { flex: none; }
-.tl-dec.is-done { color: var(--pos); font-weight: 500; }
-.tl-dec.is-skipped { color: var(--muted); }
-.tl-hist td:first-child { white-space: nowrap; }
-.tl-hist td:first-child .tl-you { display: block; width: max-content; margin-top: 4px; }
-.tl-hist .chip-ref, .tl-what .chip-ref, .outcome-result .chip-ref { white-space: nowrap; }
-.tl-row-you td { background: color-mix(in srgb, var(--tint) 55%, transparent); }
+.tl-open .chip-ref { white-space: nowrap; }
 
 /* ------------------------------------------------------------ Slack delivery */
 .sd-layout { display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 24px; align-items: start; }
@@ -200,6 +235,24 @@
 .sd-preview .slk-scroll { max-height: calc(100vh - 176px); overflow-y: auto; overscroll-behavior: contain; }
 .sd-jump { display: none; margin: -6px 0 16px; font-size: .92rem; }
 
+/* What a change did to the preview: a caption, and a highlight that fades */
+.slk .sd-change {
+  display: table; margin: 8px 0 4px; padding: 1px 8px; border-radius: 999px;
+  background: var(--mark); color: var(--mark-ink); font: 500 .74rem/1.5 var(--mono);
+}
+.slk .slk-scroll > .sd-change { margin-left: 16px; }
+.slk .sd-hl { border-radius: 4px; animation: sd-flash 2.6s ease-out forwards; }
+@keyframes sd-flash {
+  0%, 55% { background-color: color-mix(in srgb, var(--mark) 42%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--mark) 42%, transparent); }
+  100% { background-color: transparent; box-shadow: 0 0 0 4px transparent; }
+}
+/* "Preview changed ↓", sticky at the bottom of the settings while the preview is out of sight */
+.sd-changed:not([hidden]) {
+  position: sticky; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 3;
+  display: flex; justify-content: center; margin-top: 14px; pointer-events: none;
+}
+.sd-changed-btn { pointer-events: auto; box-shadow: var(--lift); }
+
 /* ------------------------------------------------------------ Slack preview (inside the landing's .thread) */
 .slk { font-size: .88rem; line-height: 1.5; }
 .slk .msg { padding: 10px 16px 10px; }
@@ -208,7 +261,7 @@
 .slk .msg-title { margin: 0 0 2px; }
 .slk-root { padding-bottom: 14px !important; }
 .slk-cont { padding-top: 6px !important; }
-.slk-gutter { justify-self: end; padding-top: 1px; font: .7rem/1.6 var(--mono); color: var(--faint); }
+.slk-gutter { justify-self: end; padding-top: 1px; font: .7rem/1.6 var(--mono); color: var(--muted); }
 .slk .msg-main > .slk-q { margin: 2px 0 4px; padding-left: 10px; border-left: 4px solid var(--rule); }
 .slk .msg-main > .slk-th { margin-top: 6px; }
 .slk .msg-main > .slk-gap { margin-top: 8px; }
@@ -218,6 +271,7 @@
 .slk .msg-main > .slk-sub { padding-left: 1.6em; }
 .slk-hr { height: 0; margin: 8px 0; border: 0; border-top: 1px solid var(--rule); }
 .slk-link { color: var(--link); }
+a.slk-link { text-decoration: underline; text-underline-offset: 2px; }
 .slk code { padding: 0 3px; font: .84em var(--mono); color: var(--neg); background: var(--tint); border: 1px solid var(--rule); border-radius: 3px; }
 .slk .ts { font-size: .74rem; }
 .slk .mention { padding: 0 4px; }
@@ -227,6 +281,10 @@
 .slk .thread-sep { padding-block: 2px; }
 .slk .thread-bar { flex-wrap: wrap; gap: 2px 12px; }
 .slk .thread-bar > span { white-space: nowrap; }
+.slk-edited { font-size: .74rem; color: var(--muted); }
+
+/* A call's own thread in call detail */
+.tl-thread-cap { margin: 0 0 10px; font-size: .92rem; color: var(--muted); }
 
 /* ------------------------------------------------------------ responsive */
 @media (max-width: 1100px) {
@@ -236,11 +294,16 @@
   .sd-jump { display: block; }
 }
 @media (max-width: 760px) {
+  .tl-land { padding: 12px 14px; margin-bottom: 18px; }
+  .tl-land-grid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .tl-land-grid li { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+  .tl-land-v { font-size: 1.15rem; }
+  .tl-land-foot { margin-top: 10px; font-size: .8rem; }
   .tl-seg-set { flex: 1 1 100%; }
-  .tl-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
-  .tl-filters .tl-seg label { justify-content: center; border-left: 0; border-top: 1px solid var(--rule); }
-  .tl-filters .tl-seg label:nth-child(-n+2) { border-top: 0; }
-  .tl-filters .tl-seg label:nth-child(even) { border-left: 1px solid var(--rule); }
+  /* Five statuses: three on the first row, two below; 1px gaps draw the rules. */
+  .tl-seg { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; width: 100%; background: var(--rule); }
+  .tl-filters .tl-seg label { grid-column: span 2; justify-content: center; padding: 0 6px; border-left: 0; }
+  .tl-filters .tl-seg label:nth-child(n+4) { grid-column: span 3; }
   .tl-filters > label { flex: 1 1 140px; }
   .tl-filters select { width: 100%; }
   .tl-head { grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -258,10 +321,15 @@
   .sd-team-grid { gap: 12px; }
   .form .sd-default select { max-width: none; }
   .sd-settings { padding: 16px; }
-  .tl-sum { padding: 16px; }
-  .tl-sum-bars { gap: 8px 22px; }
   .sd-pick { flex: 1 1 100%; flex-wrap: wrap; }
   .sd-pick select { flex: 1 1 200px; max-width: none; }
   .form .tl-send-new select { min-width: 0; flex: 1 1 160px; }
   .slk .msg { padding-inline: 12px; }
+  /* Tap targets on cards: ▶ chips and buttons in a card are at least 32px tall. */
+  :is(.decision, .outcome, .tl-iss) a.ts { display: inline-flex; align-items: center; min-height: 32px; padding: 0 9px; vertical-align: middle; }
+  :is(.decision, .outcome, .tl-iss) a.ts::after { content: none; }
+  .tl-inline-btn { min-height: 36px; padding: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slk .sd-hl { animation: none; background-color: color-mix(in srgb, var(--mark) 30%, transparent); }
 }
