@@ -2429,7 +2429,7 @@
     if (!e || !e.proposals.length) return '';
     const rows = e.proposals.map((p) => {
       const st = p.status === 'pending'
-        ? (isDemo ? '<span class="chip-mark">Waiting for a decision</span>' : "Waiting for a decision in the call's Slack thread.")
+        ? (isDemo ? '<span class="chip-mark">Waiting for review</span>' : "Waiting for review in the call's Slack thread.")
         : `<span class="prop-state-text">${esc(outcomeText(p))}</span>`;
       return `<li>${verdict(p.verdict)}<span>${esc(p.title)}</span><span class="prop-state${p.status === 'approved' ? ' is-done' : ''}">${st}</span></li>`;
     }).join('');

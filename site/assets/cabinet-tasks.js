@@ -90,7 +90,7 @@
     ['summary', 'Summary', "What was discussed and decided, who owns what next, and a link to the call's file."],
     ['transcript_link', 'Transcript link', 'A link to the transcript in this workspace; every ▶ timestamp opens it at that line.'],
     ['recording_link', 'Recording link', "A link to the call's recording."],
-    ['task_log', 'Task log', "The proposals and their verdicts, with Approve and Skip buttons, in the call's thread. Replies there are kept as feedback. When off, proposals wait in Action items and the thread says how many."],
+    ['task_log', 'Task log', "The proposals and their verdicts, with Approve and Skip buttons, in the call's thread, updated in place after each review. Replies there are kept as feedback. When off, proposals wait in Action items and the thread says how many."],
   ];
   /** Names of the parts of a post, as the preview captions and the Send dialog show them. */
   const PART = { summary: 'Summary', transcript_link: '📄 Transcript link', recording_link: 'Recording link', task_log: '🛠 Task log' };
