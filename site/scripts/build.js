@@ -72,7 +72,7 @@ export const PAGES = [
   {
     src: 'book.html', out: 'book.html', path: '/book',
     title: `Book a demo | ${config.product}`,
-    description: `Thirty minutes with the people who built ${config.product}: bring one recording of your team's call and see its decisions and tracker tasks live.`,
+    description: `Thirty minutes with the team that builds ${config.product}: a week of a demo team's calls, then your stack and your questions.`,
   },
   {
     src: '404.html', out: '404.html', path: '/404',

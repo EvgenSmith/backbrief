@@ -161,7 +161,7 @@ mark {
 }
 .brand:hover { color: var(--ink); }
 .nav { display: flex; gap: 24px; margin-left: auto; }
-.nav a { color: var(--muted); text-decoration: none; font-size: .94rem; }
+.nav a { color: var(--muted); text-decoration: none; font-size: .94rem; white-space: nowrap; }
 .nav a:hover { color: var(--ink); }
 
 /* Buttons */
@@ -366,7 +366,7 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 .hosts-names { margin: 12px 0 0; font: .82rem/1.4 var(--mono); color: var(--night-muted); }
 .book-card { background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: 20px; padding: 36px; }
 .book-card a { color: var(--link); }
-.stepper { list-style: none; display: flex; align-items: center; gap: 14px; padding: 0; margin: 0 0 30px; color: var(--faint); font-weight: 600; font-size: .95rem; }
+.stepper { list-style: none; display: flex; flex-wrap: wrap; row-gap: 10px; align-items: center; gap: 14px; padding: 0; margin: 0 0 30px; color: var(--faint); font-weight: 600; font-size: .95rem; }
 .stepper li { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .stepper li + li::before { content: ""; width: 32px; height: 1px; background: var(--rule); margin-right: 4px; }
 .stepper .dot { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--rule); font: 500 .85rem/1 var(--mono); }
@@ -441,6 +441,9 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 .legal a { color: var(--muted); }
 
 /* Responsive */
+@media (max-width: 1180px) {
+  .nav a:not(.nav-mid):not(.nav-login) { display: none; }
+}
 @media (max-width: 1020px) {
   .hero-grid { grid-template-columns: 1fr; gap: 48px; }
   .hero-visual { max-width: 620px; }
@@ -450,6 +453,8 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   .start li:nth-child(2) { border-right: 0; }
   .start li:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
   .team-layout, .faq-layout { grid-template-columns: 1fr; gap: 32px; }
+  .book { grid-template-columns: 1fr; gap: 40px; }
+  .book-card { max-width: 560px; }
   .person { grid-template-columns: 72px minmax(0, 1fr); column-gap: 18px; padding: 22px; }
   .person-photo { width: 72px; height: 72px; }
 }
@@ -457,8 +462,9 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   body { font-size: 16px; }
   section { padding-block: 72px; }
   .hero { padding-block: 40px 72px; }
-  .nav { display: none; }
-  .header-row { justify-content: space-between; }
+  .nav { gap: 16px; }
+  .nav a.nav-mid { display: none; }
+  .header-row { gap: 16px; }
   .section-head { grid-template-columns: 1fr; margin-bottom: 32px; }
   .samples, .fit-grid, .ledger, .steps, .footer-grid, .start, .book { grid-template-columns: 1fr; }
   .samples { gap: 48px; }

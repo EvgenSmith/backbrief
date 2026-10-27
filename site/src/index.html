@@ -70,7 +70,7 @@
     <div class="wrap">
       <div class="section-head">
         <h2>What your team gets after every call</h2>
-        <p class="section-lede">Real output for a fictional team on Zoom, Slack, Linear and GitHub. <a href="/demo">Open the demo workspace</a> to click through a week of their calls.</p>
+        <p class="section-lede">What {{ product }} produced for a demo team's calls on Zoom, Slack, Linear and GitHub. <a href="/demo">Open the demo workspace</a> to click through a week of them.</p>
       </div>
       <div class="samples">
 
@@ -79,19 +79,19 @@
             <div class="win-bar"><span class="win-app">Linear</span><span class="win-path">Growth › Triage</span></div>
             <div class="win-body">
               <table class="tasks">
-                <thead><tr><th>Task</th><th>Owner</th><th>Verdict</th></tr></thead>
+                <thead><tr><th>Task</th><th>Owner</th><th>Priority</th><th>Verdict</th></tr></thead>
                 <tbody>
-                  <tr><td>Rewrite pricing page copy for the self-serve tier</td><td>Carter</td><td><span class="v v-create">Create</span> <span class="id">GRW-214</span></td></tr>
-                  <tr><td>Pricing revamp: the call adds a Friday deadline and an owner</td><td>Carter</td><td><span class="v v-comment">Comment</span> <span class="id">GRW-180</span></td></tr>
-                  <tr><td>Update the billing FAQ</td><td>?</td><td><span class="v v-flag">Flag</span> <span class="id">60% like GRW-102</span></td></tr>
-                  <tr><td>Ask legal about the annual-plan wording</td><td>Brooks</td><td><span class="v v-create">Create</span></td></tr>
+                  <tr><td>Rewrite pricing page copy for the self-serve tier</td><td>Carter</td><td>High</td><td><span class="v v-create">Create</span> <span class="id">GRW-214</span></td></tr>
+                  <tr><td>Pricing revamp: the call adds a Friday deadline and an owner</td><td>Carter</td><td>High</td><td><span class="v v-comment">Comment</span> <span class="id">GRW-180</span></td></tr>
+                  <tr><td>Update the billing FAQ</td><td>?</td><td>Medium</td><td><span class="v v-flag">Flag</span> <span class="id">Maybe GRW-102 (60%)</span></td></tr>
+                  <tr><td>Ask legal about the annual-plan wording</td><td>Brooks</td><td>Low</td><td><span class="v v-create">Create</span></td></tr>
                 </tbody>
               </table>
             </div>
           </div>
           <figcaption>
             <h3>Tasks, checked against your backlog</h3>
-            <p>Row two is the point: the call restated an issue you already have, so it becomes a comment there instead of a second ticket. Row three is unsure and says so instead of guessing.</p>
+            <p>Already in your backlog? It becomes a comment there, not a second ticket. Unsure? It says so instead of guessing. Nothing is filed until your team approves it.</p>
           </figcaption>
         </figure>
 
@@ -132,8 +132,8 @@
             </div>
           </div>
           <figcaption>
-            <h3>A file per call, for people and agents</h3>
-            <p>The repository ships an AGENTS.md, so Claude Code, Cursor and other agents know how to find a decision and why it was made.</p>
+            <h3>Every decision, readable by your AI agents</h3>
+            <p>Each call is a plain file in your repository, so anyone on the team, or an agent like Claude Code or Cursor, can find what was decided and why.</p>
           </figcaption>
         </figure>
 
@@ -151,7 +151,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           </div>
           <figcaption>
             <h3>People, not speaker labels</h3>
-            <p>One profile per teammate. That is how the digest says "Emma owns the launch page" instead of "Speaker 2 will handle it".</p>
+            <p>One profile per teammate, so the digest says "Carter owns the pricing copy" instead of "Speaker 2 will handle it".</p>
           </figcaption>
         </figure>
 
@@ -162,7 +162,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="problem">
     <div class="wrap">
-      <h2>Why your notetaker hasn't fixed this</h2>
+      <h2>What your notetaker doesn't do</h2>
       <div class="compare">
         <div class="compare-row compare-head" aria-hidden="true"><span></span><span>A notetaker</span><span>{{ product }}</span></div>
         <div class="compare-row">
@@ -172,13 +172,18 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </div>
         <div class="compare-row">
           <h3>Who owns what</h3>
-          <p class="was"><span class="cell-label">A notetaker</span>Hears "Speaker 2" and guesses.</p>
+          <p class="was"><span class="cell-label">A notetaker</span>Knows who spoke, not who owns the work.</p>
           <p class="now"><span class="cell-label">{{ product }}</span>Reads each call with your team's profiles and your recent calls on the same topic, so it knows who owns what and what was agreed last time.</p>
         </div>
         <div class="compare-row">
           <h3>The tasks</h3>
           <p class="was"><span class="cell-label">A notetaker</span>Someone has to retype them, check for duplicates and find the owner, so usually nobody does.</p>
-          <p class="now"><span class="cell-label">{{ product }}</span>Proposes them in your tracker after checking the backlog. Nothing is filed until someone on the team approves it in the thread.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Proposes them in the call's thread after checking your backlog. Nothing reaches the tracker until someone on the team approves it.</p>
+        </div>
+        <div class="compare-row">
+          <h3>Your AI agents</h3>
+          <p class="was"><span class="cell-label">A notetaker</span>Never see the call.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Find every decision, with its reason and owner, in your repository.</p>
         </div>
       </div>
     </div>
@@ -193,7 +198,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
       <ol class="steps">
         <li>
           <h3>Record</h3>
-          <p>Record the call to the cloud, Zoom cloud recording for example. About a minute after it ends, a short post with the title and recording link appears in your team channel.</p>
+          <p>Record the call to your meeting platform's cloud (Zoom today). About a minute after it ends, a short post with the title and recording link appears in your team channel.</p>
         </li>
         <li>
           <h3>Transcribe</h3>
@@ -208,7 +213,6 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <p>The digest lands in the call's chat thread, task proposals follow with Approve and Skip, and the call is saved to your git repository.</p>
         </li>
       </ol>
-      <p class="note">We run all of this for you. Your team sees the results: the post in the thread, the task proposals and the file in your repository.</p>
     </div>
   </section>
 
@@ -243,8 +247,8 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </div>
         <div>
           <p class="k">Access</p>
-          <h3>Read-only where it can be.</h3>
-          <p>The workspace reads your repository with a read-only key, and people log in with a password or their Google account.</p>
+          <h3>Writes only where you connect it.</h3>
+          <p>It posts to your chat, files approved tasks in your tracker and commits to your repository. The workspace reads that repository with a read-only key, and people log in with a password or their Google account.</p>
         </div>
       </div>
     </div>
@@ -252,7 +256,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="fit" class="band">
     <div class="wrap">
-      <h2>Built for teams like yours</h2>
+      <h2>Who it fits today</h2>
       <div class="fit-grid">
         <div>
           <h3>Connected today</h3>
@@ -266,10 +270,10 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         <div>
           <h3>Coming next</h3>
           <ul class="tools tools-off" aria-label="Coming next"><li>Google Meet</li><li>Microsoft Teams</li><li>Jira</li><li>Asana</li><li>Single sign-on</li></ul>
-          <p class="muted">{{ product }} isn't tied to one stack. <a href="/book">Book a demo</a> and tell us what you run on; requests decide which connection comes next.</p>
+          <p class="muted">Not on this stack yet? <a href="/book">Book a demo</a> and tell us what you run on; requests decide which connection comes next.</p>
           <div class="next-employee">
             <p class="k"><span class="soon-tag">Soon</span> AI employee</p>
-            <p>It picks up a task from your tracker, works through it with your company's full context, and hands back the result for review: a pull request, a document, a reply. Your team assigns work to it like to anyone else.</p>
+            <p>It picks up a task from your tracker, works through it with your company's full context, and hands back the result for review: a pull request, a document, a reply. Your team assigns it work like anyone else.</p>
           </div>
         </div>
       </div>
@@ -279,7 +283,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   <section id="plans">
     <div class="wrap">
       <div class="section-head">
-        <h2>How we start</h2>
+        <h2>Getting started</h2>
         <p class="section-lede">{{ product }} is a managed service. We run it; your team gets the results in its own tools.</p>
       </div>
       <ol class="start">
@@ -306,7 +310,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
       </ol>
       <div class="start-cta">
         <a class="btn" href="/book">Book a demo</a>
-        <p>Private handling of 1:1 and board calls, other trackers, single sign-on: tell us what you need on the demo call.</p>
+        <p>Private handling of 1:1 and board calls, Google Meet, Jira and single sign-on aren't live yet. Tell us which you need on the demo call.</p>
       </div>
     </div>
   </section>
@@ -324,6 +328,10 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <p>Someone on your team, in the call's chat thread. Proposals the backlog check is sure about can be approved together in one click; flagged ones wait to be reviewed one by one. Skipped proposals are logged, so you can see what your team doesn't want filed.</p>
         </details>
         <details>
+          <summary>Do you support Google Meet, Jira or single sign-on?</summary>
+          <p>Not yet. Today {{ product }} connects to Zoom, Slack, Linear and GitHub, and those are next. Tell us your stack when you book a demo.</p>
+        </details>
+        <details>
           <summary>Where do people who don't use git read it?</summary>
           <p>In your team chat, and in the {{ product }} workspace in the browser: calls, decisions, open action items and people. Git is where the record is kept, so it stays yours.</p>
         </details>
@@ -337,7 +345,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </details>
         <details>
           <summary>What happens to our data if {{ product }} goes away?</summary>
-          <p>Nothing. Everything it wrote is already in your chat, your tracker and your git repository as plain files.</p>
+          <p>Nothing is lost. Everything it wrote is already in your chat, your tracker and your git repository as plain files, and the recordings and transcripts we hold are deleted as the data processing agreement sets out.</p>
         </details>
       </div>
     </div>

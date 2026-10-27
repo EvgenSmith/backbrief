@@ -13,6 +13,8 @@
   const status = form.querySelector('[data-status]');
   const button = form.querySelector('button[type=submit]');
   const calendar = form.dataset.calendar || '';
+  // Without a booking calendar, step two is a confirmation that we'll email times.
+  if (!calendar) steps[1].lastChild.textContent = ' Confirmation';
 
   const show = (text, kind) => {
     status.textContent = text;
