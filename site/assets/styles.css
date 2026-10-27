@@ -198,6 +198,7 @@ section { padding-block: 104px; }
 .lede { font-size: 1.2rem; line-height: 1.55; max-width: 36rem; margin-bottom: 26px; }
 .outputs { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); max-width: 38rem; }
 .outputs li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 1rem; }
+.outputs strong { font-weight: 600; }
 .dest { font: 500 .74rem/1.75 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
 .dest-stack { display: flex; flex-direction: column; align-items: center; justify-self: start; width: max-content; }
 .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 32px 0 22px; }
