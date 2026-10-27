@@ -16,6 +16,7 @@
  * --release additionally fails on:
  *   - any remaining "TODO" placeholder in the built pages
  *   - legal.reviewed !== true in site.config.json
+ *   - a G2 rating on the page that nobody has confirmed against the G2 listing
  *   - a Spanish entity without its Registro Mercantil inscription (tomo, folio,
  *     hoja), which LSSI art. 10 requires on the site
  *   - contact email not on the site's own domain (Google, AWS, DigitalOcean,
@@ -160,6 +161,9 @@ if (RELEASE) {
   if (config.legal?.reviewed !== true) fail('legal.reviewed is not true — privacy policy and terms need a human legal review');
   if (config.legal?.governing_law === 'Spain' && !/hoja/i.test(config.legal?.registration || '')) {
     fail('legal.registration: add the Registro Mercantil inscription (tomo, folio, hoja B-…); LSSI art. 10 requires it on the site');
+  }
+  if (config.links?.g2_rating && config.links?.g2_rating_checked !== true) {
+    fail('links.g2_rating is shown on the page but not confirmed: check that the public G2 page shows this rating from customer reviews, then set links.g2_rating_checked: true');
   }
   if (!domainSet) fail('domain is not set');
   if (!emailSet) fail('contact_email is not set');

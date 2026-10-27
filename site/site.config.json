@@ -13,7 +13,8 @@
     "linkedin_company": "TODO: company LinkedIn page URL",
     "book_demo": "",
     "g2": "https://www.g2.com/products/backbrief/reviews",
-    "g2_rating": ""
+    "g2_rating": "5.0",
+    "g2_rating_checked": false
   },
   "stats": {
     "as_of": "October 2026",
