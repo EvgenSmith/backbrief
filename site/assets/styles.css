@@ -194,6 +194,7 @@ section { padding-block: 104px; }
 .hero { padding-block: 80px 112px; }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 72px; align-items: center; }
 .hero-copy { min-width: 0; }
+.hero-copy h1 { margin-bottom: 32px; }
 .lede { font-size: 1.2rem; line-height: 1.55; max-width: 36rem; margin-bottom: 26px; }
 .outputs { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); max-width: 38rem; }
 .outputs li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 1rem; }
