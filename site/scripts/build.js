@@ -41,13 +41,13 @@ export const PAGES = [
   },
   {
     src: 'privacy.html', out: 'privacy.html', path: '/privacy',
-    title: `Privacy policy | ${config.product}`,
-    description: `How ${config.product} handles personal data on this website and in the hosted beta.`,
+    title: `Privacy Policy | ${config.product}`,
+    description: `How ${config.product} collects, uses and protects personal data.`,
   },
   {
     src: 'terms.html', out: 'terms.html', path: '/terms',
-    title: `Terms of use | ${config.product}`,
-    description: `Terms for this website and the hosted ${config.product} beta.`,
+    title: `Terms of Service | ${config.product}`,
+    description: `Terms of Service for the ${config.product} website and service.`,
   },
   {
     src: 'login.html', out: 'login.html', path: '/login',

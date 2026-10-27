@@ -397,6 +397,11 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 .doc h1 { font-size: clamp(2rem, 4vw, 2.8rem); }
 .doc h2 { font-size: 1.35rem; margin-top: 1.8em; }
 .doc li { margin-bottom: .6em; }
+.doc code { font: .88em var(--mono); background: var(--tint); padding: 1px 5px; border-radius: 4px; }
+.table-scroll { overflow-x: auto; margin: 0 0 1.4em; }
+.doc table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: .92rem; }
+.doc th { text-align: left; font: 500 .7rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); padding: 10px 12px 10px 0; border-bottom: 1px solid var(--ink); }
+.doc td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
 
 /* Footer */
 .site-footer { border-top: 1px solid var(--rule); padding-block: 56px 64px; background: var(--paper); }

@@ -7,29 +7,94 @@
 <body>
 <!-- @include header -->
 <main id="main" class="doc wrap narrow">
-  <h1>Terms of use</h1>
+  <h1>Terms of Service</h1>
   <p class="muted">Last updated: {{ updated }}</p>
 
-  <h2>Who these terms are with</h2>
-  <p>These terms govern your use of this website and your participation in the hosted {{ product }} beta. They are an agreement between you and {{ legal.entity_name }} ({{ legal.registration }}), registered office: {{ legal.address }}.</p>
+  <p>These Terms of Service ("Terms") govern access to and use of the website at {{ domain }} and the {{ product }} service (the "Service"). They form an agreement between {{ legal.entity_name }}, {{ legal.registration }}, registered office: {{ legal.address }} ("{{ product }}", "we", "us"), and the organisation that uses the Service ("Customer", "you"). If you accept these Terms on behalf of an organisation, you confirm that you are authorised to bind it.</p>
 
-  <h2>The hosted beta</h2>
+  <h2>1. The Service</h2>
+  <p>{{ product }} processes recordings and transcripts of a Customer's calls and delivers summaries, decisions, owners and task proposals to the Customer's own tools, such as its team chat, task tracker and git repository, together with a browser workspace for reading them. We may improve and change the Service over time. Features described as "Soon" or offered as early access are provided as they become available and may change or be withdrawn.</p>
+
+  <h2>2. Business use only</h2>
+  <p>The Service is intended for businesses and professionals, not for consumers. By using it you confirm that you act for purposes of your trade, business or profession.</p>
+
+  <h2>3. Accounts and access</h2>
   <ul>
-    <li>Access is by invitation. We may change, suspend or end the beta at any time, and we will give participants reasonable notice before ending it.</li>
-    <li>The beta is provided "as is", without warranties of any kind, to the extent the law allows.</li>
-    <li>You keep all rights to your content. You give us permission to process it only to provide the service to you, as described in our <a href="/privacy">privacy policy</a> and in the data processing agreement we sign with you.</li>
-    <li>You are responsible for having the right to record and process the calls you send to {{ product }}, including any consent your participants' jurisdictions require.</li>
-    <li>Do not use the service to break the law, to infringe anyone's rights, or to disrupt the service or other users.</li>
+    <li>Access to a workspace is given to the people the Customer authorises ("Authorised Users"). Users sign in with a one-time link sent to their work email.</li>
+    <li>The Customer is responsible for its Authorised Users, for keeping their email accounts secure, and for removing access for people who leave.</li>
+    <li>Tell us promptly at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> if you suspect unauthorised access.</li>
   </ul>
 
-  <h2>Liability</h2>
-  <p>To the extent the law allows, we are not liable for indirect or consequential losses arising from the beta, and our total liability is limited to the amount you paid us for it in the twelve months before the claim. Nothing in these terms limits liability that cannot be limited by law.</p>
+  <h2>4. Customer Data</h2>
+  <ul>
+    <li>"Customer Data" means the recordings, transcripts and other content the Customer or its users provide to the Service, and the outputs the Service produces from them.</li>
+    <li>The Customer keeps all rights to Customer Data. It grants us a limited licence to host, copy, process and transmit Customer Data only as needed to provide, secure and support the Service.</li>
+    <li>We do not use Customer Data to train machine-learning models, and we do not sell it.</li>
+    <li>Our processing of personal data within Customer Data is governed by the data processing agreement (DPA) we sign with the Customer before any of its calls is processed, and by our <a href="/privacy">Privacy Policy</a>. If the DPA and these Terms conflict on data protection, the DPA prevails.</li>
+  </ul>
 
-  <h2>Governing law</h2>
-  <p>These terms are governed by the laws of {{ legal.governing_law }}.</p>
+  <h2>5. Customer responsibilities</h2>
+  <ul>
+    <li>Have a lawful basis to record and process the calls sent to the Service, and inform call participants as the law of their jurisdictions requires, including any consent needed.</li>
+    <li>Choose which calls are recorded and sent to the Service. Calls that are not recorded to the cloud are not processed.</li>
+    <li>Review outputs before relying on them, and approve task proposals before they are filed.</li>
+  </ul>
 
-  <h2>Contact</h2>
-  <p><a href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+  <h2>6. Acceptable use</h2>
+  <p>You must not, and must not allow others to:</p>
+  <ul>
+    <li>use the Service in breach of any law or third-party right, including privacy and intellectual property rights;</li>
+    <li>upload malware, or content you have no right to process;</li>
+    <li>attempt to gain unauthorised access to the Service or to other customers' data, or probe, scan or test its vulnerability without our written permission;</li>
+    <li>interfere with or disrupt the Service, or exceed reasonable usage limits we communicate;</li>
+    <li>reverse engineer the Service except where the law expressly allows it, or use it to build a competing product;</li>
+    <li>resell or sublicense the Service without our written agreement.</li>
+  </ul>
+
+  <h2>7. AI-generated output</h2>
+  <p>The Service uses language models to produce summaries, decisions, owners and task proposals. Such output can be incomplete or inaccurate, including names, dates and attributions. It is provided to assist your team and is not professional advice. You are responsible for reviewing output before acting on it.</p>
+
+  <h2>8. Third-party services</h2>
+  <p>The Service connects to tools you choose, such as your meeting platform, chat, task tracker and git hosting. Your use of those tools is governed by their own terms, and we are not responsible for their availability or behaviour. You authorise us to access them on your behalf with the permissions you grant, and you can revoke that access at any time.</p>
+
+  <h2>9. Fees</h2>
+  <p>Fees, if any, billing periods and payment terms are set out in the order form, proposal or written agreement we agree with you. Unless agreed otherwise, fees are exclusive of VAT and other applicable taxes. Early access may be provided free of charge for a period we communicate to you.</p>
+
+  <h2>10. Confidentiality</h2>
+  <p>Each party will keep the other's non-public business, technical and financial information confidential, use it only for the purposes of these Terms, and protect it with at least reasonable care. This does not apply to information that is public through no fault of the receiving party, was already known to it, is independently developed, or must be disclosed by law.</p>
+
+  <h2>11. Our intellectual property</h2>
+  <p>We and our licensors own the Service, the website and all related software, designs and trademarks. Apart from the right to use the Service under these Terms, no rights are granted to you. If you send us feedback or suggestions, we may use them without obligation to you.</p>
+
+  <h2>12. Suspension and termination</h2>
+  <ul>
+    <li>Either party may terminate the Service for convenience with 30 days' written notice, unless an order form sets a fixed term.</li>
+    <li>Either party may terminate immediately if the other materially breaches these Terms and does not cure the breach within 15 days of notice.</li>
+    <li>We may suspend access immediately where necessary to prevent harm to the Service, to other customers or to third parties, or to comply with the law. We will tell you why and restore access once the issue is resolved.</li>
+    <li>On termination we stop processing Customer Data and delete it as set out in the DPA. Outputs already delivered to your own tools stay there and remain yours.</li>
+  </ul>
+
+  <h2>13. Warranties and disclaimers</h2>
+  <p>We will provide the Service with reasonable skill and care. Except as expressly stated in these Terms, and to the extent the law allows, the Service is provided "as is" and "as available", without warranties of any kind, whether express or implied, including fitness for a particular purpose, accuracy of output and uninterrupted availability.</p>
+
+  <h2>14. Limitation of liability</h2>
+  <ul>
+    <li>Neither party is liable for indirect or consequential losses, or for loss of profits, revenue, business or goodwill.</li>
+    <li>Each party's total liability arising out of or in connection with these Terms is limited to the greater of the fees paid by the Customer in the twelve months before the event giving rise to the claim and EUR 100.</li>
+    <li>Nothing in these Terms limits liability for fraud, wilful misconduct, gross negligence, or any liability that cannot be limited by law.</li>
+  </ul>
+
+  <h2>15. Changes to these Terms</h2>
+  <p>We may update these Terms. For material changes we will notify Customers by email at least 30 days before they take effect. Continued use of the Service after that date means you accept the updated Terms; if you do not agree, you may terminate before the change takes effect.</p>
+
+  <h2>16. Governing law and jurisdiction</h2>
+  <p>These Terms are governed by the laws of {{ legal.governing_law }}. The courts of Barcelona have exclusive jurisdiction over any dispute arising out of or in connection with them, unless mandatory law provides otherwise.</p>
+
+  <h2>17. General</h2>
+  <p>These Terms, together with any order form and the DPA, are the entire agreement between the parties about the Service. If any provision is found unenforceable, the rest remains in effect. Neither party may assign these Terms without the other's consent, except to a successor in a merger or acquisition. Failure to enforce a provision is not a waiver. Notices to us go to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+
+  <h2>18. Company information</h2>
+  <p>In accordance with article 10 of the Spanish LSSI: {{ legal.entity_name }}, {{ legal.registration }}, registered office: {{ legal.address }}, email <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
 </main>
 <!-- @include footer -->
 </body>

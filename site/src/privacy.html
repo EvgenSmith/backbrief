@@ -7,31 +7,98 @@
 <body>
 <!-- @include header -->
 <main id="main" class="doc wrap narrow">
-  <h1>Privacy policy</h1>
+  <h1>Privacy Policy</h1>
   <p class="muted">Last updated: {{ updated }}</p>
 
-  <h2>Who we are</h2>
-  <p>This website and the hosted {{ product }} beta are operated by {{ legal.entity_name }} ({{ legal.registration }}), registered office: {{ legal.address }}. Contact us about anything in this policy at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  <p>This Privacy Policy explains how {{ legal.entity_name }} ("{{ product }}", "we", "us") collects and uses personal data when you visit {{ domain }}, request a demo, sign in to a {{ product }} workspace, or use the {{ product }} service. It is written to meet the EU General Data Protection Regulation (GDPR), the Spanish Organic Law 3/2018 on Data Protection (LOPDGDD) and the Spanish Law 34/2002 on Information Society Services (LSSI).</p>
 
-  <h2>This website</h2>
+  <h2>1. Who we are</h2>
+  <p>The controller of the personal data described in sections 3 to 5 is {{ legal.entity_name }}, {{ legal.registration }}, registered office: {{ legal.address }}. You can reach us about anything in this policy at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+
+  <h2>2. Two roles: controller and processor</h2>
+  <p>For our website, demo requests and workspace sign-in, we decide why and how personal data is processed, so we are the <strong>controller</strong>.</p>
+  <p>When a customer uses the {{ product }} service, we process the customer's call recordings, transcripts and the outputs produced from them (summaries, decisions, task proposals, repository files) only on the customer's documented instructions. For that data the customer is the controller and we are the <strong>processor</strong>. That processing is governed by the data processing agreement (DPA) we sign with each customer before any of its calls is processed, and section 6 summarises it. If you took part in a call processed by one of our customers, please contact that customer first; we will help them answer your request.</p>
+
+  <h2>3. What we collect and why</h2>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Purpose</th><th>Personal data</th><th>Legal basis</th><th>Retention</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Arranging a demo you request</td>
+        <td>Work email address. The name you type is not stored; it is only passed to the booking calendar when one is shown.</td>
+        <td>Steps taken at your request before entering into a contract (art. 6(1)(b) GDPR)</td>
+        <td>Up to 24 months after our last contact, unless you become a customer or ask us to delete it sooner</td>
+      </tr>
+      <tr>
+        <td>Occasional follow-up about {{ product }} after a demo request</td>
+        <td>Work email address</td>
+        <td>Our legitimate interest in following up on a business enquiry (art. 6(1)(f) GDPR). You can object at any time.</td>
+        <td>As above</td>
+      </tr>
+      <tr>
+        <td>Signing in to a workspace</td>
+        <td>Work email address, a one-time sign-in token (stored only in hashed form), a session cookie</td>
+        <td>Performance of the contract with your organisation (art. 6(1)(b) GDPR)</td>
+        <td>Sign-in token: 15 minutes. Session: up to 14 days, or until you sign out</td>
+      </tr>
+      <tr>
+        <td>Running and protecting the website</td>
+        <td>Technical request data, such as IP address, browser type and time of request</td>
+        <td>Our legitimate interest in a secure, working website (art. 6(1)(f) GDPR)</td>
+        <td>Kept by our hosting provider for a short period under its own retention policy</td>
+      </tr>
+      <tr>
+        <td>Customer relationship, contracts and invoicing</td>
+        <td>Names, work contact details and role of customer contacts, billing details</td>
+        <td>Performance of a contract and compliance with legal obligations (art. 6(1)(b) and (c) GDPR)</td>
+        <td>For the duration of the contract, then as long as Spanish tax and commercial law require (generally up to 6 years)</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>We do not sell personal data, we do not use it for advertising, and we do not make decisions about you based solely on automated processing that produce legal or similarly significant effects.</p>
+
+  <h2>4. Cookies</h2>
+  <p>The website uses no analytics, advertising or third-party tracking cookies. The only cookie is a strictly necessary session cookie (<code>bb_session</code>), set when you sign in to a workspace and needed to keep you signed in. It lasts up to 14 days and is deleted when you sign out. Strictly necessary cookies do not require consent under article 22.2 of the LSSI.</p>
+
+  <h2>5. Who we share data with</h2>
+  <p>We share personal data only with service providers that process it on our behalf under written contracts, and only as far as they need to provide their service:</p>
   <ul>
-    <li><strong>What we collect.</strong> If you book a demo, we store the email address you type in, so that we can arrange the demo and stay in touch about the beta. We do not store the name you type. When the form shows a booking calendar, it passes your name and email to that calendar so you don't type them twice, and the scheduling provider that runs it receives them together with the time you pick.</li>
-    <li><strong>No analytics or third-party scripts.</strong> The site loads no trackers. The only cookie is a strictly necessary session cookie, set when a beta participant signs in to their workspace.</li>
-    <li><strong>Hosting logs.</strong> Our hosting provider processes technical request data, such as IP addresses, to deliver and protect the site.</li>
-    <li><strong>Legal basis and retention.</strong> We rely on your consent, given by submitting the form. We keep your email until the beta ends or until you ask us to delete it, whichever comes first.</li>
+    <li><strong>Hosting and website functions:</strong> Cloudflare, which hosts the website and runs the functions behind the demo form and sign-in.</li>
+    <li><strong>Email delivery:</strong> Resend, which sends one-time sign-in links.</li>
+    <li><strong>Scheduling:</strong> when the demo form shows a booking calendar, the scheduling provider that runs it receives the name and email you entered and the time you pick.</li>
+    <li><strong>Professional advisers and authorities:</strong> where required by law, or to establish, exercise or defend legal claims.</li>
+  </ul>
+  <p>The providers used to deliver the {{ product }} service to customers, such as speech-to-text and language-model providers, are listed in the DPA. Calls are processed with Claude through the Anthropic API under commercial terms that do not allow training on customer data.</p>
+
+  <h2>6. Customer data in the {{ product }} service</h2>
+  <ul>
+    <li>We process call recordings and transcripts only to produce the outputs the customer asked for, and deliver those outputs to the customer's own tools: its chat, its task tracker and its git repository.</li>
+    <li>We do not use customer data to train models, and we do not share it with other customers.</li>
+    <li>The browser workspace reads the customer's repository with a read-only key and shows its content only to signed-in members of that customer's workspace.</li>
+    <li>Processing region, sub-processors, retention and deletion of customer data are set out in the DPA.</li>
+    <li>The customer is responsible for having a lawful basis to record its calls and for informing call participants, including any consent that applies in their jurisdictions.</li>
   </ul>
 
-  <h2>Signing in to a beta workspace</h2>
-  <p>To sign in, you type your work email and we email you a one-time link through our email delivery provider. We keep the link's token, in hashed form, for 15 minutes. After sign-in, a session cookie keeps you signed in for up to 14 days. Signing out deletes it. Your workspace's calls are read from your own vault repository with a read-only key you give us, and are shown only to members of your workspace.</p>
+  <h2>7. International transfers</h2>
+  <p>Some of our providers may process personal data outside the European Economic Area. Where they do, we rely on an adequacy decision of the European Commission (including the EU–US Data Privacy Framework where the provider is certified) or on the Standard Contractual Clauses approved by the European Commission, together with any additional safeguards required.</p>
 
-  <h2>The hosted beta</h2>
-  <p>In the hosted beta we process your call recordings and transcripts on your behalf, only to produce the outputs you asked for: digests, task proposals and vault files. For this processing you are the controller and we are the processor. Before any call data is processed, we sign a data processing agreement with you that lists our sub-processors (for example hosting, speech-to-text and language-model providers), where data is processed and how long it is kept. You remain responsible for obtaining any consent that recording your calls requires.</p>
+  <h2>8. Security</h2>
+  <p>We use appropriate technical and organisational measures to protect personal data, including encryption in transit, hashed single-use sign-in tokens, signed and HttpOnly session cookies, rate limits on sign-in and forms, least-privilege and read-only access keys, and access to production systems limited to the people who need it. No system is completely secure; if a personal data breach affects you, we will inform you and the authorities as the law requires.</p>
 
-  <h2>Your rights</h2>
-  <p>You can ask us to access, correct, export or delete personal data we hold about you, or object to its processing, by writing to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>. You also have the right to complain to a data protection authority: in Spain, the Agencia Española de Protección de Datos (aepd.es).</p>
+  <h2>9. Your rights</h2>
+  <p>You have the right to access your personal data, to have it corrected or deleted, to restrict or object to its processing, to data portability, and, where processing is based on consent, to withdraw that consent at any time. To exercise any of these rights, email <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>. We answer within one month. We may ask you to confirm your identity first.</p>
+  <p>You also have the right to lodge a complaint with a data protection authority. In Spain this is the Agencia Española de Protección de Datos (aepd.es), C/ Jorge Juan 6, 28001 Madrid.</p>
 
-  <h2>Changes</h2>
-  <p>If we change this policy, we will update the date at the top of this page. Material changes affecting beta participants will be announced to them by email.</p>
+  <h2>10. Children</h2>
+  <p>{{ product }} is a service for businesses. It is not directed at children, and we do not knowingly collect personal data from anyone under 16.</p>
+
+  <h2>11. Changes to this policy</h2>
+  <p>We may update this policy from time to time. We will change the date at the top of this page and, for material changes, notify customers by email before the change takes effect.</p>
+
+  <h2>12. Contact</h2>
+  <p>{{ legal.entity_name }}, {{ legal.address }}. Email: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
 </main>
 <!-- @include footer -->
 </body>
