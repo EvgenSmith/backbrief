@@ -17,15 +17,18 @@
   --red: #9b3b2b;
   --blue-soft: #e4ecf6;
   --blue: #2c5a8c;
+  --on-accent: #ffffff;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(29, 29, 27, .06), 0 8px 24px rgba(29, 29, 27, .06);
   --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
+/* Dark theme: follows the OS unless a viewer explicitly picks light; an explicit
+   data-theme="dark" wins too (the same values in both blocks). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #121412;
     --surface: #1a1d1a;
     --band: #161916;
@@ -41,8 +44,30 @@
     --red: #e39282;
     --blue-soft: #1b2633;
     --blue: #8db4df;
+    --on-accent: #0f1a14;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #121412;
+  --surface: #1a1d1a;
+  --band: #161916;
+  --ink: #ecebe6;
+  --muted: #a3a29c;
+  --line: #2c312c;
+  --green: #74b893;
+  --green-strong: #8fcaa9;
+  --green-soft: #1e2d24;
+  --amber: #e0a456;
+  --amber-soft: #2e2618;
+  --red-soft: #33201c;
+  --red: #e39282;
+  --blue-soft: #1b2633;
+  --blue: #8db4df;
+  --on-accent: #0f1a14;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -55,6 +80,7 @@ body {
   font: 17px/1.6 var(--sans);
 }
 img { max-width: 100%; height: auto; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
 a { color: var(--green); text-underline-offset: 2px; }
 a:hover { color: var(--green-strong); }
 h1, h2, h3 { line-height: 1.2; margin: 0 0 .6em; letter-spacing: -.01em; }
@@ -78,7 +104,7 @@ pre { margin: 0; }
 
 /* Header */
 .site-header {
-  position: sticky; top: 0; z-index: 5;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(1.2) blur(8px);
   border-bottom: 1px solid var(--line);
@@ -93,11 +119,10 @@ pre { margin: 0; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 46px; padding: 0 20px; border-radius: 999px;
-  background: var(--green); color: #fff; border: 1px solid var(--green);
+  background: var(--green); color: var(--on-accent); border: 1px solid var(--green);
   font: 600 1rem/1 var(--sans); text-decoration: none; cursor: pointer;
 }
-.btn:hover { background: var(--green-strong); color: #fff; }
-@media (prefers-color-scheme: dark) { .btn, .btn:hover { color: #0f1a14; } }
+.btn:hover { background: var(--green-strong); color: var(--on-accent); }
 .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
 .btn-ghost:hover { background: var(--surface); color: var(--ink); }
 .btn-small { min-height: 38px; padding: 0 16px; font-size: .92rem; }
@@ -141,8 +166,7 @@ section { padding: 88px 0; }
 }
 .fan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
 .leaf { font-size: .88rem; padding: 10px 8px; }
-.leaf-strong { background: var(--green); color: #fff; border-color: var(--green); display: grid; place-items: center; }
-@media (prefers-color-scheme: dark) { .leaf-strong { color: #0f1a14; } }
+.leaf-strong { background: var(--green); color: var(--on-accent); border-color: var(--green); display: grid; place-items: center; }
 
 /* Grids */
 .cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
@@ -266,7 +290,7 @@ details p { color: var(--muted); margin: 10px 0 0; }
 .auth-card { padding-top: 64px; }
 .auth-card .brand { margin-bottom: 24px; }
 .cabinet { background: var(--bg); }
-.app-header { border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+.app-header { border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
 .app-header-row { display: flex; align-items: center; gap: 14px; min-height: 58px; padding: 0 20px; }
 .ws-name { font-weight: 600; padding-left: 14px; border-left: 1px solid var(--line); }
 .badge { font: 700 .7rem/1 var(--sans); text-transform: uppercase; letter-spacing: .1em; color: var(--amber); background: var(--amber-soft); padding: 5px 8px; border-radius: 6px; }
