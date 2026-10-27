@@ -266,6 +266,44 @@ test('vault tree: counts, folder descriptions and links', () => {
   ]) assert.ok(edges.some((e) => e.join('|') === want.join('|')), `missing edge ${want.join(' → ')}`);
 });
 
+test('AGENTS.md: the opening sentence and the "How to find things" recipes; the tenant timezone', () => {
+  const d = loadDemo();
+  const a = V.agentsGuide(d.read('AGENTS.md'));
+  assert.equal(a.path, 'AGENTS.md');
+  assert.equal(a.intro, "This is Acme's call-memory vault: every team call becomes a markdown file with structured frontmatter (context digest + decisions + next steps), maintained by Backbrief.");
+  assert.deepEqual(a.recipes.map((r) => r.want), [
+    'All calls of a team', 'Calls in a date range', 'Who decided X', 'Open commitments of a person',
+    "A person's role/zones/aliases", 'Everything about a topic', 'What a task came from',
+  ], 'the header and separator rows are dropped');
+  assert.equal(a.recipes[0].do, "`rg -l 'team: product' --glob '**/transcripts/*.md'`", 'cells keep their inline markdown');
+  assert.equal(a.recipes[1].do, 'filenames sort chronologically: `ls <team>/transcripts/ | sort`', 'an escaped pipe stays in its cell');
+  const v = V.vaultTree({ files: d.files, calls: d.calls, tasks: d.tasks, members: d.members, tenant: d.tenant, training: d.training, agentsMd: d.read('AGENTS.md') });
+  assert.deepEqual(v.agents, a, 'vault.json carries it as agents');
+  assert.equal(V.agentsGuide(''), null, 'no AGENTS.md, no agents block');
+  assert.deepEqual(V.agentsGuide('# Vault\n\nFirst sentence. Second one.\nStill the intro.\n\n## How to find things\n\n| You want | Do |\n|:--|--|\n| a \\| b | `c` then d |\n\n## Next\n| x | y |\n'),
+    { path: 'AGENTS.md', intro: 'First sentence.', recipes: [{ want: 'a | b', do: '`c` then d' }] }, 'only the recipes table is read');
+  assert.equal(V.agentsGuide('# Vault\n\nNo recipes here.\n').recipes.length, 0);
+
+  assert.equal(demoWorkspace(d).workspace.timezone, 'Europe/London', 'from tenant.yaml tenant.timezone');
+  assert.equal(V.buildWorkspace({ info: { id: 'x' }, callPaths: [], calls: [], tasks: [], members: [] }).workspace.timezone, null, 'no tenant, no timezone');
+});
+
+test('demo config: Slack delivery default, setup steps and issue bodies', () => {
+  const cfg = demoConfig();
+  // The landing promises proposals with Approve and Skip in the call's thread: combination 7.
+  assert.deepEqual(cfg.slack.delivery, { summary: true, transcript_link: false, recording_link: true, task_log: true });
+  assert.ok(cfg.slack.channels_available.every((c) => /^#[a-z0-9-]+$/.test(c)));
+  assert.ok(cfg.slack.channels_available.includes('#call-digests') && cfg.slack.channels_available.includes('#product-sync'));
+  assert.deepEqual(cfg.overview.setup.map((s) => s.id), ['sources', 'people', 'slack', 'first_call']);
+  const ws = demoWorkspace();
+  const pending = ws.task_log.find((e) => e.pending);
+  assert.deepEqual(Object.keys(cfg.issue_body), [pending.tasks_path]);
+  assert.deepEqual(Object.keys(cfg.issue_body[pending.tasks_path]), pending.proposals.map((p) => String(p.n)), 'one body per waiting proposal');
+  for (const body of Object.values(cfg.issue_body[pending.tasks_path])) {
+    assert.deepEqual(Object.keys(body), ['context', 'task', 'result', 'extra'], 'the four blocks of task-4block.md');
+  }
+});
+
 test('people: activity, unprofiled names, and every evidence quote is in the call it cites', () => {
   const d = loadDemo();
   const cfg = demoConfig();
@@ -285,6 +323,8 @@ test('people: activity, unprofiled names, and every evidence quote is in the cal
   assert.deepEqual(shah.aliases, ['Priya', 'Priya S.', '@priya']);
   assert.deepEqual(shah.team, { value: null, ask: true, options: ['product', 'growth', 'engineering'] });
   assert.deepEqual(shah.typical_partners, ['Hughes']);
+  assert.deepEqual(shah.accounts, { slack: '@priya', tracker: 'Priya Shah', matched_by: 'email' }, 'accounts pass through from the caller');
+  assert.equal(V.peopleIndex({ members: d.members, calls: d.calls, suggestions: { X: {} } }).add_person.suggestions.X.accounts, null);
   assert.ok(p.add_person.taken.some((t) => t.name === 'Emma C.' && t.path === 'team/Carter.md'));
 
   // A quote counts as evidence only if the cited call says it at the cited time:
@@ -335,6 +375,7 @@ test('overview: what needs a decision, digest totals, and the training log', () 
   // Settings a vault can answer: Linear activity and the Slack channels.
   const s = V.settingsFromVault({ tenant: d.tenant, calls: d.calls, taskLog: ws.task_log });
   assert.deepEqual(s.sources.find((x) => x.id === 'linear').activity, { issues_created: 7, comments: 4, file_only: 2 });
+  assert.deepEqual(s.sources.find((x) => x.id === 'linear').settings.default_assignees, { product: 'Brooks', growth: 'Carter', engineering: 'Hughes' }, 'Sources › Linear: "product → PRD (Brooks)"');
   assert.deepEqual(s.slack, { channel: '#call-digests', per_team_channels: { product: '#product-sync' } });
 });
 

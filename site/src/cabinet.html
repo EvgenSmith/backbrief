@@ -4,8 +4,10 @@
 <head>
 <!-- @include head -->
 <meta name="robots" content="{{ page.robots }}">
+<link rel="stylesheet" href="/assets/cabinet-tasks.css">
+<link rel="stylesheet" href="/assets/cabinet-people.css">
 </head>
-<body class="cabinet" data-mode="{{ page.mode }}">
+<body class="cabinet" data-mode="{{ page.mode }}" data-contact="{{ contact_email }}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="app-header">
   <div class="app-header-row">
@@ -16,6 +18,7 @@
     <span class="ws-name" data-ws-name>Workspace</span>
     <span class="badge" data-demo-only>Demo</span>
     <div class="app-actions">
+      <button class="btn btn-small btn-ghost" type="button" data-reset data-demo-only>Reset demo</button>
       <a class="btn btn-small" href="/book" data-demo-only>Book a demo</a>
       <span class="small muted" data-user data-app-only></span>
       <form method="post" action="/api/auth/logout" data-app-only>
@@ -24,21 +27,36 @@
     </div>
   </div>
 </header>
-<p class="demo-banner" data-demo-only>This is a demo workspace for a fictional team. Every screen is what a beta team sees for its own calls.</p>
+<p class="demo-banner" data-demo-banner data-demo-only>Demo workspace for a fictional team. Everything in it runs in your browser.</p>
 <div class="app-layout">
   <nav class="app-nav" aria-label="Workspace">
     <a href="#/" data-nav="overview">Overview</a>
     <a href="#/calls" data-nav="calls">Calls</a>
-    <a href="#/tasks" data-nav="tasks">Action items</a>
+    <a href="#/tasks" data-nav="tasks">Action items <span class="nav-count" data-nav-count hidden></span></a>
     <a href="#/people" data-nav="people">People</a>
+    <hr class="nav-rule">
+    <a href="#/memory" data-nav="memory">Company memory</a>
+    <a href="#/sources" data-nav="sources">Sources</a>
   </nav>
-  <main id="main" class="app-main">
-    <h1 data-view-title>Loading…</h1>
-    <div data-view aria-live="polite"><p class="muted">Loading the workspace…</p></div>
-    <noscript><p>The workspace needs JavaScript to render. The underlying files are plain markdown in the vault repository.</p></noscript>
+  <main id="main" class="app-main" tabindex="-1">
+    <div class="page-head">
+      <p class="eyebrow" data-view-eyebrow hidden></p>
+      <div class="page-title">
+        <h1 data-view-title tabindex="-1">Loading…</h1>
+        <div class="page-actions" data-view-actions hidden></div>
+      </div>
+      <div class="page-lede" data-view-lede hidden></div>
+    </div>
+    <div data-view><p class="muted loading">Loading the workspace…</p></div>
+    <noscript><p>The workspace needs JavaScript to render. The underlying files are plain markdown in your team's git repository.</p></noscript>
   </main>
 </div>
+<div class="toasts" data-toasts role="status" aria-live="polite"></div>
 <!-- @include footer -->
 <script src="/assets/cabinet.js" defer></script>
+<script src="/assets/cabinet-tasks.js" defer></script>
+<script src="/assets/cabinet-people.js" defer></script>
+<script src="/assets/cabinet-memory.js" defer></script>
+<script src="/assets/cabinet-sources.js" defer></script>
 </body>
 </html>

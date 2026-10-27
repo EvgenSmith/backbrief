@@ -177,12 +177,13 @@ function copyDir(from, to) {
  *   demo/calls/<id>.json        one call: digest, proposals, transcript, recording, Slack post
  *   demo/transcripts/<id>.json  the call's .vtt as [{speaker, ts_mmss, text}]
  *   demo/people.json            profiles + activity, unprofiled names, "Add person" rules
- *   demo/vault.json             the vault as a folder tree + the links between files
+ *   demo/vault.json             the vault as a folder tree + the links between files + AGENTS.md's recipes
  *   demo/settings.json          sources (Zoom, Slack, Linear, GitHub) and Slack delivery
  *
  * Facts no vault holds (connection status, accounts, scope wording, delivery
- * toggles, the ids a click would create, model suggestions for an unprofiled
- * name) come from demo.config.json, marked "_demo_only" and read here only.
+ * toggles and channels, setup dates, the ids a click would create and the
+ * issue bodies behind them, model suggestions for an unprofiled name) come
+ * from demo.config.json, marked "_demo_only" and read here only.
  */
 function slackScopes() {
   // The scopes the shipped Slack app manifest requests: what "connected" grants.
@@ -233,17 +234,44 @@ function buildDemo(out) {
     transcriptUrl: (c) => `/demo/transcripts/${c.id}.json`,
   });
 
-  // The ids a click on a still-pending proposal would create (a demo cannot ask Linear).
+  // The ids a click on a still-pending proposal would create (a demo cannot ask
+  // Linear), and the issue body each would be filed with ({context, task,
+  // result, extra}: the four blocks of docs/templates/task-4block.md).
   const onApprove = demo.on_approve || {};
-  for (const p of Object.keys(onApprove)) {
-    if (!tasks.some((t) => t.path === p)) throw new Error(`demo.config.json on_approve: no tasks file at ${p}`);
+  const issueBodies = demo.issue_body || {};
+  for (const [key, byPath] of [['on_approve', onApprove], ['issue_body', issueBodies]]) {
+    for (const [p, byN] of Object.entries(byPath)) {
+      const entry = ws.task_log.find((e) => e.tasks_path === p);
+      if (!entry) throw new Error(`demo.config.json ${key}: no tasks file at ${p}`);
+      for (const n of Object.keys(byN)) {
+        if (!entry.proposals.some((x) => String(x.n) === n && x.status === 'pending')) {
+          throw new Error(`demo.config.json ${key}: ${p} has no pending proposal ${n}`);
+        }
+      }
+    }
   }
   const withOnApprove = (entry) => {
     const ids = onApprove[entry.tasks_path] || {};
-    for (const p of entry.proposals) if (p.status === 'pending') p.on_approve = ids[String(p.n)] || null;
+    const bodies = issueBodies[entry.tasks_path] || {};
+    for (const p of entry.proposals) {
+      if (p.status !== 'pending') continue;
+      p.on_approve = ids[String(p.n)] || null;
+      if (bodies[String(p.n)]) p.issue_body = bodies[String(p.n)];
+    }
     return entry;
   };
   ws.task_log.forEach(withOnApprove);
+
+  // How the demo workspace was set up: the dates are config, the rest comes
+  // from the vault (confirmed profiles, the first call).
+  const SETUP = ['sources', 'people', 'slack', 'first_call'];
+  ws.overview.setup = ((demo.overview && demo.overview.setup) || []).map((s) => {
+    if (!SETUP.includes(s.id)) throw new Error(`demo.config.json overview.setup: unknown step ${s.id}`);
+    const step = { id: s.id, done: s.done !== false, at: s.at || null };
+    if (s.id === 'people') step.count = members.filter((m) => m.status === 'confirmed').length;
+    if (s.id === 'first_call') step.call_id = idOf(s.call);
+    return step;
+  });
 
   // Settings: per-source settings and activity from the vault; status, accounts
   // and scope wording from the demo config; the Slack scopes from the manifest.
@@ -262,6 +290,11 @@ function buildDemo(out) {
       activity: s.activity,
     };
   });
+  // Channels the bot could post to: what a channel picker lists (a demo cannot ask Slack).
+  const channelsAvailable = (demo.slack && demo.slack.channels_available) || [];
+  for (const ch of channelsAvailable) {
+    if (!/^#[a-z0-9][a-z0-9_-]*$/.test(ch)) throw new Error(`demo.config.json slack.channels_available: "${ch}" is not a channel name`);
+  }
   const settings = {
     sources,
     coming_next: demo.coming_next || [],
@@ -270,6 +303,7 @@ function buildDemo(out) {
       ...fromVault.slack,
       delivery: (demo.slack && demo.slack.delivery) || {},
       locked: (demo.slack && demo.slack.locked) || [],
+      channels_available: channelsAvailable,
       preview_call_id: demo.slack && demo.slack.preview_call ? idOf(demo.slack.preview_call) : null,
     },
   };

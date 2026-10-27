@@ -815,6 +815,8 @@ export function peopleIndex({ members, calls, suggestions = {}, teams = [] }) {
       team: { value: s.team || null, ask: !s.team, options: teams },
       zones: (s.zones || []).map((z) => ({ value: z.value, evidence: resolveEvidence(z.evidence) })),
       typical_partners: [...new Set(helpedWith)],
+      // Chat and tracker accounts matched by email ({slack, tracker, matched_by}); the caller supplies them.
+      accounts: s.accounts && typeof s.accounts === 'object' ? s.accounts : null,
     };
   }
   return {
@@ -848,6 +850,36 @@ export function folderMap(agentsMd) {
     });
   }
   return out;
+}
+
+/**
+ * AGENTS.md as the workspace shows it: the file's opening sentence and its
+ * "How to find things" table as [{want, do}]. `do` keeps the cell's inline
+ * markdown (commands in backticks); escaped pipes (\|) are unescaped. Null
+ * when the vault has no AGENTS.md.
+ */
+export function agentsGuide(agentsMd, path = 'AGENTS.md') {
+  const text = String(agentsMd || '').replace(/^\uFEFF/, '');
+  if (!text.trim()) return null;
+  const lines = text.split(/\r?\n/);
+  const para = [];
+  for (const line of lines.slice(lines.findIndex((l) => /^# /.test(l)) + 1)) {
+    if (!line.trim()) { if (para.length) break; continue; }
+    if (/^#/.test(line)) break;
+    para.push(line.trim());
+  }
+  const intro = para.join(' ').split(/(?<=[.!?])\s+(?=[A-Z])/)[0] || null;
+  const recipes = [];
+  const section = text.split(/^## How to find things\b.*$/m)[1];
+  for (const line of section ? section.split(/^## /m)[0].split(/\r?\n/) : []) {
+    if (!/^\s*\|/.test(line)) continue;
+    const cells = line.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '')
+      .split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, '|'));
+    if (cells.length < 2 || cells.every((c) => /^:?-+:?$/.test(c))) continue;
+    recipes.push({ want: cells[0], do: cells[1] });
+  }
+  if (recipes.length && /^you want$/i.test(recipes[0].want)) recipes.shift();
+  return { path, intro, recipes };
 }
 
 /** A README's "# x/ — what it is" title, and "| `sub/` | what |" table rows, keyed by vault path. */
@@ -1021,6 +1053,7 @@ export function vaultTree({ files, calls, tasks, members, tenant = null, agentsM
     },
     tree,
     edges,
+    agents: agentsGuide(agentsMd),
   };
 }
 
@@ -1064,6 +1097,8 @@ export function settingsFromVault({ tenant, calls, taskLog, slackScopes = [] }) 
         id: 'linear', category: 'tracker', enabled: tracker.enabled !== false && tracker.kind !== 'other',
         settings: {
           team_mapping: Object.fromEntries((Array.isArray(tracker.team_mapping) ? tracker.team_mapping : []).map((m) => [m.team_tag, m.tracker_team_key])),
+          // Who gets a team's tasks that have no owner (tenant.yaml team_mapping[].default_assignee).
+          default_assignees: Object.fromEntries((Array.isArray(tracker.team_mapping) ? tracker.team_mapping : []).filter((m) => m.default_assignee).map((m) => [m.team_tag, str(m.default_assignee)])),
           autonomy_level: str(tracker.autonomy_level) || 'L0',
           thresholds: { comment: 0.75, flag_discovery: 0.55, flag_planning: 0.35, ...(tracker.thresholds || {}) },
         },
@@ -1129,7 +1164,8 @@ export function buildWorkspace({
   const logByCall = new Map(taskLog.map((e) => [e.call_id, e]));
 
   return {
-    workspace: { ...info, company },
+    // timezone: tenant.yaml's IANA zone, for clock times the pipeline wrote in UTC (tasks `generated`).
+    workspace: { ...info, company, timezone: str(tenant && tenant.tenant && tenant.tenant.timezone) },
     window: { calls: sorted.length, total: callPaths.length, truncated: sorted.length < callPaths.length },
     stats: {
       calls_total: callPaths.length,

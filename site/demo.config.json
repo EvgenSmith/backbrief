@@ -1,6 +1,6 @@
 {
   "_demo_only": true,
-  "_about": "Facts no vault holds, for the public demo at /demo only: connection status and accounts, scope wording, Slack delivery toggles, the ids a click would create, and the role/zone suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
+  "_about": "Facts no vault holds, for the public demo at /demo only: connection status and accounts, scope wording, Slack delivery toggles and the channels the bot can post to, the dates the workspace was set up, the ids a click would create and the issue bodies of the waiting proposals, and the role, zone and account suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
   "sources": {
     "zoom": {
       "status": "connected",
@@ -35,9 +35,18 @@
   },
   "coming_next": ["Google Meet", "Microsoft Teams", "Jira", "Asana", "Single sign-on"],
   "imports": ["Granola export", "Fireflies export"],
+  "overview": {
+    "setup": [
+      { "id": "sources", "at": "2026-10-01" },
+      { "id": "people", "at": "2026-10-02" },
+      { "id": "slack", "at": "2026-10-02" },
+      { "id": "first_call", "at": "2026-10-05", "call": "general/transcripts/2026-10-05 1000 weekly sync launch status w Brooks,Carter,Hughes,Kim.md" }
+    ]
+  },
   "slack": {
-    "delivery": { "summary": true, "transcript_link": false, "recording_link": true, "task_log": false },
+    "delivery": { "summary": true, "transcript_link": false, "recording_link": true, "task_log": true },
     "locked": ["summary"],
+    "channels_available": ["#call-digests", "#product-sync", "#growth", "#engineering", "#general"],
     "preview_call": "product/transcripts/2026-10-07 1300 pricing model review w Carter,Brooks.md"
   },
   "on_approve": {
@@ -46,6 +55,34 @@
       "2": { "result": "commented", "ref": "ENG-311" },
       "3": { "result": "commented", "ref": "GRW-102", "alt": { "label": "Create new instead", "result": "created", "ref": "GRW-232" } },
       "4": { "result": "created", "ref": "ENG-329", "label": "Create anyway" }
+    }
+  },
+  "issue_body": {
+    "tasks/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.tasks.md": {
+      "1": {
+        "context": "The weekly sync confirmed that the self-serve launch go/no-go stays on 26 October, as agreed on 14 October. The pricing page is done, the launch email is drafted and billing has one open case: clinics mid-trial on the old plan.",
+        "task": "Run the launch go/no-go meeting on Monday 26 October. Every owner brings their launch checklist.",
+        "result": "A go or no-go decision for the self-serve tier, with any remaining blocker named and owned.",
+        "extra": "- Call: «Weekly sync: launch readiness» (2026-10-19 10:00)\n- Quote: «I'll run the go/no-go Monday morning, everyone brings their checklist» (21:10)\n- Slack thread: #call-digests\n- Vault: general/transcripts/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.md"
+      },
+      "2": {
+        "context": "ENG-311 estimates the billing work for the self-serve tier. The weekly sync added one case to it: clinics that are mid-trial on the old plan when the new pricing goes live.",
+        "task": "Handle clinics mid-trial on the old plan in billing: they keep their old trial terms, and the new pricing applies from their first invoice. Okafor helps.",
+        "result": "Billing charges a clinic that was mid-trial at launch the new price from its first invoice, and not before. Due Thursday.",
+        "extra": "- Call: «Weekly sync: launch readiness» (2026-10-19 10:00)\n- Quote: «we'll handle the mid-trial case in billing by Thursday» (07:30)\n- Slack thread: #call-digests\n- Vault: general/transcripts/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.md"
+      },
+      "3": {
+        "context": "The weekly sync decided that clinics mid-trial keep their old trial terms and pay the new price from their first invoice. Carter asked for the billing FAQ to say so before launch.",
+        "task": "Add an entry to the billing FAQ on what happens to clinics that are mid-trial when the self-serve pricing launches.",
+        "result": "The billing FAQ answers the mid-trial question in one entry, in the words of the decision.",
+        "extra": "- Call: «Weekly sync: launch readiness» (2026-10-19 10:00)\n- Quote: «the billing FAQ should say what happens mid-trial» (08:15)\n- Similar: GRW-102 «Billing FAQ refresh» (65%)\n- Slack thread: #call-digests\n- Vault: general/transcripts/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.md"
+      },
+      "4": {
+        "context": "The 12 October incident review asked for per-clinic rate limits on the public booking API. On the weekly sync Hughes reported them live.",
+        "task": "Ship per-clinic rate limits on the public booking API.",
+        "result": "Each clinic has its own request limit on the public booking API.",
+        "extra": "- Call: «Weekly sync: launch readiness» (2026-10-19 10:00)\n- Matches ENG-318 «Add per-clinic rate limits to the public booking API», done on this call (15:20)\n- Slack thread: #call-digests\n- Vault: general/transcripts/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.md"
+      }
     }
   },
   "people": {
@@ -72,7 +109,8 @@
               { "call": "general/transcripts/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.md", "ts": "01:40", "quote": "Shah's support macros for self-serve signups are ready for launch day" }
             ]
           }
-        ]
+        ],
+        "accounts": { "slack": "@priya", "tracker": "Priya Shah", "matched_by": "email" }
       }
     }
   }

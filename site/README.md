@@ -25,7 +25,9 @@ site/
 ├── site.config.json      ← everything that changes per deployment: domain, contact email,
 │                            legal entity, team, links, production stats, demo settings
 ├── src/                  ← pages (index, book, privacy, terms, login, cabinet shell, 404) + partials
-├── assets/               ← styles.css, logo.svg, fonts/, people/, book.js, login.js, cabinet.js
+├── assets/               ← styles.css, logo.svg, fonts/, people/, book.js, login.js, and the workspace:
+│                            cabinet.js (shell + window.BB core) with its modules cabinet-{tasks,people,
+│                            memory,sources}.js and cabinet-{tasks,people}.css
 ├── demo-vault/           ← the fictional team's vault behind /demo (kit format, validated in CI)
 ├── demo.config.json      ← demo-only facts no vault holds (connections, Slack delivery toggles,
 │                            ids a click would create); read by build.js for /demo, never by /app

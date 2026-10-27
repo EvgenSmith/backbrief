@@ -15,6 +15,9 @@
  *   - the demo data under dist/demo (every file) is complete, English only,
  *     names only the current demo team, and has no open-source, self-hosting,
  *     licence or beta wording (visitors read all of it)
+ *   - the same wording rules for the workspace's own code and pages:
+ *     dist/assets/cabinet*.js, cabinet*.css, demo.html and app.html (their
+ *     copy and comments ship to every visitor; SPDX lines are skipped)
  *
  * --release additionally fails on:
  *   - any remaining "TODO" placeholder in the built pages
@@ -184,6 +187,25 @@ try {
   }
 } catch (e) {
   fail(`demo workspace data unreadable: ${e.message}`);
+}
+
+// The workspace shell and its modules: all UI copy lives in this code, and
+// its comments ship too. Same rules as the demo data. SPDX licence lines are
+// skipped (the build strips them anyway).
+const CABINET_ASSETS = ['cabinet.js', 'cabinet-tasks.js', 'cabinet-people.js', 'cabinet-memory.js', 'cabinet-sources.js', 'cabinet-tasks.css', 'cabinet-people.css'];
+const assetsDir = path.join(DIST, 'assets');
+const shipped = fs.existsSync(assetsDir) ? fs.readdirSync(assetsDir).filter((f) => /^cabinet.*\.(js|css)$/.test(f)) : [];
+for (const f of CABINET_ASSETS) if (!shipped.includes(f)) fail(`dist is missing assets/${f}`);
+for (const rel of [...shipped.map((f) => `assets/${f}`), 'demo.html', 'app.html']) {
+  if (!fs.existsSync(path.join(DIST, rel))) continue;
+  const lines = fs.readFileSync(path.join(DIST, rel), 'utf8').split('\n');
+  lines.forEach((line, i) => {
+    if (/SPDX-License-Identifier/.test(line)) return;
+    for (const [re, what] of DEMO_GUARD) {
+      const hit = line.match(re);
+      if (hit) fail(`${rel}:${i + 1}: ${what} "${hit[0]}" (every visitor loads it)`);
+    }
+  });
 }
 
 const team = config.team || [];
