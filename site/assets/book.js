@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Book-a-demo form, two steps: contact details, then call booking.
-// Step 1 posts the email to /api/waitlist. Step 2 shows the booking calendar
+// Step 1 posts the email to /api/book. Step 2 shows the booking calendar
 // (links.book_demo, prefilled with the name and email) when one is configured,
 // otherwise a note that we'll email times. Without JavaScript the form still
 // posts, and the function redirects back to #booked.

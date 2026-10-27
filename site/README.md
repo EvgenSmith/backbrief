@@ -24,12 +24,12 @@ those things.
 site/
 ├── site.config.json      ← everything that changes per deployment: domain, contact email,
 │                            legal entity, team, links, production stats, demo settings
-├── src/                  ← pages (index, privacy, terms, login, cabinet shell, 404) + partials
-├── assets/               ← styles.css, logo.svg, waitlist.js, login.js, cabinet.js
+├── src/                  ← pages (index, book, privacy, terms, login, cabinet shell, 404) + partials
+├── assets/               ← styles.css, logo.svg, fonts/, people/, book.js, login.js, cabinet.js
 ├── demo-vault/           ← the fictional team's vault behind /demo (kit format, validated in CI)
 ├── lib/                  ← shared by the build and the functions: vault parsing, GitHub reads,
 │                            sessions, sign-in, workspace registry
-├── functions/api/        ← Cloudflare Pages Functions: waitlist, auth/{request,verify,logout},
+├── functions/api/        ← Cloudflare Pages Functions: book, auth/{request,verify,logout},
 │                            me, workspace, call, people
 ├── scripts/              ← build.js · check.js · serve.js · workspace.js
 └── tests/                ← cabinet.test.js (node --test)
@@ -143,12 +143,15 @@ there.
 Never set `DEV_RETURN_LINK` or `WAITLIST_DRY_RUN` in production. They exist
 for the local preview.
 
-The beta form posts to `/api/waitlist` on the same domain. The function
+The book-a-demo form (`/book` and the end of the landing page) posts to
+`/api/book` on the same domain. The function
 forwards the email to the gateway's `POST /v1/waitlist` with `interest:
 "hosted"`, so emails are still stored in exactly one place. Waitlist entries
 have no automatic expiry: the privacy policy promises deletion when the beta
 ends, so delete them then.
 
-`_headers` sets a strict Content Security Policy (`'self'` only). Any external
-script, font or stylesheet will be blocked by the browser and also fails
-`check.js`.
+`_headers` sets a strict Content Security Policy (`'self'` only, plus
+`frame-src` for the booking calendar when `links.book_demo` is set). Any
+external script, font or stylesheet will be blocked by the browser and also
+fails `check.js`. Fonts are self-hosted in `assets/fonts/` (Archivo, IBM Plex
+Sans and IBM Plex Mono, SIL Open Font License, see `assets/fonts/OFL.txt`).

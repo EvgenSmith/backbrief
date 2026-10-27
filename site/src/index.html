@@ -11,90 +11,118 @@
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-copy">
-        <p class="eyebrow">For distributed product teams on Zoom, Slack and Linear</p>
-        <h1>Every call ends with decisions on record and tasks in Linear.</h1>
-        <p class="lede">Nobody has to write it up. After each call, {{ product }} reads the recording and does the follow-up your team keeps skipping:</p>
-        <ul class="hero-points">
-          <li>Posts the decisions, agreements and owners to the call's Slack thread, each linked to the minute it was said.</li>
-          <li>Proposes Linear tasks after checking your backlog, so a task you already have gets a comment instead of a duplicate.</li>
-          <li>Saves the call as a markdown file in your git repository, so your AI agents know what the team decided.</li>
+        <p class="eyebrow"><span class="beta-tag">Beta</span> For distributed product teams on Zoom, Slack and Linear</p>
+        <h1>Every call ends with <mark>decisions on record</mark> and <mark>tasks in Linear</mark>.</h1>
+        <p class="lede">Nobody has to write it up. After each call, {{ product }} reads the recording and does the follow-up your team keeps skipping.</p>
+        <ul class="outputs">
+          <li><span class="dest">Slack</span><span>Decisions, agreements and owners in the call's thread, each linked to the minute it was said.</span></li>
+          <li><span class="dest">Linear</span><span>Tasks checked against your backlog, so a task you already have gets a comment instead of a duplicate.</span></li>
+          <li><span class="dest">Git</span><span>The call as a markdown file in your repository, so your AI agents know what the team decided.</span></li>
         </ul>
         <div class="cta-row">
           <a class="btn" href="/book">Book a demo</a>
           <a class="btn btn-ghost" href="/demo">See the demo workspace</a>
         </div>
-        <p class="small muted">Prefer to run it yourself? <a href="{{ links.github }}">Self-host from GitHub</a>, MIT-licensed.</p>
-        <ul class="proof" aria-label="Facts">
+        <ul class="facts" aria-label="Facts">
           <li>No bot joins your calls</li>
           <li>English, Russian and mixed-language calls</li>
-          <li><strong>{{ stats.calls_processed }}</strong> calls on our own team since {{ stats.in_production_since }}</li>
+          <li>Self-host from <a href="{{ links.github }}">GitHub</a>, MIT</li>
         </ul>
       </div>
 
-      <figure class="after-call" aria-label="What lands in Slack after a call">
-        <div class="ac-head">
-          <span class="ac-channel">#product-sync</span>
-          <span class="muted small">{{ product }} · 13:48</span>
+      <div class="hero-visual">
+        <div class="transcript" aria-label="Two lines of a call transcript">
+          <p class="transcript-head"><span>Transcript</span><span>EN · RU</span></p>
+          <p><span class="tc">16:38</span><span class="who">Petrov</span><span>Креатив уже под $19, сдвигать нельзя.</span></p>
+          <p><span class="tc">16:40</span><span class="who">Ivanova</span><span>Agreed. <mark>We ship the $19 tier before the Q3 campaign.</mark></span></p>
         </div>
-        <p class="ac-title">Pricing model review <span class="muted small">· 47 min · Ivanova, Petrov</span></p>
-        <div class="ac-block">
-          <p class="ac-label">Decision</p>
-          <p>Ship the $19 self-serve tier before the Q3 campaign <span class="ts">(16:40)</span></p>
-        </div>
-        <div class="ac-block">
-          <p class="ac-label">Agreement</p>
-          <p>Ivanova ↔ Petrov: pricing copy freezes Friday so engineering can cut the release on Monday <span class="ts">(22:15)</span></p>
-        </div>
-        <div class="ac-block">
-          <p class="ac-label">Tasks, checked against your Linear backlog</p>
-          <ul class="ac-tasks">
-            <li><span class="v v-create">Create</span> <span>Rewrite pricing page copy · <span class="muted">Ivanova</span></span> <span class="id">GRW-214</span></li>
-            <li><span class="v v-comment">Comment</span> <span>Already tracked: deadline and owner added to <span class="id">GRW-180</span></span></li>
-            <li><span class="v v-flag">Flag</span> <span>Update the billing FAQ · <span class="muted">60% like GRW-102, owner unclear</span></span></li>
-          </ul>
-        </div>
-        <div class="ac-actions" aria-hidden="true">
-          <span class="ac-btn ac-btn-main">Approve safe (2)</span>
-          <span class="ac-btn">Review flagged</span>
-        </div>
-      </figure>
+
+        <figure class="thread" aria-label="What lands in Slack after the call">
+          <div class="thread-bar"><span><b># product-sync</b></span><span>Thread</span></div>
+          <div class="msg">
+            <img class="msg-av" src="/assets/logo.svg" alt="" width="36" height="36">
+            <div class="msg-main">
+              <p class="msg-head"><strong>{{ product }}</strong> <span class="app">App</span> <time>13:48</time></p>
+              <p class="msg-title">Pricing model review <span class="muted">· 47 min · Ivanova, Petrov</span></p>
+              <div class="msg-block">
+                <p class="label">Decision</p>
+                <p>Ship the $19 self-serve tier before the Q3 campaign <span class="ts">16:40</span></p>
+              </div>
+              <div class="msg-block">
+                <p class="label">Agreement</p>
+                <p>Ivanova ↔ Petrov: pricing copy freezes Friday so engineering can cut the release on Monday <span class="ts">22:15</span></p>
+              </div>
+              <div class="msg-block">
+                <p class="label">Tasks, checked against your Linear backlog</p>
+                <ul class="verdicts">
+                  <li><span class="v v-create">Create</span><span>Rewrite pricing page copy <span class="muted">· Ivanova</span></span><span class="id">GRW-214</span></li>
+                  <li><span class="v v-comment">Comment</span><span>Already tracked: deadline and owner added</span><span class="id">GRW-180</span></li>
+                  <li><span class="v v-flag">Flag</span><span>Update the billing FAQ <span class="muted">· owner unclear</span></span><span class="id">~GRW-102</span></li>
+                </ul>
+              </div>
+              <div class="msg-actions" aria-hidden="true">
+                <span class="sbtn sbtn-main">Approve safe (2)</span>
+                <span class="sbtn">Review flagged</span>
+              </div>
+            </div>
+          </div>
+        </figure>
+      </div>
     </div>
   </section>
 
   <section id="product" class="band">
     <div class="wrap">
-      <h2>What your team gets after every call</h2>
-      <p class="section-lede">Real output shapes, filled in for a fictional team. <a href="/demo">Open the demo workspace</a> to click through a week of their calls.</p>
+      <div class="section-head">
+        <h2>What your team gets after every call</h2>
+        <p class="section-lede">Real output, filled in for a fictional team. <a href="/demo">Open the demo workspace</a> to click through a week of their calls.</p>
+      </div>
       <div class="samples">
 
         <figure class="sample">
-          <figcaption><span class="tag">Linear</span> Tasks, checked against your backlog before anything is created</figcaption>
-          <table class="tasks">
-            <thead><tr><th>Task</th><th>Owner</th><th>Verdict</th></tr></thead>
-            <tbody>
-              <tr><td>Rewrite pricing page copy for the self-serve tier</td><td>Ivanova</td><td><span class="v v-create">Create</span> <span class="id">GRW-214</span></td></tr>
-              <tr><td>Pricing revamp: the call adds a Friday deadline and an owner</td><td>Ivanova</td><td><span class="v v-comment">Comment</span> <span class="id">on GRW-180</span></td></tr>
-              <tr><td>Update the billing FAQ</td><td>?</td><td><span class="v v-flag">Flag</span> <span class="id">60% like</span> <span class="id">GRW-102</span></td></tr>
-              <tr><td>Ask legal about the annual-plan wording</td><td>Petrov</td><td><span class="v v-create">Create</span></td></tr>
-            </tbody>
-          </table>
-          <p class="sample-note">Row two is the point: the call restated an issue you already have, so it becomes a comment there, not a second ticket. Row three is unsure and says so instead of guessing.</p>
-        </figure>
-
-        <figure class="sample">
-          <figcaption><span class="tag">Workspace</span> Where everyone reads it, in the browser</figcaption>
-          <div class="mini-ws">
-            <div class="mini-row"><span class="muted small">19 Oct</span><span>Weekly sync: launch readiness</span><span class="chip">3 items</span></div>
-            <div class="mini-row"><span class="muted small">16 Oct</span><span>Отчёт по воронке онбординга</span><span class="chip">ru</span></div>
-            <div class="mini-row"><span class="muted small">14 Oct</span><span>Self-serve launch plan</span><span class="chip">3 items</span></div>
-            <div class="mini-row"><span class="muted small">12 Oct</span><span>API rate limit incident review</span><span class="chip">urgent</span></div>
+          <div class="win">
+            <div class="win-bar"><span class="win-app">Linear</span><span class="win-path">Growth › Triage</span></div>
+            <div class="win-body">
+              <table class="tasks">
+                <thead><tr><th>Task</th><th>Owner</th><th>Verdict</th></tr></thead>
+                <tbody>
+                  <tr><td>Rewrite pricing page copy for the self-serve tier</td><td>Ivanova</td><td><span class="v v-create">Create</span> <span class="id">GRW-214</span></td></tr>
+                  <tr><td>Pricing revamp: the call adds a Friday deadline and an owner</td><td>Ivanova</td><td><span class="v v-comment">Comment</span> <span class="id">GRW-180</span></td></tr>
+                  <tr><td>Update the billing FAQ</td><td>?</td><td><span class="v v-flag">Flag</span> <span class="id">60% like GRW-102</span></td></tr>
+                  <tr><td>Ask legal about the annual-plan wording</td><td>Petrov</td><td><span class="v v-create">Create</span></td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <p class="sample-note">Calls, decisions, open action items and people for the whole team, including the people who never open GitHub. <a href="/demo">Try the demo</a>.</p>
+          <figcaption>
+            <h3>Tasks, checked against your backlog</h3>
+            <p>Row two is the point: the call restated an issue you already have, so it becomes a comment there instead of a second ticket. Row three is unsure and says so instead of guessing.</p>
+          </figcaption>
         </figure>
 
         <figure class="sample">
-          <figcaption><span class="tag">Git</span> A file per call that people and agents can both read</figcaption>
-          <pre class="code">## Decisions
+          <div class="win">
+            <div class="win-bar"><span class="win-app">{{ product }}</span><span class="win-path">Acme › Calls</span></div>
+            <div class="win-body">
+              <div class="mini-ws">
+                <div class="mini-row"><span class="mini-date">19 Oct</span><span>Weekly sync: launch readiness</span><span class="chip">3 items</span></div>
+                <div class="mini-row"><span class="mini-date">16 Oct</span><span>Отчёт по воронке онбординга</span><span class="chip">ru</span></div>
+                <div class="mini-row"><span class="mini-date">14 Oct</span><span>Self-serve launch plan</span><span class="chip">3 items</span></div>
+                <div class="mini-row"><span class="mini-date">12 Oct</span><span>API rate limit incident review</span><span class="chip chip-warn">urgent</span></div>
+              </div>
+            </div>
+          </div>
+          <figcaption>
+            <h3>A workspace everyone can read</h3>
+            <p>Calls, decisions, open action items and people for the whole team, including the people who never open GitHub. <a href="/demo">Try the demo</a>.</p>
+          </figcaption>
+        </figure>
+
+        <figure class="sample">
+          <div class="win">
+            <div class="win-bar"><span class="win-app">GitHub</span><span class="win-path">product/2026-10-14-pricing-review.md</span></div>
+            <div class="win-body">
+              <pre class="code">## Decisions
 1. Ship the $19 self-serve tier before the Q3
    campaign: the creative already assumes it (16:40)
 
@@ -106,18 +134,30 @@
 ### Post-call
 1. Rewrite pricing page copy — Ivanova [high] (14:32)
    > "we need to rewrite pricing for self-serve by Friday"</pre>
-          <p class="sample-note">The vault ships an AGENTS.md, so Claude Code, Cursor and other agents know how to find a decision and why it was made.</p>
+            </div>
+          </div>
+          <figcaption>
+            <h3>A file per call, for people and agents</h3>
+            <p>The repository ships an AGENTS.md, so Claude Code, Cursor and other agents know how to find a decision and why it was made.</p>
+          </figcaption>
         </figure>
 
         <figure class="sample">
-          <figcaption><span class="tag">Team</span> People, not speaker labels</figcaption>
-          <pre class="code">lastname: Ivanova
+          <div class="win">
+            <div class="win-bar"><span class="win-app">GitHub</span><span class="win-path">team/ivanova.md</span></div>
+            <div class="win-body">
+              <pre class="code">lastname: Ivanova
 first_names: [Maria]
 aliases: [Masha, Маша, "Maria I.", "@maria"]
 role: Growth Lead
 team: growth
 zones: [onboarding-emails, paid-acquisition]</pre>
-          <p class="sample-note">One profile per teammate. That is how the digest says "Maria owns the launch page" instead of "Speaker 2 will handle it", in English or in Russian.</p>
+            </div>
+          </div>
+          <figcaption>
+            <h3>People, not speaker labels</h3>
+            <p>One profile per teammate. That is how the digest says "Maria owns the launch page" instead of "Speaker 2 will handle it", in English or in Russian.</p>
+          </figcaption>
         </figure>
 
       </div>
@@ -128,18 +168,22 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   <section id="problem">
     <div class="wrap">
       <h2>Why your notetaker hasn't fixed this</h2>
-      <div class="cols-3">
-        <div>
-          <h3>Nobody reads the summary</h3>
-          <p>A wall of text in another tab gets skimmed once, if at all. {{ product }} puts decisions and owners in the Slack thread people already read, and tasks in Linear where the work happens.</p>
+      <div class="compare">
+        <div class="compare-row compare-head" aria-hidden="true"><span></span><span>A notetaker</span><span>{{ product }}</span></div>
+        <div class="compare-row">
+          <h3>The summary</h3>
+          <p class="was"><span class="cell-label">A notetaker</span>A wall of text in another tab, skimmed once if at all.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Decisions and owners in the Slack thread people already read, and tasks in Linear where the work happens.</p>
         </div>
-        <div>
-          <h3>It doesn't know your team</h3>
-          <p>It hears "Speaker 2" and guesses. {{ product }} reads each call with your team's profiles and your recent calls on the same topic, so it knows who owns what and what was agreed last time.</p>
+        <div class="compare-row">
+          <h3>Who owns what</h3>
+          <p class="was"><span class="cell-label">A notetaker</span>Hears "Speaker 2" and guesses.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Reads each call with your team's profiles and your recent calls on the same topic, so it knows who owns what and what was agreed last time.</p>
         </div>
-        <div>
-          <h3>Tasks never reach the tracker</h3>
-          <p>Someone has to retype them, check for duplicates and find the owner, so usually nobody does. {{ product }} proposes them in Linear, matched against your backlog, and a person approves each one.</p>
+        <div class="compare-row">
+          <h3>The tasks</h3>
+          <p class="was"><span class="cell-label">A notetaker</span>Someone has to retype them, check for duplicates and find the owner, so usually nobody does.</p>
+          <p class="now"><span class="cell-label">{{ product }}</span>Proposes them in Linear after checking your backlog. Nothing is filed until someone on the team approves it in the thread.</p>
         </div>
       </div>
     </div>
@@ -147,8 +191,10 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="how" class="band">
     <div class="wrap">
-      <h2>How it works</h2>
-      <p class="section-lede">No bot joins your calls. {{ product }} works from the recording Zoom already makes.</p>
+      <div class="section-head">
+        <h2>How it works</h2>
+        <p class="section-lede">No bot joins your calls. {{ product }} works from the recording Zoom already makes.</p>
+      </div>
       <ol class="steps">
         <li>
           <h3>Record</h3>
@@ -174,17 +220,37 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   <section id="security">
     <div class="wrap">
       <h2>You decide what it hears and where it goes</h2>
-      <div class="cols-2">
-        <ul class="checks">
-          <li><strong>Only calls you record to the cloud are processed.</strong> Keep a 1:1, board or HR meeting off the Zoom cloud recording and {{ product }} never sees it.</li>
-          <li><strong>No bot joins your calls.</strong> It works from the recording your platform already made. Recording consent stays with you.</li>
-          <li><strong>The output lives in your tools.</strong> Decisions in your Slack, tasks in your Linear, the record in your git repository. Delete {{ product }} and all of it stays.</li>
-        </ul>
-        <ul class="checks">
-          <li><strong>Calls are processed with Claude through the Anthropic API,</strong> under commercial terms that don't allow training on your data.</li>
-          <li><strong>Hosted, under a written agreement.</strong> Before any call is processed we sign a data processing agreement that lists sub-processors, the processing region and retention. See the <a href="/privacy">privacy policy</a>.</li>
-          <li><strong>Self-hosted means zero {{ product }} servers.</strong> Telemetry is opt-in and counters only, and <a href="{{ links.telemetry }}">its source is public</a>.</li>
-        </ul>
+      <div class="ledger">
+        <div>
+          <p class="k">Scope</p>
+          <h3>Only calls you record to the cloud are processed.</h3>
+          <p>Keep a 1:1, board or HR meeting off the Zoom cloud recording and {{ product }} never sees it.</p>
+        </div>
+        <div>
+          <p class="k">In the call</p>
+          <h3>No bot joins your calls.</h3>
+          <p>It works from the recording your platform already made. Recording consent stays with you.</p>
+        </div>
+        <div>
+          <p class="k">Output</p>
+          <h3>Everything it writes lives in your tools.</h3>
+          <p>Decisions in your Slack, tasks in your Linear, the record in your git repository. Remove {{ product }} and all of it stays.</p>
+        </div>
+        <div>
+          <p class="k">Model</p>
+          <h3>Calls are processed with Claude through the Anthropic API.</h3>
+          <p>Under commercial terms that don't allow training on your data.</p>
+        </div>
+        <div>
+          <p class="k">Hosted</p>
+          <h3>A written agreement comes first.</h3>
+          <p>Before any of your calls is processed we sign a data processing agreement that lists sub-processors, the processing region and retention. See the <a href="/privacy">privacy policy</a>.</p>
+        </div>
+        <div>
+          <p class="k">Self-hosted</p>
+          <h3>Zero {{ product }} servers.</h3>
+          <p>Your own keys and infrastructure. Telemetry is opt-in and counters only, and <a href="{{ links.telemetry }}">its source is public</a>.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -192,23 +258,19 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   <section id="fit" class="band">
     <div class="wrap">
       <h2>Built for product teams like yours</h2>
-      <div class="cols-2 fit">
+      <div class="fit-grid">
         <div>
-          <h3>A good fit today</h3>
-          <ul class="checks">
+          <h3>Works with</h3>
+          <ul class="tools" aria-label="Supported tools"><li>Zoom</li><li>Slack</li><li>Linear</li><li>GitHub</li></ul>
+          <ul class="plain-list">
             <li>Distributed product teams of about 10 to 50 people</li>
-            <li>Calls on Zoom, chat in Slack, tasks in Linear, code on GitHub</li>
             <li>Lots of internal calls: syncs, planning, reviews</li>
             <li>Using AI agents like Claude Code or Cursor, or about to</li>
           </ul>
         </div>
         <div>
           <h3>Not yet</h3>
-          <ul class="crosses">
-            <li>Google Meet or Microsoft Teams calls</li>
-            <li>Jira or Asana instead of Linear</li>
-            <li>Single sign-on and per-meeting access control</li>
-          </ul>
+          <ul class="tools tools-off" aria-label="Not supported yet"><li>Google Meet</li><li>Microsoft Teams</li><li>Jira</li><li>Asana</li><li>Single sign-on</li></ul>
           <p class="muted">These are on the roadmap. <a href="/book">Book a demo</a> and tell us what you run on; requests decide what we build next.</p>
         </div>
       </div>
@@ -218,10 +280,10 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   <section id="plans">
     <div class="wrap">
       <h2>Hosted or self-hosted</h2>
-      <div class="plans plans-2">
-        <div class="plan plan-main">
-          <h3>Hosted</h3>
-          <p class="plan-sub">We run it for your team</p>
+      <div class="hosting">
+        <div class="hosting-col hosting-main">
+          <p class="k">Hosted</p>
+          <h3>We run it for your team</h3>
           <ul>
             <li>We connect your Zoom, Slack and Linear together on one call</li>
             <li>The record stays in your own git repository</li>
@@ -230,11 +292,11 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           </ul>
           <a class="btn" href="/book">Book a demo</a>
         </div>
-        <div class="plan">
-          <h3>Self-hosted</h3>
-          <p class="plan-sub">Open source, MIT</p>
+        <div class="hosting-col">
+          <p class="k">Self-hosted · MIT</p>
+          <h3>Run it on your own infrastructure</h3>
           <ul>
-            <li>Claude Code plugin and n8n pipeline on your own infrastructure</li>
+            <li>Claude Code plugin and n8n pipeline</li>
             <li>Your own API keys; nothing passes through us</li>
             <li>First digest in about 15 minutes in manual mode</li>
           </ul>
@@ -245,48 +307,52 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   </section>
 
   <section id="team" class="band">
-    <div class="wrap">
-      <h2>Who's behind it</h2>
-      <p class="section-lede">{{ product }} started as the internal tool of a distributed product team and still runs on every one of its recorded calls.</p>
+    <div class="wrap team-layout">
+      <div>
+        <h2>Who's behind it</h2>
+        <p class="section-lede">{{ product }} started as the internal tool of a distributed product team. It has filed every one of that team's recorded calls since {{ stats.in_production_since }}: {{ stats.calls_processed }} so far.</p>
+      </div>
 <!-- @team -->
     </div>
   </section>
 
   <section id="faq">
-    <div class="wrap narrow">
+    <div class="wrap faq-layout">
       <h2>Questions</h2>
-      <details>
-        <summary>Can we keep some calls out?</summary>
-        <p>Yes. {{ product }} only processes calls recorded to the Zoom cloud, so record 1:1s, board or HR calls locally or not at all. Automatic private handling for such calls is on the roadmap.</p>
-      </details>
-      <details>
-        <summary>Who approves all those tasks?</summary>
-        <p>Proposals arrive in the call's Slack thread. One click approves all the safe ones; flagged ones wait for a person. Skipped proposals are logged, so you can see what your team doesn't want filed.</p>
-      </details>
-      <details>
-        <summary>Where do people who don't use git read it?</summary>
-        <p>In Slack, and in the {{ product }} workspace in the browser: calls, decisions, open action items and people. Git is where the record is kept, so it stays yours.</p>
-      </details>
-      <details>
-        <summary>Which languages does it support?</summary>
-        <p>English and Russian, including calls that switch between the two. Digests and tasks are written in the language of the call; file names and metadata stay in English so the record stays searchable.</p>
-      </details>
-      <details>
-        <summary>We already use Granola or Fireflies. Can we keep it?</summary>
-        <p>Yes. Exported transcripts can be filed the same way as Zoom recordings. Automatic capture today works with Zoom cloud recordings.</p>
-      </details>
-      <details>
-        <summary>What happens to our data if {{ product }} goes away?</summary>
-        <p>Nothing. Everything it wrote is already in your Slack, your Linear and your git repository as plain files, and the code is open source.</p>
-      </details>
-      <details>
-        <summary>What does the open-source version cost?</summary>
-        <p>Nothing. You pay for your own n8n hosting and your model provider's usage.</p>
-      </details>
+      <div class="faq-list">
+        <details>
+          <summary>Can we keep some calls out?</summary>
+          <p>Yes. {{ product }} only processes calls recorded to the Zoom cloud, so record 1:1s, board or HR calls locally or not at all. Automatic private handling for such calls is on the roadmap.</p>
+        </details>
+        <details>
+          <summary>Who approves the tasks?</summary>
+          <p>Someone on your team, in the call's Slack thread. Proposals the backlog check is sure about can be approved together in one click; flagged ones wait to be reviewed one by one. Skipped proposals are logged, so you can see what your team doesn't want filed.</p>
+        </details>
+        <details>
+          <summary>Where do people who don't use git read it?</summary>
+          <p>In Slack, and in the {{ product }} workspace in the browser: calls, decisions, open action items and people. Git is where the record is kept, so it stays yours.</p>
+        </details>
+        <details>
+          <summary>Which languages does it support?</summary>
+          <p>English and Russian, including calls that switch between the two. Digests and tasks are written in the language of the call; file names and metadata stay in English so the record stays searchable.</p>
+        </details>
+        <details>
+          <summary>We already use Granola or Fireflies. Can we keep it?</summary>
+          <p>Yes. Exported transcripts can be filed the same way as Zoom recordings. Automatic capture today works with Zoom cloud recordings.</p>
+        </details>
+        <details>
+          <summary>What happens to our data if {{ product }} goes away?</summary>
+          <p>Nothing. Everything it wrote is already in your Slack, your Linear and your git repository as plain files, and the code is open source.</p>
+        </details>
+        <details>
+          <summary>What does the open-source version cost?</summary>
+          <p>Nothing. You pay for your own n8n hosting and your model provider's usage.</p>
+        </details>
+      </div>
     </div>
   </section>
 
-  <section id="beta" class="band band-strong">
+  <section id="beta" class="band-night">
     <div class="wrap">
 <!-- @include book -->
     </div>

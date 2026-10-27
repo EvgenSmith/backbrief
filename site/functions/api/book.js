@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 /*
- * Cloudflare Pages Function: POST /api/waitlist
+ * Cloudflare Pages Function: POST /api/book
  *
- * Same-origin endpoint for the beta-access form. It forwards exactly one thing,
+ * Same-origin endpoint for the book-a-demo form. It forwards exactly one thing,
  * the typed email, to the existing waitlist API (gateway/worker.js,
  * POST /v1/waitlist, interest "hosted"). The gateway stays the only place an
  * email is stored, and it needs no CORS because the browser never calls it.

@@ -85,6 +85,7 @@ function lookup(scope, dotted) {
 function renderTeam(team) {
   const people = (team || []).map((p) => `
         <article class="person">
+          ${p.photo ? `<img class="person-photo" src="${esc(p.photo)}" alt="" width="72" height="72">` : ''}
           <h3>${esc(p.name)}</h3>
           <p class="role">${esc(p.role)}</p>
           ${p.bio ? `<p>${esc(p.bio)}</p>` : ''}
@@ -99,7 +100,7 @@ function renderHosts(hosts) {
   const names = list.map((h) => h.name);
   const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names.at(-1)}` : names[0];
   const faces = list.map((h) =>
-    `<img src="${esc(h.photo)}" alt="${esc(h.name)}" width="88" height="88" loading="lazy">`).join('');
+    `<img src="${esc(h.photo)}" alt="${esc(h.name)}" width="88" height="88">`).join('');
   return `<div class="hosts">${faces}</div>
           <p class="hosts-names">You'll talk to ${esc(who)}.</p>`;
 }

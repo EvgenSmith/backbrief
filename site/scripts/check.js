@@ -112,7 +112,7 @@ const ids = idsOf(home);
 for (const id of ['product', 'how', 'security', 'fit', 'plans', 'team', 'beta']) {
   if (!ids.has(id)) fail(`index.html: required section #${id} is missing`);
 }
-if (!/<form[^>]+action="\/api\/waitlist"/.test(home)) fail('index.html: beta form must post to /api/waitlist');
+if (!/<form[^>]+action="\/api\/book"/.test(home)) fail('index.html: book-a-demo form must post to /api/book');
 for (const f of ['privacy.html', 'terms.html', 'login.html', 'assets/styles.css', 'assets/cabinet.js', '_headers', 'robots.txt']) {
   if (!fs.existsSync(path.join(DIST, f))) fail(`dist is missing ${f}`);
 }

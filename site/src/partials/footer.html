@@ -9,17 +9,17 @@
     </div>
     <nav class="footer-nav" aria-label="Footer">
       <a href="/#how">How it works</a>
-      <a href="/#plans">Plans</a>
+      <a href="/#plans">Hosted or self-hosted</a>
       <a href="/#security">Privacy &amp; security</a>
       <a href="{{ links.github }}">GitHub</a>
       <a href="{{ links.linkedin_company }}">LinkedIn</a>
       <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>
     </nav>
     <div class="legal small" data-legal>
-      <p>&copy; {{ year }} {{ legal.entity_name }}</p>
+      <p>{{ product }} is operated by {{ legal.entity_name }}</p>
       <p>{{ legal.registration }}</p>
       <p>Registered office: {{ legal.address }}</p>
-      <p><a href="/privacy">Privacy policy</a> &middot; <a href="/terms">Terms of use</a></p>
+      <p>&copy; {{ year }} &middot; <a href="/privacy">Privacy policy</a> &middot; <a href="/terms">Terms of use</a></p>
     </div>
   </div>
 </footer>

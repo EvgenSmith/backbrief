@@ -1,15 +1,15 @@
       <div class="book">
         <div class="book-intro">
           <!-- @hosts -->
-          <h2>See it on one of your own calls</h2>
-          <p class="lede">Thirty minutes with the people who built {{ product }}. Bring one recording of your team's call, and we'll show you its decisions, owners and Linear tasks live, then talk through your setup.</p>
+          <h2>Talk it through with the team that builds it</h2>
+          <p class="lede">Thirty minutes on a call. We walk through a week of the demo team's calls in Slack, Linear and the workspace, then look at how it would fit your stack. Your own calls come later, once the data processing agreement is signed.</p>
         </div>
         <div class="book-card" id="book-form">
           <ol class="stepper" aria-label="Booking steps">
             <li class="is-current" data-step-label><span class="dot">1</span> Contact details</li>
             <li data-step-label><span class="dot">2</span> Call booking</li>
           </ol>
-          <form class="book-form" action="/api/waitlist" method="post" data-book data-calendar="{{ links.book_demo }}">
+          <form class="book-form" action="/api/book" method="post" data-book data-calendar="{{ links.book_demo }}">
             <label for="book-name">Name</label>
             <input id="book-name" name="name" type="text" required autocomplete="name" maxlength="100">
             <label for="book-email">Work email</label>
