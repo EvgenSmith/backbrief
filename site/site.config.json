@@ -4,8 +4,8 @@
   "contact_email": "TODO: hello@<product domain>",
   "legal": {
     "entity_name": "MARKETING MADE EASY SL",
-    "registration": "TODO: NIF (e.g. B12345678) and Registro Mercantil entry, exactly as on the deed",
-    "address": "TODO: domicilio social exactly as in the Registro Mercantil",
+    "registration": "NIF B56554595, Registro Mercantil de Barcelona",
+    "address": "Calle Galileu 262, planta 3, puerta 1, 08028 Barcelona, Spain",
     "governing_law": "Spain",
     "reviewed": false
   },
@@ -14,7 +14,8 @@
     "docs": "https://github.com/EvgenSmith/backbrief#readme",
     "spec": "https://github.com/EvgenSmith/backbrief/blob/main/PRD.md",
     "telemetry": "https://github.com/EvgenSmith/backbrief/blob/main/docs/telemetry.md",
-    "linkedin_company": "TODO: company LinkedIn page URL"
+    "linkedin_company": "TODO: company LinkedIn page URL",
+    "book_demo": ""
   },
   "stats": {
     "as_of": "October 2026",

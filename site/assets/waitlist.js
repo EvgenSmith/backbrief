@@ -12,7 +12,7 @@
     status.className = 'form-status ' + kind;
   };
 
-  if (location.hash === '#beta-thanks') show("Thanks, you're on the list. We'll be in touch.", 'ok');
+  if (location.hash === '#beta-thanks') show("Thanks. We'll email you a few times for the demo.", 'ok');
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -27,7 +27,7 @@
       });
       if (res.ok) {
         form.reset();
-        show("Thanks, you're on the list. We'll be in touch.", 'ok');
+        show("Thanks. We'll email you a few times for the demo.", 'ok');
       } else if (res.status === 400) {
         show('That email address doesn’t look right. Please check it and try again.', 'err');
       } else {

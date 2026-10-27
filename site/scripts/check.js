@@ -16,6 +16,8 @@
  * --release additionally fails on:
  *   - any remaining "TODO" placeholder in the built pages
  *   - legal.reviewed !== true in site.config.json
+ *   - a Spanish entity without its Registro Mercantil inscription (tomo, folio,
+ *     hoja), which LSSI art. 10 requires on the site
  *   - contact email not on the site's own domain (Google, AWS, DigitalOcean,
  *     Cloudflare and NVIDIA all verify the email domain against the website)
  *   - no team member with a LinkedIn profile
@@ -147,6 +149,9 @@ const domainSet = typeof config.domain === 'string' && !config.domain.startsWith
 const emailSet = typeof config.contact_email === 'string' && !config.contact_email.startsWith('TODO');
 if (RELEASE) {
   if (config.legal?.reviewed !== true) fail('legal.reviewed is not true — privacy policy and terms need a human legal review');
+  if (config.legal?.governing_law === 'Spain' && !/hoja/i.test(config.legal?.registration || '')) {
+    fail('legal.registration: add the Registro Mercantil inscription (tomo, folio, hoja B-…); LSSI art. 10 requires it on the site');
+  }
   if (!domainSet) fail('domain is not set');
   if (!emailSet) fail('contact_email is not set');
   if (domainSet && emailSet && !config.contact_email.toLowerCase().endsWith(`@${config.domain.toLowerCase()}`)) {
@@ -154,6 +159,7 @@ if (RELEASE) {
   }
   if (!fs.existsSync(path.join(DIST, 'sitemap.xml'))) fail('sitemap.xml missing (set domain and rebuild)');
 }
+if (!config.links || !config.links.book_demo) warn('links.book_demo is empty — "Book a demo" opens the on-page form instead of a booking calendar');
 if (!config.demo_video_url) warn('no demo video yet (demo_video_url) — Speechmatics and OVH ask for a demo');
 
 for (const w of warnings) console.log(`  warn  ${w}`);

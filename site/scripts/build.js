@@ -101,6 +101,8 @@ function render(name, page, stack = []) {
   html = html.replace(/<!-- @demo -->/g, () => renderDemo(config.demo_video_url));
   const scope = {
     ...config,
+    // "Book a demo" goes to the booking link when one is configured, else to the on-page form.
+    cta: { book_demo: isSet(config.links.book_demo) ? config.links.book_demo : '/#beta' },
     page,
     year: new Date().getUTCFullYear(),
     updated: new Date().toISOString().slice(0, 10),

@@ -224,6 +224,8 @@ section { padding: 88px 0; }
 .plan p:not(.price) { color: var(--muted); flex: 1; }
 .plan .btn { align-self: flex-start; }
 .price { font-size: 1.5rem; font-weight: 700; }
+.plans-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.plan p.plan-sub { color: var(--muted); font-weight: 600; margin-top: -.3em; flex: none; }
 
 /* Security */
 .checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; }

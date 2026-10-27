@@ -20,7 +20,7 @@
           <li>Saves the call as a markdown file in your git repository, so your AI agents know what the team decided.</li>
         </ul>
         <div class="cta-row">
-          <a class="btn" href="#beta">Try it on one of your calls</a>
+          <a class="btn" href="{{ cta.book_demo }}">Book a demo</a>
           <a class="btn btn-ghost" href="/demo">See the demo workspace</a>
         </div>
         <p class="small muted">Prefer to run it yourself? <a href="{{ links.github }}">Self-host from GitHub</a>, MIT-licensed.</p>
@@ -167,7 +167,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <p>The digest lands in the Slack thread, task proposals follow with Approve and Skip, and the call is saved to your git repository.</p>
         </li>
       </ol>
-      <p class="note">In the hosted pilot we run all of this for you. Self-hosted, it runs on your own n8n with your own API keys, and manual mode gets you a first digest in about 15 minutes.</p>
+      <p class="note">Hosted, we run all of this for you. Self-hosted, it runs on your own n8n with your own API keys, and manual mode gets you a first digest in about 15 minutes.</p>
     </div>
   </section>
 
@@ -182,7 +182,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
         </ul>
         <ul class="checks">
           <li><strong>Calls are processed with Claude through the Anthropic API,</strong> under commercial terms that don't allow training on your data.</li>
-          <li><strong>Hosted pilot under a written agreement.</strong> Before any call is processed we sign a data processing agreement that lists sub-processors, the processing region and retention. See the <a href="/privacy">privacy policy</a>.</li>
+          <li><strong>Hosted, under a written agreement.</strong> Before any call is processed we sign a data processing agreement that lists sub-processors, the processing region and retention. See the <a href="/privacy">privacy policy</a>.</li>
           <li><strong>Self-hosted means zero {{ product }} servers.</strong> Telemetry is opt-in and counters only, and <a href="{{ links.telemetry }}">its source is public</a>.</li>
         </ul>
       </div>
@@ -191,7 +191,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="fit" class="band">
     <div class="wrap">
-      <h2>Who it's for</h2>
+      <h2>Built for product teams like yours</h2>
       <div class="cols-2 fit">
         <div>
           <h3>A good fit today</h3>
@@ -209,7 +209,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
             <li>Jira or Asana instead of Linear</li>
             <li>Single sign-on and per-meeting access control</li>
           </ul>
-          <p class="muted">These are on the roadmap. <a href="#beta">Leave your email</a> and tell us what you run on; requests decide what we build next.</p>
+          <p class="muted">These are on the roadmap. <a href="{{ cta.book_demo }}">Book a demo</a> and tell us what you run on; requests decide what we build next.</p>
         </div>
       </div>
     </div>
@@ -217,33 +217,28 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="plans">
     <div class="wrap">
-      <h2>Plans</h2>
-      <div class="plans">
+      <h2>Hosted or self-hosted</h2>
+      <div class="plans plans-2">
         <div class="plan plan-main">
-          <h3>Pilot</h3>
-          <p class="price">Free <span class="muted small">during the beta</span></p>
+          <h3>Hosted</h3>
+          <p class="plan-sub">We run it for your team</p>
           <ul>
-            <li>Send one recording, get its digest and Linear-ready tasks back</li>
-            <li>If it's useful, we connect your Zoom, Slack and Linear together on one call</li>
-            <li>In return, a short feedback call each week</li>
+            <li>We connect your Zoom, Slack and Linear together on one call</li>
+            <li>The record stays in your own git repository</li>
+            <li>A data processing agreement before any call is processed</li>
+            <li>Private handling of 1:1 and board calls, other trackers and single sign-on: tell us what you need</li>
           </ul>
-          <a class="btn" href="#beta">Start with one call</a>
+          <a class="btn" href="{{ cta.book_demo }}">Book a demo</a>
         </div>
         <div class="plan">
           <h3>Self-hosted</h3>
-          <p class="price">Free <span class="muted small">open source (MIT)</span></p>
+          <p class="plan-sub">Open source, MIT</p>
           <ul>
             <li>Claude Code plugin and n8n pipeline on your own infrastructure</li>
-            <li>You pay only for your hosting and model usage</li>
+            <li>Your own API keys; nothing passes through us</li>
             <li>First digest in about 15 minutes in manual mode</li>
           </ul>
           <a class="btn btn-ghost" href="{{ links.github }}">Get it on GitHub</a>
-        </div>
-        <div class="plan">
-          <h3>Teams</h3>
-          <p class="price">Talk to us</p>
-          <p>Need private handling of 1:1 and board calls, another tracker or meeting platform, or single sign-on? Tell us what you need. Requests from teams decide what we build next.</p>
-          <a class="btn btn-ghost" href="mailto:{{ contact_email }}">Contact us</a>
         </div>
       </div>
     </div>
@@ -293,8 +288,8 @@ zones: [onboarding-emails, paid-acquisition]</pre>
 
   <section id="beta" class="band band-strong">
     <div class="wrap narrow">
-      <h2>Try it on one of your calls</h2>
-      <p>Leave a work email. We'll reply with a way to send us one recording or transcript, and send back its digest and Linear-ready tasks. If it's useful, we set your team up together. The pilot is free during the beta.</p>
+      <h2>Book a demo</h2>
+      <p>Thirty minutes on a call with the founder. Bring one recording of your own team's call, and we'll show you its digest and Linear tasks live.</p>
       <form class="beta-form" action="/api/waitlist" method="post" data-waitlist>
         <label for="beta-email" class="sr-only">Work email</label>
         <input id="beta-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com">
@@ -302,10 +297,10 @@ zones: [onboarding-emails, paid-acquisition]</pre>
           <label for="beta-website">Leave this field empty</label>
           <input id="beta-website" name="website" type="text" tabindex="-1" autocomplete="off">
         </div>
-        <button class="btn" type="submit">Start with one call</button>
+        <button class="btn" type="submit">Book a demo</button>
         <p class="form-status" role="status" aria-live="polite" data-status></p>
       </form>
-      <p class="small muted">We use your email only to run the pilot with you. No newsletter. <a href="/privacy">Privacy policy</a>.</p>
+      <p class="small muted">Leave a work email and we'll reply with a few times that suit you. We use your email only to arrange the demo. <a href="/privacy">Privacy policy</a>.</p>
     </div>
   </section>
 
