@@ -1,7 +1,7 @@
 {
   "product": "Backbrief",
-  "domain": "TODO: product domain (decision D2), e.g. getbackbrief.com",
-  "contact_email": "TODO: hello@<product domain>",
+  "domain": "backbrief.com",
+  "contact_email": "hello@backbrief.com",
   "legal": {
     "entity_name": "MARKETING MADE EASY SL",
     "registration": "NIF B56554595, Registro Mercantil de Barcelona",
