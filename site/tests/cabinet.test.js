@@ -305,7 +305,8 @@ test('demo config: Slack delivery default, setup steps and issue bodies', () => 
   assert.deepEqual(cfg.slack.delivery, { summary: true, transcript_link: false, recording_link: true, task_log: true });
   assert.ok(cfg.slack.channels_available.every((c) => /^#[a-z0-9-]+$/.test(c)));
   assert.ok(cfg.slack.channels_available.includes('#call-digests') && cfg.slack.channels_available.includes('#product-sync'));
-  assert.deepEqual(cfg.overview.setup.map((s) => s.id), ['sources', 'people', 'slack', 'first_call']);
+  assert.deepEqual(cfg.overview.setup.map((s) => s.id), ['agreement', 'sources', 'people', 'slack', 'first_call'], 'step 00 is the signed agreement');
+  assert.ok(cfg.overview.setup[0].at < cfg.overview.setup[1].at, 'the agreement comes before any setup');
   const ws = demoWorkspace();
   const pending = ws.task_log.find((e) => e.pending);
   assert.deepEqual(Object.keys(cfg.issue_body), [pending.tasks_path]);
@@ -579,7 +580,10 @@ test('overview metrics: the base values the workspace recomputes with its own de
   assert.equal(decided.filter((p) => p.prevents_duplicate).length, 11);
   assert.ok(m.duplicates_prevented.confirmed <= ws.stats.duplicates_caught);
   assert.deepEqual(m.owner_coverage, { with_owner: 14, total: 14 });
-  assert.deepEqual(m.processing, { calls: 7, median_digest_minutes: 9, max_digest_minutes: 24 });
+  assert.deepEqual(m.processing, {
+    calls: 7, median_digest_minutes: 9, max_digest_minutes: 24,
+    last: { call_id: callOn(ws, '2026-10-19').id, at: '2026-10-19T09:44:00.000Z', minutes: 9 },
+  }, 'the newest call: tasks generated 10:44 BST, 9 min after the 35-minute call that began at 10:00');
   assert.deepEqual([m.time_to_decision.median_minutes, m.time_to_decision.over_48h], [13, 0]);
   assert.deepEqual(m.time_to_decision.calls.map((c) => [c.minutes, c.pending]), [[null, 4], [10, 0], [11, 0], [1350, 0], [14, 0], [11, 0], [38, 0]],
     'per call, newest first: call end → last decision; 12 Oct waited overnight for the "Wrong team" skip');
@@ -619,6 +623,53 @@ test('demo data: settings.issues covers every issue a proposal names; the demo c
   assert.deepEqual(d19.action_items.map((a) => [a.tracker_ref, a.status, a.open]),
     [['ENG-311', 'post-call', true], [null, 'post-call', true], ['ENG-318', 'done-on-call', false], ['GRW-214', 'done-on-call', false]]);
   assert.equal(V.buildWorkspace({ info: { id: 'x' }, callPaths: [], calls: [], tasks: [], members: [] }).workspace.demo_now, undefined, '/app has no demo clock');
+});
+
+test('call files pass their record keys through; each source has health; the review log is feedback', () => {
+  const d = loadDemo();
+  const c19 = d.calls.find((c) => c.date === '2026-10-19');
+  assert.deepEqual(
+    ['type', 'schema_version', 'filer_model', 'pipeline_version', 'source_id'].map((k) => c19[k]),
+    ['transcript', 1, 'claude-sonnet-4-6', '0.1.0', 'DEMOuuid0007x=='],
+    'as written in the frontmatter',
+  );
+  const bare = V.parseCall('general/transcripts/2026-10-19 1000 x.md', '---\ntopic: X\ndate: 2026-10-19\n---\n\n## Summary\n\nx\n');
+  assert.deepEqual([bare.type, bare.schema_version, bare.filer_model, bare.pipeline_version, bare.source_id], [null, null, null, null, null], 'absent keys stay null');
+
+  const { settings, details, vault } = demoData();
+  assert.equal(details.find((x) => x.id === c19.id).filer_model, 'claude-sonnet-4-6', 'call JSON carries them');
+  const health = Object.fromEntries(settings.sources.map((s) => [s.id, s.health]));
+  assert.deepEqual(health, {
+    zoom: { last_event: '2026-10-19T09:35:00.000Z', failures_30d: 0 }, // the 35-minute call that began at 10:00 BST ended
+    slack: { last_event: '2026-10-19T09:44:00.000Z', failures_30d: 0 }, // the proposals reply, after the 10:36 root post
+    linear: { last_event: '2026-10-19T09:44:00.000Z', failures_30d: 0 }, // the backlog check
+    github: { last_event: '2026-10-19T09:44:00.000Z', failures_30d: 0 }, // the commit with the tasks file
+  });
+  const fromVault = V.settingsFromVault({ tenant: d.tenant, calls: d.calls, taskLog: demoWorkspace(d).task_log });
+  assert.ok(fromVault.sources.every((s) => s.health.failures_30d === null), 'the vault keeps no failure log: that count is config');
+
+  const all = [];
+  const visit = (n) => { all.push(n); (n.children || []).forEach(visit); };
+  vault.tree.forEach(visit);
+  const training = all.find((n) => n.path === '.backbrief/training/');
+  assert.equal(training.about, V.TRAINING_ABOUT);
+  assert.match(training.about, /feedback/);
+  assert.ok(!/training data/i.test(JSON.stringify(vault)), 'vault.json never says "training data"');
+});
+
+test('processing minutes: unknown without the tenant clock, never negative', () => {
+  const call = { id: '2026-10-19-x', date: '2026-10-19', time: '10:00', duration_min: 35, action_items: [] };
+  const tenant = { tenant: { timezone: 'Europe/London' } };
+  const run = (generated, t = tenant) => V.metrics({
+    calls: [call], taskLog: [{ call_id: call.id, generated, pending: 0, proposals: [] }], timezone: t ? 'Europe/London' : null, tenant: t,
+  }).processing;
+  assert.deepEqual(run('2026-10-19T09:44:00Z'), { calls: 1, median_digest_minutes: 9, max_digest_minutes: 9, last: { call_id: call.id, at: '2026-10-19T09:44:00.000Z', minutes: 9 } });
+  // Stamped before the call ended (a local time written as UTC, or a missing zone): unknown, not -26.
+  assert.deepEqual(run('2026-10-19T09:09:00Z'), { calls: 1, median_digest_minutes: null, max_digest_minutes: null, last: { call_id: call.id, at: '2026-10-19T09:09:00.000Z', minutes: null } });
+  // /app reads no tenant.yaml: when the digest came out is still known, how long after the call is not.
+  assert.deepEqual(run('2026-10-19T09:44:00Z', null), { calls: 1, median_digest_minutes: null, max_digest_minutes: null, last: { call_id: call.id, at: '2026-10-19T09:44:00.000Z', minutes: null } });
+  // No stamp at all: nothing to show.
+  assert.equal(run(null, null).last, null);
 });
 
 // ------------------------------------------------------------------ sessions

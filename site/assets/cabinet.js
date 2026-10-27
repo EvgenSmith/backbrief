@@ -39,14 +39,23 @@
  *       inline/md: `code`, **bold**, _em_, _[high]_ → priority, [t](url), and
  *       (mm:ss) → BB.ts(call, mm:ss) when {call: id} is passed
  *   BB.fmtDate(d, t) '19 Oct 2026, 10:00'   BB.fmtDay(d) '19 Oct'
- *   BB.clock(iso) '10:44' in the workspace timezone   BB.stamp(iso, sep?) 'today, 14:07'
- *   BB.now() ISO time   BB.plural(n, one, many?)   BB.joinAnd(list)   BB.initials(name)
+ *   BB.now() ISO time. The demo runs on its own clock: workspace.demo_now
+ *     (Mon 19 Oct 2026, 11:05 Europe/London) plus the time since the page
+ *     loaded, never past that day. BB.clock and BB.stamp follow it.
+ *   BB.clock(iso = now) '10:44' in the workspace timezone   BB.today() '2026-10-19' (the demo's day)
+ *   BB.stamp(iso, sep?) 'today, 14:07' (else '19 Oct, 14:07'), in the workspace timezone
+ *   BB.plural(n, one, many?)   BB.joinAnd(list)   BB.initials(name)
  *   BB.href(...segments, query?)  '#/call/<id>/transcript/16:40', '#/calls?team=product'
  *   BB.verdict(v)  BB.prio(p)  BB.ref(r)  BB.teamChip(t)  BB.person(lastname)
+ *     verdict: DUPLICATE reads "Already tracked" on a neutral chip
  *   BB.ts(callId, mmss)    '▶ 16:40' → #/call/<id>/transcript/16:40, labelled
  *                          "Transcript at 16:40"; plain '(16:40)' when nothing
  *                          can be opened
- *   BB.callRow(call, {compact})  BB.loading(what)  BB.emptyState(html)  BB.managed()
+ *   BB.callRow(call, {compact, after})  BB.loading(what)  BB.emptyState(html)  BB.managed()
+ *   BB.decisionRow(decision)  one workspace.decisions[] entry as a ledger row
+ *   BB.isOpenItem(item)  still owed: `open` from the build (post-call, not closed
+ *     by a later call, latest row for its issue); post-call on older data
+ *   BB.bookHref()  the header's "Book a demo" href, as the page was built
  *   BB.deliveryPhrase(delivery)  'summary, recording link and task log'
  *   BB.DEMO_NOTE.{linear, slack, github, browser, connection}  toast line 2
  *
@@ -74,7 +83,9 @@
  *
  * Demo state (spec §3.12): BB.state, kept in localStorage["backbrief.demo.v1"]
  *   {v, decisions, edits, log_sent, delivery, channels, people_added,
- *    zone_reviews, sources, requests, imports}; memory only if storage fails.
+ *    zone_reviews, sources, requests, imports, prefs}; memory only if storage
+ *   fails. prefs {viewing_as, tour_hidden} are view choices: Reset demo clears
+ *   them, but they are not counted as changes.
  *   Mutate it, then BB.save(); then BB.refresh() to re-render.
  *   BB.save()  BB.reset()  BB.changeCount()  BB.storage 'local'|'memory'|'none'
  *   BB.decide(key, {action, result, ref, reason, edited, edit_summary})
@@ -83,16 +94,24 @@
  *     BB.effectiveProposals(callId)  one entry, or null
  *     BB.effectiveActionItems(callId?)  BB.effectiveStats()  BB.effectivePeople()
  *     BB.effectiveSources()  BB.effectiveSlack()  BB.waitingCount()
+ *     BB.effectiveMetrics()  overview.metrics recomputed with the reviews made
+ *       here: {decisions, reviews, verdict_agreement, duplicates_prevented,
+ *       time_to_decision, owner_coverage, processing}
+ *     BB.viewingAs()  the lastname Overview is viewing as, or '' for everyone
  *   BB.refresh({focus}) re-renders the current view, the nav count and the
  *     header's "Reset demo · N changes".
  *
  * UI kit
- *   BB.toast(line1, line2)  two lines, 6 s, pauses on hover, Dismiss button
+ *   BB.toast(line1, line2, {action: {label, run}})  one at a time (a new toast
+ *     replaces the current one), 4 s; with an action (e.g. Undo) the button
+ *     shows and the toast stays 10 s. Pauses on hover and focus; a compact
+ *     bottom bar on phones that keeps the focused element in view.
  *   BB.dialog({title, html, actions, wide, onOpen, onClose, trigger, returnFocus})
  *     → {el, body, result: Promise, close(value), busy(label|false)}; native
  *     <dialog>, Esc closes, focus returns to the trigger. actions: [{label,
  *     value, primary, cancel, busy: 'Posting…', onClick(handle) → false keeps
- *     it open}]
+ *     it open}], or a link: {label, href, primary} renders <a class="btn">;
+ *     following it closes the dialog (value: 'link') and opens the href
  *   BB.confirm({title, text|html, confirm, cancel, danger}) → Promise<boolean>
  *   BB.tabs(items, currentKey, {label})  items: [{key, href, label, count, mark}]
  *
@@ -100,8 +119,10 @@
  *   BB.hooks.callAside(call, el)  render call detail's "Task proposals" into
  *     el (#proposals); runs after every render of the call view. Until a module
  *     sets it, the core lists the proposals with a link to Action items.
- *   BB.hooks.sendLog(callId, trigger)  open "Send the task log to Slack";
+ *   BB.hooks.sendLog(callId, trigger)  open "Post reviews to Slack";
  *     Overview's button calls it (without it, the button opens the task log)
+ *   BB.hooks.slackThread(call, el)  render the call's Slack thread into el;
+ *     call detail shows a "Slack thread" tab (#/call/<id>/slack) when it is set
  *   BB.on('state' | 'reset' | 'route', fn) → unsubscribe function
  */
 (() => {
@@ -142,13 +163,21 @@
     lede: $('[data-view-lede]'),
     view: $('[data-view]'),
     navCount: $('[data-nav-count]'),
+    nav: $('.app-nav'),
+    navWrap: $('[data-nav-wrap]'),
     reset: $('[data-reset]'),
     banner: $('[data-demo-banner]'),
     wsName: $('[data-ws-name]'),
     user: $('[data-user]'),
     toasts: $('[data-toasts]'),
+    menuBtn: $('[data-menu-btn]'),
+    menu: $('[data-menu]'),
+    menuReset: $('[data-menu-reset]'),
+    menuTour: $('[data-menu-tour]'),
+    menuUser: $('[data-menu-user]'),
   };
   for (const n of $$(isDemo ? '[data-app-only]' : '[data-demo-only]')) n.hidden = true;
+  const loadedAt = Date.now();
 
   // ================================================================ helpers
   const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -166,11 +195,36 @@
     const s = `${p[2]} ${MONTHS[p[1] - 1]} ${p[0]}`;
     return t ? `${s}, ${t}` : s;
   };
-  const now = () => new Date().toISOString();
   const toSeconds = (mmss) => { const m = String(mmss || '').match(/^(\d{1,3}):(\d{2})$/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
 
-  /** Clock time of an ISO instant in the workspace timezone ('10:44'). */
-  function clock(iso, tz = timezone()) {
+  // ---------------------------------------------------------------- clock
+  // The demo tells one Monday: it starts at workspace.demo_now (19 Oct 2026,
+  // 11:05 Europe/London) and runs on from page load, but never past that day,
+  // so nothing in it is ever dated by the visitor's real clock. /app uses the
+  // real clock.
+  let demoBase = null;
+  function demoClock() {
+    if (!isDemo) return null;
+    const w = workspace();
+    const iso = w && w.workspace && w.workspace.demo_now;
+    const at = iso ? Date.parse(iso) : NaN;
+    if (!Number.isFinite(at)) return null;
+    if (!demoBase || demoBase.iso !== iso) {
+      const hm = clock(iso).match(/^(\d{2}):(\d{2})$/);
+      const left = hm ? (23 * 60 + 59 - (Number(hm[1]) * 60 + Number(hm[2]))) * 60000 : 0;
+      demoBase = { iso, at, left: Math.max(0, left) };
+    }
+    return demoBase;
+  }
+  /** Now, in epoch ms: the demo's clock in the demo, else the real one. */
+  function nowMs() {
+    const c = demoClock();
+    return c ? c.at + Math.min(Math.max(0, Date.now() - loadedAt), c.left) : Date.now();
+  }
+  const now = () => new Date(nowMs()).toISOString();
+
+  /** Clock time of an ISO instant (default: now) in the workspace timezone ('10:44'). */
+  function clock(iso = now(), tz = timezone()) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
     try {
@@ -180,15 +234,48 @@
     }
   }
 
+  /** The calendar day of an instant ('2026-10-19') in the workspace timezone. */
+  function dayOf(ms, tz = timezone()) {
+    try {
+      const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: tz || undefined })
+        .formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+      return `${p.year}-${p.month}-${p.day}`;
+    } catch {
+      return new Date(ms).toISOString().slice(0, 10);
+    }
+  }
+
   /**
-   * How demo actions are dated, on the viewer's clock: 'today, 14:07' (else
-   * '19 Oct, 14:07'). Inside a sentence pass sep ' ': 'Log posted to #x, today 14:07.'
+   * How demo actions are dated: 'today, 14:07' (else '19 Oct, 14:07'), in the
+   * workspace timezone and on the demo's clock. Inside a sentence pass sep ' ':
+   * 'Reviews posted to #x, today 14:07.'
    */
   function stamp(iso, sep = ', ') {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    return d.toDateString() === new Date().toDateString() ? `today${sep}${hm}` : `${d.getDate()} ${MONTHS[d.getMonth()]}${sep}${hm}`;
+    const ms = Date.parse(iso);
+    if (!Number.isFinite(ms)) return '';
+    const day = dayOf(ms);
+    return `${day === dayOf(nowMs()) ? 'today' : fmtDay(day)}${sep}${clock(new Date(ms).toISOString())}`;
+  }
+
+  /** Today as 'YYYY-MM-DD' in the workspace timezone: the demo's Monday in the demo. */
+  const today = () => dayOf(nowMs());
+
+  /** 'Mon 19 Oct': today on the demo's clock (the real one in /app). */
+  function todayLabel() {
+    try {
+      return new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: timezone() || undefined }).format(new Date(nowMs()));
+    } catch {
+      return fmtDay(dayOf(nowMs()));
+    }
+  }
+
+  /** '13 min', '2 h 5 min', '3.4 days'; '—' when unknown. */
+  function fmtMinutes(min) {
+    if (min === null || min === undefined || !Number.isFinite(Number(min))) return '—';
+    const m = Math.max(0, Math.round(Number(min)));
+    if (m < 60) return `${m} min`;
+    if (m < 48 * 60) { const h = Math.floor(m / 60); const r = m % 60; return r ? `${h} h ${r} min` : `${h} h`; }
+    return `${Math.round(m / 144) / 10} days`;
   }
 
   const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -210,10 +297,13 @@
     return `#/${segs.join('/')}${q ? `?${q}` : ''}`;
   }
 
-  const VERDICT = { CREATE: 'Create', COMMENT: 'Comment', FLAG: 'Flag', DUPLICATE: 'Duplicate' };
+  // A caught duplicate is not an error: DUPLICATE reads "Already tracked" on a neutral chip
+  // (.cabinet .v-duplicate). FLAG keeps its chip word; in prose it is a "possible duplicate".
+  const VERDICT = { CREATE: 'Create', COMMENT: 'Comment', FLAG: 'Flag', DUPLICATE: 'Already tracked' };
   function verdict(v) {
     const k = String(v || '').toUpperCase();
-    return VERDICT[k] ? `<span class="v v-${k.toLowerCase()}">${VERDICT[k]}</span>` : '<span class="v v-other">Other</span>';
+    if (!VERDICT[k]) return '<span class="v v-other">Other</span>';
+    return `<span class="v v-${k.toLowerCase()}${k === 'DUPLICATE' ? ' v-tracked' : ''}">${VERDICT[k]}</span>`;
   }
   const prio = (p) => (p ? `<span class="prio prio-${esc(String(p).toLowerCase())}">${esc(p)}</span>` : '');
   function ref(r) {
@@ -302,6 +392,14 @@
   const loading = (what) => `<p class="muted loading" role="status">Loading the ${esc(what)}…</p>`;
   const emptyState = (html) => `<div class="empty">${html}</div>`;
   const managed = () => `Managed by Backbrief. Ask us at <a href="mailto:${esc(contact)}">${esc(contact)}</a> to change it.`;
+  /** The header's "Book a demo" href, as the page was built (a deployment may point it at a calendar). */
+  function bookHref() {
+    const a = $('.app-actions a[data-book]');
+    const h = a ? a.getAttribute('href') : null;
+    return (h && (safeUrl(h) || (/^mailto:/i.test(h) ? h : null))) || '/book';
+  }
+  /** Still owed: the build's `open` (post-call, not done on a later call, latest row for its issue). */
+  const isOpenItem = (a) => Boolean(a) && (typeof a.open === 'boolean' ? a.open : a.status === 'post-call');
   const deliveryPhrase = (d = {}) => joinAnd(['summary', d.transcript_link && 'transcript link', d.recording_link && 'recording link', d.task_log && 'task log']);
 
   const DEMO_NOTE = Object.freeze({
@@ -402,6 +500,8 @@
   const blankState = () => ({
     v: 1, decisions: {}, edits: {}, log_sent: {}, delivery: null, channels: null,
     people_added: [], zone_reviews: {}, sources: {}, requests: {}, imports: [],
+    // View choices, not demo changes: {viewing_as: '<Lastname>', tour_hidden: true}.
+    prefs: {},
   });
   const state = blankState();
   let storage = isDemo ? 'local' : 'none';
@@ -453,6 +553,29 @@
       + state.people_added.length + n(state.zone_reviews) + n(state.sources) + n(state.requests) + state.imports.length;
   }
 
+  /**
+   * Stamps an older version of the demo wrote with the visitor's real clock
+   * (later than the demo's Monday) move onto the demo clock, so no real-clock
+   * date ever shows. Runs once the workspace (and so demo_now) has loaded.
+   */
+  function settleStamps() {
+    const c = demoClock();
+    if (!c) return;
+    const limit = c.at + c.left + 60000;
+    const at = now();
+    let changed = false;
+    const late = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v) && Date.parse(v) > limit;
+    const walk = (o, depth) => {
+      if (!o || typeof o !== 'object' || depth > 6) return;
+      for (const [k, v] of Object.entries(o)) {
+        if ((k === 'at' || k.endsWith('_at')) && late(v)) { o[k] = at; changed = true; } else walk(v, depth + 1);
+      }
+    };
+    for (const k of Object.keys(state)) if (k !== 'requests' && k !== 'prefs') walk(state[k], 0);
+    for (const [k, v] of Object.entries(state.requests)) if (late(v)) { state.requests[k] = at; changed = true; }
+    if (changed) save();
+  }
+
   /** Record a decision on proposal `key` ('<call_id>:<n>') and save. */
   function decide(key, d = {}) {
     state.decisions[key] = {
@@ -477,8 +600,24 @@
   function overlayEntry(e) {
     const proposals = (e.proposals || []).map((p) => {
       const key = `${e.call_id}:${p.n}`;
-      const out = { ...p, key, call_id: e.call_id, edited: false, changed: [], original: null, by: null, at: null, edit_summary: null };
+      // A proposal reviewed in the vault keeps its own review: an owner changed before filing
+      // (ENG-311: "owner: Okafor → Hughes") shows as edited. Only waiting ones take the overlay.
+      const out = {
+        ...p,
+        key,
+        call_id: e.call_id,
+        edited: Boolean(p.edited),
+        changed: Array.isArray(p.changed) ? [...p.changed] : [],
+        original: isObj(p.original) ? { ...p.original } : null,
+        by: null,
+        at: null,
+        edit_summary: p.edit_summary || null,
+      };
       if (p.status !== 'pending') return out;
+      out.edited = false;
+      out.changed = [];
+      out.original = null;
+      out.edit_summary = null;
       const ed = state.edits[key];
       if (isObj(ed)) {
         out.original = { title: p.title, owner: p.owner, priority: p.priority, owner_team: p.owner_team };
@@ -594,6 +733,7 @@
       s.skipped = (w.stats.skipped || 0) + mine.filter((p) => p.status === 'skipped').length;
       s.decided_here = mine.length;
       s.linked_to_tracker = effectiveActionItems().filter((a) => a.tracker_ref).length;
+      s.open_items = effectiveActionItems().filter(isOpenItem).length;
       s.people = (w.stats.people || 0) + state.people_added.length;
       s.unprofiled_teammates = cached('people') ? effectivePeople().unprofiled.filter((u) => u.kind === 'teammate').length : null;
       return s;
@@ -632,6 +772,134 @@
     });
   }
 
+  // ---------------------------------------------------------------- review metrics
+  // The rules lib/vault.js uses for overview.metrics, applied to the reviews made here.
+
+  /** A skip reason as a kind: covered | done | not_a_task | wrong_owner | wrong_team | other | null. */
+  function reasonKind(reason, v = null) {
+    const r = String(reason || '').trim().toLowerCase();
+    if (!r) return v === 'DUPLICATE' ? 'covered' : null;
+    if (/wrong team|other team|belongs to/.test(r)) return 'wrong_team';
+    if (/wrong owner|reassign/.test(r)) return 'wrong_owner';
+    if (/not a task|no ticket|decides|discussion only/.test(r)) return 'not_a_task';
+    if (/\bdone\b|shipped|\blive\b|finished|\b(?:is|are) (?:already )?in\b/.test(r)) return 'done';
+    if (/covered|same ticket|already (?:tracked|exists|in the tracker)|duplicate|\b[a-z][a-z0-9]{1,9}-\d+\b/.test(r)) return 'covered';
+    return 'other';
+  }
+
+  /** 'agreed' (reviewed as proposed), 'edited' (approved after a change), 'overridden', or null while waiting. */
+  function agreementOf(p) {
+    if (!p || p.status === 'pending') return null;
+    const approved = p.status === 'approved';
+    const result = p.decision && p.decision.result;
+    if (p.verdict === 'DUPLICATE') return approved ? 'overridden' : 'agreed';
+    if (p.verdict === 'FLAG' && approved && result !== 'commented') return 'overridden';
+    if (p.verdict === 'FLAG' && !approved) return 'agreed';
+    if (!approved) return 'overridden';
+    return p.edited ? 'edited' : 'agreed';
+  }
+
+  /** The review kept a duplicate out of the tracker: a comment instead, or a skip as covered or done. */
+  function preventsDuplicate(p) {
+    if (!p || p.status === 'pending') return false;
+    const d = p.decision || {};
+    if (p.verdict === 'COMMENT') return p.status === 'approved';
+    if (p.verdict === 'FLAG' && p.status === 'approved') return d.result === 'commented';
+    if (p.verdict === 'FLAG' || p.verdict === 'DUPLICATE') {
+      const kind = d.reason_kind !== undefined && p.by !== 'you' ? d.reason_kind : reasonKind(d.reason, p.verdict);
+      return p.status === 'skipped' && (kind === 'covered' || kind === 'done');
+    }
+    return false;
+  }
+
+  function medianOf(values) {
+    const v = values.filter(Number.isFinite).sort((a, b) => a - b);
+    if (!v.length) return null;
+    const mid = Math.floor(v.length / 2);
+    return Math.round(v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2);
+  }
+
+  /** Decisions from calls in the last `days` days (today included), newest first. */
+  function recentDecisions(days = 7) {
+    const w = workspace();
+    const since = dayOf(nowMs() - days * 864e5);
+    return ((w && w.decisions) || []).filter((d) => String(d.date || '') > since);
+  }
+
+  /**
+   * overview.metrics with the reviews made here (the build's base values plus
+   * the overlay), and the counts the Overview tiles show.
+   */
+  function effectiveMetrics() {
+    return memo('metrics', () => {
+      const w = workspace();
+      if (!w) return null;
+      const m = (w.overview && w.overview.metrics) || {};
+      const entries = effectiveProposals();
+      const all = entries.flatMap((e) => e.proposals);
+      const reviewed = all.filter((p) => p.status !== 'pending');
+      const mine = reviewed.filter((p) => p.by === 'you');
+      const base = reviewed.filter((p) => p.by !== 'you');
+      const count = (list, kind) => list.filter((p) => agreementOf(p) === kind).length;
+
+      const va = isObj(m.verdict_agreement) ? m.verdict_agreement : null;
+      const agreement = {
+        agreed: (va ? va.agreed : count(base, 'agreed')) + count(mine, 'agreed'),
+        edited: (va ? va.edited : count(base, 'edited')) + count(mine, 'edited'),
+        decided: (va ? va.decided : base.length) + mine.length,
+      };
+      agreement.rate = agreement.decided ? agreement.agreed / agreement.decided : null;
+
+      const dp = isObj(m.duplicates_prevented) ? m.duplicates_prevented : null;
+      const prevented = (dp ? dp.confirmed : base.filter(preventsDuplicate).length) + mine.filter(preventsDuplicate).length;
+
+      // Time to review: per call with nothing waiting, call end → its last review (here or in the vault).
+      const tt = isObj(m.time_to_decision) ? m.time_to_decision : null;
+      const at = nowMs();
+      let over48 = 0;
+      const calls = (tt && Array.isArray(tt.calls) ? tt.calls : []).map((c) => {
+        const e = entries.find((x) => x.call_id === c.call_id);
+        const end = Date.parse(c.ended_at);
+        if (!e || !Number.isFinite(end)) return c;
+        const times = [];
+        for (const p of e.proposals) {
+          const t = p.status === 'pending' ? at : Date.parse((p.by === 'you' ? p.at : p.decided_at) || '');
+          if (p.status !== 'pending' && Number.isFinite(t)) times.push(t);
+          if (Number.isFinite(t) && t - end > 48 * 3600e3) over48++;
+        }
+        const last = e.pending === 0 && times.length ? Math.max(...times) : null;
+        return { ...c, decided_at: last ? new Date(last).toISOString() : null, minutes: last ? Math.round((last - end) / 60000) : null, pending: e.pending };
+      });
+
+      // Owner coverage: a task filed here counts, unless an open action item already sits at its minute.
+      let owners = isObj(m.owner_coverage) ? { ...m.owner_coverage } : null;
+      if (owners) {
+        const openAt = new Set(effectiveActionItems().filter(isOpenItem).map((a) => `${a.call_id}|${a.ts || a.title}`));
+        for (const p of mine) {
+          if (p.status !== 'approved' || p.decision.result !== 'created' || openAt.has(`${p.call_id}|${p.ts || p.title}`)) continue;
+          owners = { ...owners, total: owners.total + 1, with_owner: owners.with_owner + (p.owner ? 1 : 0) };
+        }
+      }
+
+      return {
+        decisions: { total: (w.decisions || []).length, last_7_days: recentDecisions(7).length },
+        reviews: { reviewed: reviewed.length, total: all.length, waiting: all.length - reviewed.length, here: mine.length },
+        verdict_agreement: agreement,
+        duplicates_prevented: { confirmed: prevented },
+        time_to_decision: {
+          median_minutes: tt ? medianOf(calls.map((c) => c.minutes).filter((x) => x !== null && x !== undefined)) : null,
+          over_48h: tt ? over48 : null,
+          calls,
+        },
+        owner_coverage: owners,
+        processing: isObj(m.processing) ? m.processing : null,
+      };
+    });
+  }
+
+  /** The teammate Overview is viewing as (a lastname), or '' for everyone. */
+  const viewingAs = () => (isObj(state.prefs) && typeof state.prefs.viewing_as === 'string' ? state.prefs.viewing_as : '');
+
   // ================================================================ events and hooks
   const listeners = {};
   function on(evt, fn) {
@@ -643,30 +911,79 @@
       try { fn(arg); } catch (e) { console.error(e); }
     }
   }
-  const hooks = { callAside: null, sendLog: null };
+  const hooks = { callAside: null, sendLog: null, slackThread: null };
 
   // ================================================================ UI kit
-  function toast(line1, line2 = '') {
+  const TOAST_MS = 4000;
+  const TOAST_ACTION_MS = 10000;
+  let shownToast = null;
+
+  /**
+   * One toast at a time, in the one polite live region: a new toast replaces
+   * the current one. Line 2 is the demo note. With {action: {label, run}} (Undo)
+   * the button shows and the toast stays 10 s, else 4 s; hover and focus pause it.
+   */
+  function toast(line1, line2 = '', opts = {}) {
     const box = ui.toasts;
     if (!box) return null;
+    if (shownToast) shownToast.close();
+    box.textContent = '';
+    const action = opts && isObj(opts.action) && typeof opts.action.run === 'function' ? opts.action : null;
     const t = document.createElement('div');
-    t.className = 'toast';
-    t.innerHTML = `<p class="toast-1">${esc(line1)}</p>${line2 ? `<p class="toast-2">${esc(line2)}</p>` : ''}<button class="toast-x" type="button">Dismiss</button>`;
-    let left = 6000;
+    t.className = `toast${action ? ' has-action' : ''}`;
+    t.innerHTML = `<div class="toast-text"><p class="toast-1">${esc(line1)}</p>${line2 ? `<p class="toast-2">${esc(line2)}</p>` : ''}</div>`
+      + `<div class="toast-do">${action ? `<button class="toast-act" type="button">${esc(action.label || 'Undo')}</button>` : ''}`
+      + '<button class="toast-x" type="button" aria-label="Dismiss"><span class="toast-x-word" aria-hidden="true">Dismiss</span><span class="toast-x-icon" aria-hidden="true">×</span></button></div>';
+    let left = action ? TOAST_ACTION_MS : TOAST_MS;
     let started = 0;
     let timer = null;
-    const close = () => { clearTimeout(timer); t.remove(); };
-    const start = () => { clearTimeout(timer); started = Date.now(); timer = setTimeout(close, left); };
-    const pause = () => { clearTimeout(timer); left = Math.max(1500, left - (Date.now() - started)); };
+    let running = false;
+    let closed = false;
+    let back = null;
+    const handle = { el: t, close };
+    function close() {
+      if (closed) return;
+      closed = true;
+      clearTimeout(timer);
+      const had = t.contains(document.activeElement);
+      t.remove();
+      if (shownToast === handle) shownToast = null;
+      if (!box.children.length) body.classList.remove('has-toast');
+      if (had) (back && back.isConnected ? back : ui.title).focus({ preventScroll: true });
+    }
+    const start = () => { if (closed) return; clearTimeout(timer); running = true; started = Date.now(); timer = setTimeout(close, left); };
+    const pause = () => { if (!running) return; clearTimeout(timer); running = false; left = Math.max(1500, left - (Date.now() - started)); };
     t.addEventListener('mouseenter', pause);
     t.addEventListener('mouseleave', () => { if (!t.contains(document.activeElement)) start(); });
-    t.addEventListener('focusin', pause);
+    t.addEventListener('focusin', (e) => { if (!t.contains(e.relatedTarget)) back = e.relatedTarget; pause(); });
     t.addEventListener('focusout', (e) => { if (!t.contains(e.relatedTarget)) start(); });
     t.querySelector('.toast-x').addEventListener('click', close);
+    if (action) {
+      t.querySelector('.toast-act').addEventListener('click', () => {
+        close();
+        try { action.run(); } catch (e) { console.error(e); }
+      });
+    }
     box.append(t);
-    while (box.children.length > 3) box.firstElementChild.remove();
+    body.classList.add('has-toast');
+    shownToast = handle;
     start();
-    return { el: t, close };
+    requestAnimationFrame(() => keepClear());
+    return handle;
+  }
+
+  /** Keep the focused element clear of the toast: scroll it up when the toast would cover it. */
+  function keepClear() {
+    const t = shownToast && shownToast.el;
+    const a = document.activeElement;
+    if (!t || !t.isConnected || !a || a === body || a === ui.view || t.contains(a) || a.closest('dialog')) return;
+    const r = a.getBoundingClientRect();
+    const tr = t.getBoundingClientRect();
+    if (!r.height || r.bottom <= tr.top - 8 || r.top >= window.innerHeight || r.left >= tr.right || r.right <= tr.left) return;
+    const head = $('.app-header');
+    const top = head && getComputedStyle(head).position === 'sticky' ? head.getBoundingClientRect().bottom : 0;
+    const by = Math.min(r.bottom - tr.top + 12, r.top - top - 8);
+    if (by > 0) window.scrollBy({ top: by, behavior: 'instant' });
   }
 
   function resolveFocus(x) {
@@ -697,10 +1014,19 @@
     d.className = ['sheet', wide ? 'sheet-wide' : '', className].filter(Boolean).join(' ');
     d.setAttribute('aria-labelledby', `${id}-title`);
     const primaryAt = actions.findIndex((a) => a.primary) >= 0 ? actions.findIndex((a) => a.primary) : actions.findIndex((a) => !a.cancel);
+    // A link action ({label, href, primary}) is an <a class="btn">: following it closes the dialog.
+    const linkOf = (a) => (a && typeof a.href === 'string' ? safeUrl(a.href) || (/^mailto:/i.test(a.href) ? a.href : null) : null);
+    const actionHtml = (a, i) => {
+      const cls = `btn btn-small${i === primaryAt ? '' : ' btn-ghost'}`;
+      const attrs = `data-action="${i}"${a.autofocus ? ' autofocus' : ''}${a.disabled ? ' aria-disabled="true"' : ''}`;
+      const url = linkOf(a);
+      if (url) return `<a class="${cls}" href="${esc(url)}" ${attrs}>${esc(a.label)}</a>`;
+      return `<button class="${cls}" type="${a.cancel ? 'button' : 'submit'}" ${attrs}>${esc(a.label)}</button>`;
+    };
     d.innerHTML = `<form class="sheet-form" novalidate>
       <div class="sheet-head"><h2 id="${id}-title">${esc(title)}</h2></div>
       <div class="sheet-body">${html}</div>
-      <div class="sheet-actions">${actions.map((a, i) => `<button class="btn btn-small${i === primaryAt ? '' : ' btn-ghost'}" type="${a.cancel ? 'button' : 'submit'}" data-action="${i}"${a.autofocus ? ' autofocus' : ''}${a.disabled ? ' aria-disabled="true"' : ''}>${esc(a.label)}</button>`).join('')}</div>
+      <div class="sheet-actions">${actions.map(actionHtml).join('')}</div>
     </form>`;
     document.body.append(d);
     const form = d.querySelector('form');
@@ -770,7 +1096,21 @@
       const at = e.submitter && e.submitter.dataset.action;
       act(at !== undefined ? Number(at) : buttons.findIndex((b) => b.type === 'submit'));
     });
-    for (const b of buttons) if (b.type === 'button') b.addEventListener('click', () => act(Number(b.dataset.action)));
+    for (const b of buttons) {
+      if (b.tagName === 'A') {
+        b.addEventListener('click', (e) => {
+          // A new tab or window (modifier keys, middle click) leaves the dialog as it is.
+          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          e.preventDefault();
+          const a = actions[Number(b.dataset.action)];
+          if (handle.isBusy || settled || b.getAttribute('aria-disabled') === 'true') return;
+          try { if (a.onClick && a.onClick(handle) === false) return; } catch (err) { console.error(err); return; }
+          const url = b.getAttribute('href');
+          handle.close(a.value !== undefined ? a.value : 'link');
+          if (url.startsWith('#')) go(url); else window.location.assign(url);
+        });
+      } else if (b.type === 'button') b.addEventListener('click', () => act(Number(b.dataset.action)));
+    }
     d.addEventListener('cancel', (e) => { e.preventDefault(); if (!handle.isBusy) handle.close(null); });
     d.addEventListener('close', () => { if (!settled) { settled = true; finish(null); } });
     d.showModal();
@@ -848,6 +1188,14 @@
       const left = cur.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft;
       strip.scrollLeft = Math.max(0, left - (strip.clientWidth - cur.offsetWidth) / 2);
     }
+    navCue();
+  }
+
+  /** The phone nav strip fades at its right edge while more items wait off screen. */
+  function navCue() {
+    const n = ui.nav;
+    if (!n || !ui.navWrap) return;
+    ui.navWrap.classList.toggle('has-more', n.scrollWidth - n.clientWidth - n.scrollLeft > 4);
   }
 
   function setSlot(node, html) {
@@ -1015,10 +1363,51 @@
   }
 
   // ================================================================ shell
-  function bannerHtml(n) {
-    const link = n ? `Start with the ${plural(n, 'proposal')} waiting for a decision →` : 'See what the team filed →';
-    return `<span class="banner-long">Demo workspace for ${esc(company())}, a fictional team. Approve, skip, edit and connect anything: it all runs in your browser. <a href="#/tasks">${esc(link)}</a></span>`
-      + '<span class="banner-short">Demo for a fictional team. Everything runs in your browser. <a href="#/tasks">Start here →</a></span>';
+  /** The tour: a call's decisions, its tasks, who owns what, and the memory that answers why. */
+  function tourSteps() {
+    const w = workspace();
+    const callId = (w.stats.last_call && w.stats.last_call.id) || (w.calls[0] && w.calls[0].id) || null;
+    return [
+      { label: 'What a call decided', href: callId ? href('call', callId) : '#/calls', on: (c) => c.prefix === 'call' && c.parts[0] === callId },
+      { label: 'Review its tasks', href: '#/tasks', on: (c) => c.prefix === 'tasks' },
+      { label: 'Who owns what', href: '#/tasks/open', on: (c) => c.prefix === 'tasks/open' },
+      { label: 'Ask the memory why', href: '#/memory', on: (c) => c.prefix === 'memory' },
+    ];
+  }
+
+  /** Builds the tour banner once the workspace has loaded; syncChrome keeps its current step. */
+  function buildBanner() {
+    if (!ui.banner || !isDemo || ui.banner.dataset.built) return;
+    ui.banner.dataset.built = '1';
+    ui.banner.setAttribute('role', 'region');
+    ui.banner.setAttribute('aria-label', 'Demo tour');
+    ui.banner.innerHTML = `<div class="banner-row">
+        <div class="banner-text">
+          <p class="banner-lead">Demo workspace for ${esc(company())}, a fictional team. Take the tour:</p>
+          <ol class="tour">${tourSteps().map((s, i) => `<li><a href="${esc(s.href)}" data-tour-step="${i}"><span class="tour-n">${i + 1}</span> ${esc(s.label)}</a></li>`).join('')}</ol>
+        </div>
+        <button class="banner-x" type="button" data-tour-hide aria-label="Hide the tour"><span aria-hidden="true">×</span></button>
+      </div>
+      <p class="banner-sub">Everything runs in your browser.</p>`;
+    $('[data-tour-hide]', ui.banner).addEventListener('click', () => {
+      state.prefs.tour_hidden = true;
+      save();
+      syncChrome();
+      ui.title.focus({ preventScroll: true });
+    });
+  }
+
+  function syncBanner() {
+    if (!ui.banner || !ui.banner.dataset.built) return;
+    const hidden = Boolean(isObj(state.prefs) && state.prefs.tour_hidden);
+    ui.banner.hidden = hidden;
+    if (ui.menuTour) ui.menuTour.hidden = !hidden;
+    const steps = tourSteps();
+    for (const a of $$('[data-tour-step]', ui.banner)) {
+      const s = steps[Number(a.dataset.tourStep)];
+      if (s && current && s.on(current)) a.setAttribute('aria-current', 'step');
+      else a.removeAttribute('aria-current');
+    }
   }
 
   function syncChrome() {
@@ -1031,20 +1420,53 @@
     }
     if (!isDemo) return;
     const c = changeCount();
-    if (ui.reset) ui.reset.textContent = c ? `Reset demo · ${plural(c, 'change')}` : 'Reset demo';
-    if (ui.banner) {
-      const html = bannerHtml(n);
-      if (ui.banner.innerHTML !== html) ui.banner.innerHTML = html;
+    const label = c ? `Reset demo · ${plural(c, 'change')}` : 'Reset demo';
+    for (const b of [ui.reset, ui.menuReset]) if (b && b.textContent !== label) b.textContent = label;
+    buildBanner();
+    syncBanner();
+  }
+
+  /** The header's ⋯ menu (phones): Reset demo, the tour, and in /app the account. */
+  function setMenu(open, focus) {
+    if (!ui.menu || !ui.menuBtn) return;
+    ui.menu.hidden = !open;
+    ui.menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      const first = $$('button, a', ui.menu).find((x) => !x.closest('[hidden]') && x.getClientRects().length);
+      if (first) first.focus();
+    } else if (focus) ui.menuBtn.focus();
+  }
+
+  function wireMenu() {
+    if (!ui.menu || !ui.menuBtn) return;
+    ui.menuBtn.addEventListener('click', () => setMenu(ui.menu.hidden));
+    ui.menu.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setMenu(false, true); } });
+    ui.menu.addEventListener('focusout', (e) => {
+      if (e.relatedTarget && !ui.menu.contains(e.relatedTarget) && e.relatedTarget !== ui.menuBtn) setMenu(false);
+    });
+    document.addEventListener('click', (e) => {
+      if (!ui.menu.hidden && !ui.menu.contains(e.target) && !ui.menuBtn.contains(e.target)) setMenu(false);
+    });
+    if (ui.menuReset) ui.menuReset.addEventListener('click', () => { setMenu(false); onReset(ui.menuBtn); });
+    if (ui.menuTour) {
+      ui.menuTour.addEventListener('click', () => {
+        setMenu(false);
+        state.prefs.tour_hidden = false;
+        save();
+        syncChrome();
+        const first = $('[data-tour-step]', ui.banner);
+        if (first) first.focus();
+      });
     }
   }
 
-  async function onReset() {
+  async function onReset(trigger) {
     const ok = await confirm({
       title: 'Reset the demo?',
       text: 'This clears your approvals, skips, edits, Slack settings, added people and connection changes in this browser.',
       confirm: 'Reset demo',
       cancel: 'Cancel',
-      trigger: ui.reset,
+      trigger: trigger && trigger.isConnected && trigger.getClientRects().length ? trigger : ui.title,
     });
     if (!ok) return;
     reset();
@@ -1083,13 +1505,41 @@
       plural(total, 'proposal'),
     ].map(esc);
     if (c.has_transcript && canOpenTranscript(c.id)) counts.push(`<a href="${esc(href('call', c.id, 'transcript'))}">Transcript</a>`);
+    const more = (c.decisions_count || 0) - 1;
+    const decided = c.first_decision
+      ? `<p class="call-decision"><span class="call-decision-k">Decided</span> ${esc(c.first_decision)}${more > 0 ? ` <span class="muted">+${esc(more)} more</span>` : ''}</p>`
+      : '';
     return `<li class="call-row">
       <span class="call-date"><span>${esc(fmtDay(c.date))}</span>${c.time ? `<span>${esc(c.time)}</span>` : ''}</span>
       <div class="call-main">
         <p class="call-topic"><a class="call-link" href="${esc(href('call', c.id))}">${esc(c.topic)}</a>
           <span class="call-meta">${teamChip(c.team)}${c.call_type ? `<span>${esc(c.call_type)}</span>` : ''}${mark}</span></p>
+        ${decided}
         <p class="call-people">${who}</p>
         <p class="call-counts">${counts.join(' · ')}</p>
+        ${opts.after || ''}
+      </div>
+    </li>`;
+  }
+
+  /** "Follow-up: Hughes" (a link to the profile when there is one); "· done" once a later call records it. */
+  function followUpChip(fu) {
+    if (!fu || !fu.owner) return '';
+    const done = Boolean(fu.closed_by) || fu.status === 'done-on-call';
+    const label = `Follow-up: ${fu.owner}${done ? ' · done' : ''}`;
+    return profiled(fu.owner)
+      ? `<a class="chip dec-owner" href="${esc(href('people', fu.owner))}">${esc(label)}</a>`
+      : `<span class="chip dec-owner">${esc(label)}</span>`;
+  }
+
+  /** One decision (workspace.decisions[]) as a ledger row: title, why, ▶, the call, the follow-up owner. */
+  function decisionRow(d, opts = {}) {
+    return `<li class="dec-row">
+      <span class="dec-date">${esc(fmtDay(d.date))}</span>
+      <div class="dec-main">
+        <p class="dec-title">${esc(d.title)}</p>
+        ${d.why ? `<p class="dec-why">Why: ${esc(d.why)}</p>` : ''}
+        <p class="dec-meta">${ts(d.call_id, d.ts)} <a href="${esc(href('call', d.call_id))}">${esc(d.topic)}</a>${opts.compact || !d.team ? '' : ` ${teamChip(d.team)}`} ${followUpChip(d.follow_up)}</p>
       </div>
     </li>`;
   }
@@ -1105,75 +1555,199 @@
     return m ? m[1] : null;
   }
 
-  function waitingPanel() {
+  // What stops while a source is off (the alert row and the health line say it).
+  const SOURCE_OFF = {
+    zoom: "New recordings aren't processed.",
+    slack: "Digests aren't posted to Slack.",
+    linear: "Approved tasks aren't filed in Linear.",
+    github: "New calls aren't saved to your repository.",
+  };
+  const sourceName = (id) => SOURCE_NAMES[id] || id;
+  const failures = (s) => (s && isObj(s.health) && Number.isFinite(Number(s.health.failures_30d)) ? Number(s.health.failures_30d) : 0);
+
+  /** Reviews made here since the reviews were last posted to the call's Slack thread. */
+  function unposted(e) {
+    const mine = e.proposals.filter((p) => p.by === 'you');
+    const sent = e.log_sent ? Date.parse(e.log_sent.at) : NaN;
+    return Number.isNaN(sent) ? mine.length : mine.filter((p) => !(Date.parse(p.at) <= sent)).length;
+  }
+
+  /** "Post reviews to Slack" while reviews made here are unposted, else when they were posted. */
+  function postReviews(e, primary = false) {
+    if (!isDemo) return '';
+    if (unposted(e)) return `<button class="btn btn-small${primary ? '' : ' btn-ghost'}" type="button" data-send-log="${esc(e.call_id)}">Post reviews to Slack</button>`;
+    if (e.log_sent) return `<p class="attn-done">Reviews posted to <span class="mono">${esc(e.log_sent.channel || '#call-digests')}</span>, ${esc(stamp(e.log_sent.at, ' '))}.</p>`;
+    return '';
+  }
+
+  /** "All 4 proposals from 19 Oct are reviewed: 2 created, 1 commented, 1 skipped." */
+  function reviewedLine(nd, e) {
+    const mine = e.proposals.filter((p) => p.by === 'you');
+    const n = (r) => mine.filter((p) => p.decision.result === r).length;
+    const parts = [n('created') && `${n('created')} created`, n('commented') && `${n('commented')} commented`, n('skipped') && `${n('skipped')} skipped`].filter(Boolean);
+    const what = nd.pending === 1 ? `The proposal from ${fmtDay(nd.date)} is reviewed` : `All ${nd.pending} proposals from ${fmtDay(nd.date)} are reviewed`;
+    return `${what}${parts.length ? `: ${parts.join(', ')}` : ''}.`;
+  }
+
+  /** Calls that had proposals waiting, with what the overlay made of them: {nd, e, waiting}. */
+  function waitingCalls() {
     const w = workspace();
+    return ((w.overview && w.overview.needs_decision) || [])
+      .map((nd) => ({ nd, e: effectiveProposals(nd.call_id) }))
+      .filter((x) => x.e)
+      .map((x) => ({ ...x, waiting: x.e.proposals.filter((p) => p.status === 'pending') }));
+  }
+
+  /** The demo's closing moment: every proposal that waited is reviewed, here. */
+  function closingState() {
+    if (!isDemo || waitingCount() > 0) return null;
+    const done = waitingCalls().filter((x) => !x.waiting.length && x.e.decided_here > 0);
+    return done.length ? done : null;
+  }
+
+  /** A source that is off, or failing: first in "Waiting for you". */
+  function sourceRows() {
     const rows = [];
-    let look = false;
-    for (const nd of (w.overview && w.overview.needs_decision) || []) {
-      const e = effectiveProposals(nd.call_id);
-      if (!e) continue;
-      const pend = e.proposals.filter((p) => p.status === 'pending');
-      if (pend.length) {
-        look = true;
-        // "Approve all safe" is off on planning and mixed calls, so no "safe" chip there.
-        const safe = e.bulk.approve_safe.allowed ? pend.filter((p) => p.safe).length : 0;
-        const flagged = pend.filter((p) => p.verdict === 'FLAG').length;
-        const dups = pend.filter((p) => p.verdict === 'DUPLICATE').length;
+    for (const s of effectiveSources()) {
+      const name = sourceName(s.id);
+      if (s.status !== 'connected') {
+        const what = `${name} ${s.changed_here ? 'is disconnected' : "isn't connected"}. ${SOURCE_OFF[s.id] || ''}`.trim();
+        const btn = isDemo
+          ? `<a class="btn btn-small" href="${esc(href('sources', s.id))}">${s.changed_here ? 'Reconnect' : 'Connect'} ${esc(name)}</a>`
+          : `<a class="btn btn-small btn-ghost" href="${esc(href('sources', s.id))}">${esc(name)} in Sources</a>`;
+        rows.push(`<div class="attn-row is-inline is-alert">
+          <p class="attn-what"><span class="status-dot is-off" aria-hidden="true"></span> <strong>${esc(what)}</strong></p>
+          <div class="attn-do">${btn}</div>
+        </div>`);
+      } else if (failures(s)) {
+        rows.push(`<div class="attn-row is-inline is-alert">
+          <p class="attn-what"><span class="status-dot is-off" aria-hidden="true"></span> <strong>${esc(`${name} failed ${plural(failures(s), 'time')} in the last 30 days.`)}</strong></p>
+          <div class="attn-do"><a class="btn btn-small btn-ghost" href="${esc(href('sources', s.id))}">See ${esc(name)}</a></div>
+        </div>`);
+      }
+    }
+    return rows;
+  }
+
+  /** Waiting proposals, calls reviewed here (when not closing), and the unprofiled teammate. */
+  function waitingRows(closing) {
+    const rows = [];
+    for (const { nd, e, waiting } of waitingCalls()) {
+      if (waiting.length) {
+        // Approving several at once is off on planning and mixed calls, so no such chip there.
+        const together = e.bulk.approve_safe.allowed ? waiting.filter((p) => p.safe).length : 0;
+        const flagged = waiting.filter((p) => p.verdict === 'FLAG').length;
+        const tracked = waiting.filter((p) => p.verdict === 'DUPLICATE').length;
         const chips = [
-          safe ? `<span class="chip">${safe > 1 ? `${safe} safe to approve together` : '1 safe to approve'}</span>` : '',
-          flagged ? `<span class="v v-flag">${flagged} flagged</span>` : '',
-          dups ? `<span class="v v-duplicate">${plural(dups, 'duplicate')}</span>` : '',
+          together > 1 ? `<span class="chip">${together} can be approved together</span>` : '',
+          flagged ? `<span class="v v-flag">${plural(flagged, 'possible duplicate')}</span>` : '',
+          tracked ? `<span class="v v-duplicate v-tracked">${tracked} already tracked</span>` : '',
         ].join('');
         rows.push(`<div class="attn-row">
-          <p class="attn-what"><strong>${plural(pend.length, 'task proposal')}</strong> from <a href="${esc(href('call', nd.call_id))}">${esc(nd.topic)}</a> <span class="mono muted">· ${esc(fmtDay(nd.date))}</span></p>
-          <div class="attn-do"><span class="attn-chips">${chips}</span><a class="btn btn-small" href="${esc(href('tasks', 'call', nd.call_id))}">Review ${plural(pend.length, 'proposal')}</a></div>
+          <p class="attn-what"><strong>${plural(waiting.length, 'task proposal')}</strong> from <a href="${esc(href('call', nd.call_id))}">${esc(nd.topic)}</a> <span class="mono muted">· ${esc(fmtDay(nd.date))}</span></p>
+          <div class="attn-do"><span class="attn-chips">${chips}</span><a class="btn btn-small" href="${esc(href('tasks', 'call', nd.call_id))}">Review ${plural(waiting.length, 'proposal')}</a></div>
         </div>`);
-        continue;
+      } else if (!closing) {
+        const post = postReviews(e, true);
+        rows.push(`<div class="attn-row is-inline">
+          <p class="attn-what">${esc(reviewedLine(nd, e))}</p>
+          ${post ? (post.startsWith('<p') ? post : `<div class="attn-do">${post}</div>`) : ''}
+        </div>`);
       }
-      // Everything this call proposed has been decided in the demo.
-      const mine = e.proposals.filter((p) => p.by === 'you');
-      const n = (r) => mine.filter((p) => p.decision.result === r).length;
-      const parts = [n('created') && `${n('created')} created`, n('commented') && `${n('commented')} commented`, n('skipped') && `${n('skipped')} skipped`].filter(Boolean);
-      const what = nd.pending === 1 ? `The proposal from ${fmtDay(nd.date)} is decided` : `All ${nd.pending} proposals from ${fmtDay(nd.date)} are decided`;
-      const sent = e.log_sent;
-      rows.push(`<div class="attn-row is-inline">
-        <p class="attn-what">${esc(what)}${parts.length ? `: ${esc(parts.join(', '))}` : ''}.</p>
-        ${sent ? `<p class="attn-done">Log posted to <span class="mono">${esc(sent.channel || '#call-digests')}</span>, ${esc(stamp(sent.at, ' '))}.</p>`
-    : isDemo ? `<div class="attn-do"><button class="btn btn-small" type="button" data-send-log="${esc(nd.call_id)}">Send the log to Slack</button></div>` : ''}
-      </div>`);
     }
     for (const u of effectivePeople().unprofiled.filter((x) => x.kind === 'teammate')) {
-      look = true;
       rows.push(`<div class="attn-row is-inline">
         <p class="attn-what">${esc(u.token)} is named on ${plural(u.calls, 'call')} but has no profile.</p>
         ${isDemo ? `<div class="attn-do"><a class="btn btn-small btn-ghost" href="${esc(href('people', 'add', { last: u.token }))}">Add profile</a></div>` : ''}
       </div>`);
     }
-    if (!rows.length) {
-      rows.push(`<div class="attn-row"><p class="attn-what">${w.calls.length
-        ? 'Nothing is waiting for you. Proposals from your next call show up here.'
-        : "Nothing is waiting for you yet. Your first call's proposals show up here."}</p></div>`);
-    }
-    return `<section class="panel${look ? ' attn' : ''}" aria-labelledby="h-waiting"><h2 id="h-waiting">Waiting for you</h2>${rows.join('')}</section>`;
+    return rows;
   }
 
+  function waitingPanel(rows, empty = true) {
+    const w = workspace();
+    if (!rows.length && !empty) return '';
+    const body = rows.length ? rows.join('') : `<div class="attn-row"><p class="attn-what">${w.calls.length
+      ? 'Nothing is waiting for you. Proposals from your next call show up here.'
+      : "Nothing is waiting for you yet. Your first call's proposals show up here."}</p></div>`;
+    return `<section class="panel${rows.length ? ' attn' : ''}" aria-labelledby="h-waiting"><h2 id="h-waiting">Waiting for you</h2>${body}</section>`;
+  }
+
+  /** After the last waiting proposal is reviewed in the demo: the loop, and the way to see it on your stack. */
+  function closingPanel(done) {
+    const head = done.length === 1 ? reviewedLine(done[0].nd, done[0].e) : 'Every proposal that was waiting is reviewed.';
+    const lines = done.length > 1 ? `<ul class="plain closing-calls">${done.map(({ nd, e }) => `<li>${esc(reviewedLine(nd, e))}</li>`).join('')}</ul>` : '';
+    const posts = done.map(({ e }) => postReviews(e)).filter(Boolean).join('');
+    return `<section class="panel closing" aria-labelledby="h-closing">
+      <h2 id="h-closing">${esc(head)}</h2>
+      ${lines}
+      <p class="closing-lead">That's the loop after every call: decisions on record, tasks filed with owners, everything kept in your repository.</p>
+      <div class="closing-do"><a class="btn" href="${esc(bookHref())}">Book a demo</a>${posts}</div>
+    </section>`;
+  }
+
+  /**
+   * One compact line instead of a panel: "All 4 sources healthy · last call
+   * processed 19 Oct, 10:44 (digest 9 min after the call)". A source that is
+   * off or failing turns it into a warning (its row also leads "Waiting for you").
+   */
+  function healthLine() {
+    const w = workspace();
+    const srcs = effectiveSources();
+    const off = srcs.filter((s) => s.status !== 'connected');
+    const failing = srcs.filter((s) => s.status === 'connected' && failures(s));
+    // Health data exists in the demo; /app knows only which sources are connected, so it claims no more.
+    const known = srcs.some((s) => isObj(s.health));
+    const clause = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1).replace(/\.$/, '') : 'nothing new comes in');
+    let text;
+    if (off.length) {
+      const names = joinAnd(off.map((s) => sourceName(s.id)));
+      text = off.length === 1
+        ? `${names} ${off[0].changed_here ? 'is disconnected' : "isn't connected"}: ${clause(SOURCE_OFF[off[0].id])}`
+        : `${names} are not connected`;
+    } else if (failing.length) {
+      text = `${joinAnd(failing.map((s) => sourceName(s.id)))} ${failing.length === 1 ? 'needs' : 'need'} a look: ${plural(failing.reduce((n, s) => n + failures(s), 0), 'failure')} in 30 days`;
+    } else {
+      text = known ? `All ${srcs.length} sources healthy` : `${srcs.length === 4 ? 'All 4' : srcs.length} sources connected`;
+    }
+    const ok = !off.length && !failing.length;
+    const m = (w.overview && w.overview.metrics && w.overview.metrics.processing) || null;
+    const last = m && isObj(m.last) ? m.last : null;
+    let processed = '';
+    if (last && Number.isFinite(Date.parse(last.at))) {
+      const mins = Number.isFinite(last.minutes) ? ` (digest ${plural(last.minutes, 'min', 'min')} after the call)` : '';
+      processed = ` · last call processed ${fmtDay(dayOf(Date.parse(last.at)))}, ${clock(last.at)}${mins}`;
+    } else if (!w.calls.length) processed = ' · no calls processed yet';
+    return `<p class="health${ok ? '' : ' is-problem'}"><span class="status-dot${ok ? '' : ' is-off'}" aria-hidden="true"></span>`
+      + `<span><a href="#/sources">${esc(text)}</a>${esc(processed)}</span></p>`;
+  }
+
+  /** The five review tiles, recomputed with the reviews made here. */
   function statTiles() {
-    const s = effectiveStats();
-    const d = (workspace().overview && workspace().overview.digest_totals) || {};
-    const u = s.unprofiled_teammates;
+    const m = effectiveMetrics();
+    const va = m.verdict_agreement;
+    const tt = m.time_to_decision;
+    const r = m.reviews;
     const tiles = [
-      { k: 'Calls', v: s.calls_total, sub: `${s.calls_last_30d} in the last 30 days`, to: '#/calls' },
-      { k: 'Decisions', v: d.decisions ?? 0, sub: `${plural(d.agreements || 0, 'agreement')} · ${plural(d.open_questions || 0, 'open question')}` },
-      { k: 'Task proposals', v: s.proposals, sub: `${s.accepted} approved · ${s.skipped} skipped · ${s.pending} waiting`, to: '#/tasks' },
-      { k: 'Duplicates caught', v: s.duplicates_caught, sub: 'commented or skipped, not filed twice' },
       {
-        k: 'People', v: s.people, to: '#/people',
-        sub: u === null || u === undefined ? 'profiles the digests resolve names with' : u ? `${plural(u, 'teammate')} without a profile` : 'every teammate on calls has a profile',
+        k: 'Decisions on record', v: m.decisions.total, to: '#/calls/decisions',
+        sub: m.decisions.last_7_days ? `${m.decisions.last_7_days} in the last 7 days` : 'none in the last 7 days',
+      },
+      { k: 'Proposals reviewed', v: r.reviewed, of: r.total, sub: r.waiting ? `${r.waiting} waiting` : 'none waiting', to: '#/tasks' },
+      {
+        k: 'Verdict agreement', v: va.rate === null ? '—' : `${Math.round(va.rate * 100)}%`, to: href('tasks', { status: 'reviewed' }),
+        sub: `reviewed as proposed${va.edited ? ` · ${va.edited} edited` : ''}`,
+      },
+      { k: 'Duplicates prevented', v: m.duplicates_prevented.confirmed, sub: 'confirmed by your team' },
+      {
+        k: 'Time to review', v: fmtMinutes(tt.median_minutes),
+        sub: `median, call end to last review${tt.over_48h ? ` · ${tt.over_48h} waiting over 48 h` : ''}`,
       },
     ];
-    return `<ul class="stat-grid" aria-label="Totals">${tiles.map((t) => {
-      const inner = `<span class="stat-k">${esc(t.k)}</span><span class="stat-v">${esc(t.v)}</span><span class="stat-sub">${esc(t.sub)}</span>`;
-      return `<li class="stat">${t.to ? `<a class="stat-box" href="${t.to}">${inner}</a>` : `<div class="stat-box">${inner}</div>`}</li>`;
+    return `<ul class="stat-grid" aria-label="How proposals land">${tiles.map((t) => {
+      const v = `${esc(t.v)}${t.of !== undefined ? ` <span class="stat-of">of ${esc(t.of)}</span>` : ''}`;
+      const inner = `<span class="stat-k">${esc(t.k)}</span><span class="stat-v">${v}</span><span class="stat-sub">${esc(t.sub)}</span>`;
+      return `<li class="stat">${t.to ? `<a class="stat-box" href="${esc(t.to)}">${inner}</a>` : `<div class="stat-box">${inner}</div>`}</li>`;
     }).join('')}</ul>`;
   }
 
@@ -1185,36 +1759,76 @@
     </section>`;
   }
 
+  /** Decisions from the last 7 days (on the demo's clock), newest first. */
+  function decidedLastWeek() {
+    const list = recentDecisions(7);
+    return `<section class="panel" aria-labelledby="h-decided">
+      <div class="panel-head"><h2 id="h-decided">Decided last week</h2><a href="#/calls/decisions">All decisions</a></div>
+      ${list.length ? `<ol class="dec-list">${list.map((d) => decisionRow(d, { compact: true })).join('')}</ol>`
+    : '<p class="panel-note">Nothing was decided on a call in the last 7 days.</p>'}
+    </section>`;
+  }
+
+  /** Open items only (what Open items lists), per owner. */
   function openByOwner() {
-    const list = (workspace().overview && workspace().overview.open_by_owner) || [];
-    const total = list.reduce((n, o) => n + o.open, 0);
-    const calls = new Set(effectiveActionItems().filter((a) => a.status === 'post-call' && a.owner).map((a) => a.call_id)).size;
-    const rows = list.map((o) => `<li><a class="owner-row" href="${esc(href('tasks', 'open', { owner: o.owner }))}" aria-label="${esc(o.owner)}, ${esc(plural(o.open, 'open item'))}">
-      <span>${esc(o.owner)}</span><span class="units" aria-hidden="true">${'<i></i>'.repeat(Math.min(o.open, 30))}</span><span class="owner-n">${esc(o.open)}</span></a></li>`).join('');
+    const items = effectiveActionItems().filter(isOpenItem);
+    const by = new Map();
+    for (const a of items) by.set(a.owner || '', (by.get(a.owner || '') || 0) + 1);
+    const list = [...by].filter(([o]) => o).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .concat(by.has('') ? [['', by.get('')]] : []);
+    const calls = new Set(items.map((a) => a.call_id)).size;
+    const me = viewingAs();
+    const rows = list.map(([owner, n]) => {
+      const name = owner || 'No owner';
+      return `<li><a class="owner-row${owner && owner === me ? ' is-me' : ''}" href="${esc(href('tasks', 'open', { owner: owner || 'none' }))}" aria-label="${esc(name)}, ${esc(plural(n, 'open item'))}">
+      <span>${esc(name)}</span><span class="units" aria-hidden="true">${'<i></i>'.repeat(Math.min(n, 30))}</span><span class="owner-n">${esc(n)}</span></a></li>`;
+    }).join('');
     return `<section class="panel" aria-labelledby="h-owners">
       <div class="panel-head"><h2 id="h-owners">Open items by owner</h2><a href="#/tasks/open">All open items</a></div>
-      <p class="panel-note">${total ? `${esc(total)} open across ${esc(plural(calls, 'call'))}` : 'Nothing open.'}</p>
+      <p class="panel-note">${items.length ? `${esc(items.length)} open across ${esc(plural(calls, 'call'))}` : 'Nothing open.'}</p>
       ${rows ? `<ol class="owner-list">${rows}</ol>` : ''}
     </section>`;
   }
 
-  function connectedPanel() {
+  /** People Overview can view as: profiles, plus anyone who owns an open item. */
+  function viewers() {
+    const names = new Map();
+    for (const p of effectivePeople().people) names.set(p.lastname, p.name || p.lastname);
+    for (const a of effectiveActionItems()) if (a.owner && isOpenItem(a) && !names.has(a.owner)) names.set(a.owner, a.owner);
+    return [...names].sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
+  function viewingSelect() {
+    const list = viewers();
+    if (!list.length) return '';
+    const me = viewingAs();
+    if (me && !list.some(([k]) => k === me)) list.push([me, me]);
+    return `<label class="viewing"><span class="viewing-k">Viewing as</span> <select name="viewing_as" data-viewing>
+      <option value="">Everyone</option>${list.map(([k, name]) => `<option value="${esc(k)}"${k === me ? ' selected' : ''}>${esc(name)}</option>`).join('')}
+    </select></label>`;
+  }
+
+  /** "Yours: 2 open" and those items, for the teammate Overview is viewing as. */
+  function minePanel() {
+    const me = viewingAs();
+    if (!me) return '';
+    const items = effectiveActionItems().filter((a) => a.owner === me && isOpenItem(a));
+    const rows = items.map((a) => `<li class="mine-row">
+        <p class="mine-title">${esc(a.title)} ${prio(a.priority)}</p>
+        <p class="mine-meta">${ts(a.call_id, a.ts)} <a href="${esc(href('call', a.call_id))}">${esc(a.call_topic || 'The call')}</a> <span class="mono">${esc(fmtDay(a.call_date))}</span> ${ref(a.tracker_ref)}</p>
+      </li>`).join('');
+    return `<section class="panel mine" aria-labelledby="h-mine">
+      <div class="panel-head"><h2 id="h-mine">Yours: ${esc(items.length)} open</h2><a href="${esc(href('tasks', 'open', { owner: me }))}">${esc(`${me}'s open items`)}</a></div>
+      ${rows ? `<ol class="mine-list">${rows}</ol>` : `<p class="panel-note">${esc(`Nothing is open for ${me}.`)}</p>`}
+    </section>`;
+  }
+
+  /** "Saved to acme/vault on GitHub: 7 calls, 7 tasks files, 5 profiles. If you leave Backbrief, the files stay yours." */
+  function savedLine() {
     const w = workspace();
-    const items = effectiveSources().map((s) => {
-      const on = s.status === 'connected';
-      return `<li><a href="${esc(href('sources', s.id))}">
-        <span class="source-state${on ? '' : ' is-off'}"><span class="status-dot${on ? '' : ' is-off'}" aria-hidden="true"></span>${on ? 'Connected' : 'Not connected'}</span>
-        <span class="source-name">${esc(SOURCE_NAMES[s.id] || s.id)}</span>
-        ${isDemo && on && s.account ? `<span class="source-account">${esc(s.account)}</span>` : ''}
-      </a></li>`;
-    }).join('');
     const repo = repoName();
     const files = [plural(w.stats.calls_total, 'call'), plural(w.task_log.filter((e) => e.tasks_path).length, 'tasks file'), plural(w.stats.people, 'profile')].join(', ');
-    return `<section class="panel" aria-labelledby="h-connected">
-      <h2 id="h-connected">Connected</h2>
-      <ul class="sources-row">${items}</ul>
-      <p class="small muted">Saved to ${repo ? `<span class="mono">${esc(repo)}</span> on GitHub` : 'your git repository'}: ${esc(files)}. If you leave Backbrief, the files stay yours.</p>
-    </section>`;
+    return `<p class="small muted saved-line">Saved to ${repo ? `<span class="mono">${esc(repo)}</span> on GitHub` : 'your git repository'}: ${esc(files)}. If you leave Backbrief, the files stay yours.</p>`;
   }
 
   function setupSteps() {
@@ -1239,46 +1853,66 @@
     const delivery = (cached('settings') && cached('settings').slack && cached('settings').slack.delivery) || null;
     const firstTopic = (id) => { const c = w.calls.find((x) => x.id === id); return c ? c.topic : ''; };
     const META = {
+      // Step 00: the signed agreement comes before any setup; it has no page of its own.
+      agreement: () => ({ title: 'Agreement signed', to: null, note: '', next: '' }),
       sources: () => ({ title: 'Tools connected', to: '#/sources', note: '', next: 'Connect your tools' }),
       people: (s) => ({ title: s.done ? `${plural(s.count || 0, 'profile')} confirmed` : "Check who's who", to: '#/people', note: '', next: 'Check profiles' }),
       slack: () => ({ title: 'Slack delivery chosen', to: '#/tasks/slack', note: delivery ? deliveryPhrase(delivery) : '', next: 'Choose what goes to Slack' }),
       first_call: (s) => ({ title: 'First call', to: s.call_id ? href('call', s.call_id) : '#/calls', note: s.call_id ? firstTopic(s.call_id) : '', next: 'See where calls arrive' }),
     };
     const nextAt = steps.findIndex((s) => !s.done);
+    const from = steps[0] && steps[0].id === 'agreement' ? 0 : 1;
     const cells = steps.map((s, i) => {
       const m = (META[s.id] || (() => ({ title: s.id, to: '#/', note: '' })))(s);
-      const n = pad(i + 1);
+      const n = pad(i + from);
       const when = [s.at ? fmtDay(s.at) : '', m.note].filter(Boolean).join(': ');
       const state = s.done ? '<span class="step-state">Done</span>' : i === nextAt ? '<span class="step-state is-next">Next</span>' : '<span class="step-state is-next">To do</span>';
       return `<li${s.done ? ' class="is-done"' : ''}>
         <p class="k"><span>${n}</span>${state}</p>
-        <h3><a href="${esc(m.to)}">${esc(m.title)}</a></h3>
+        <h3>${m.to ? `<a href="${esc(m.to)}">${esc(m.title)}</a>` : esc(m.title)}</h3>
         ${when ? `<p>${esc(when)}</p>` : ''}
-        ${!isDemo && i === nextAt ? `<a class="btn btn-small" href="${esc(m.to)}">${esc(m.next)}</a>` : ''}
+        ${!isDemo && i === nextAt && m.to ? `<a class="btn btn-small" href="${esc(m.to)}">${esc(m.next)}</a>` : ''}
       </li>`;
     }).join('');
-    return `<section class="setup" aria-labelledby="h-setup"><h2 id="h-setup">How this workspace was set up</h2><ol class="start">${cells}</ol></section>`;
+    return `<section class="setup" aria-labelledby="h-setup"><h2 id="h-setup">How this workspace was set up</h2><ol class="start setup-steps">${cells}</ol></section>`;
   }
 
   function overviewView() {
     const w = workspace();
     const has = w.calls.length > 0;
-    const last = w.stats.last_call;
     const setup = setupPanel();
+    const closing = closingState();
+    const alerts = sourceRows();
+    const rows = waitingRows(closing);
+    // The closing panel takes the waiting panel's place; a source that is off still leads.
+    const top = closing
+      ? `${alerts.length ? waitingPanel([...alerts, ...rows], false) : ''}${closingPanel(closing)}${alerts.length ? '' : waitingPanel(rows, false)}`
+      : waitingPanel([...alerts, ...rows]);
     const html = `
       ${!isDemo && !has ? setup : ''}
-      ${waitingPanel()}
+      ${top}
+      ${minePanel()}
       ${statTiles()}
-      ${has ? `<div class="two-col">${recentCalls()}${openByOwner()}</div>` : ''}
-      ${connectedPanel()}
-      ${isDemo ? setup : ''}`;
+      ${has ? `<div class="two-col"><div class="col">${decidedLastWeek()}</div><div class="col">${openByOwner()}${recentCalls()}</div></div>` : ''}
+      ${isDemo ? setup : ''}
+      ${savedLine()}`;
     render('Overview', html, 'overview', {
-      eyebrow: `${esc(displayName())}${last ? ` · last call ${esc(fmtDay(last.date))}${last.time ? `, ${esc(last.time)}` : ''}` : ''}`,
+      eyebrow: `${esc(displayName())} · ${esc(todayLabel())}`,
+      lede: healthLine(),
+      actions: viewingSelect(),
     });
     for (const b of $$('[data-send-log]', ui.view)) {
       b.addEventListener('click', () => {
         if (typeof hooks.sendLog === 'function') hooks.sendLog(b.dataset.sendLog, b);
         else go(href('tasks', 'call', b.dataset.sendLog));
+      });
+    }
+    const sel = $('[data-viewing]', ui.actions);
+    if (sel) {
+      sel.addEventListener('change', () => {
+        state.prefs.viewing_as = sel.value || null;
+        save();
+        refresh({ focus: '[data-viewing]' });
       });
     }
   }
@@ -1292,7 +1926,45 @@
     return d.toISOString().slice(0, 10);
   }
 
+  /** Calls · Decisions: the two views of the call record. */
+  function callsTabs(key) {
+    const w = workspace();
+    return tabs([
+      { key: 'calls', href: '#/calls', label: 'Calls', count: w.window && w.window.truncated ? w.window.total : w.calls.length },
+      { key: 'decisions', href: '#/calls/decisions', label: 'Decisions', count: (w.decisions || []).length },
+    ], key, { label: 'Calls and decisions' });
+  }
+
+  // What a search hit is, as its line says it.
+  const HIT_KIND = {
+    topic: 'Topic', people: 'People', tags: 'Tags', summary: 'Summary', decision: 'Decision', agreement: 'Agreement',
+    action_item: 'Action item', open_question: 'Open question', key_insight: 'Key insight', quote: 'Quote', proposal: 'Task proposal',
+  };
+
+  /** The text with its first match of `needle` (lowercase) marked. */
+  function markMatch(text, needle) {
+    const s = String(text || '');
+    const i = needle ? s.toLowerCase().indexOf(needle) : -1;
+    return i < 0 ? esc(s) : `${esc(s.slice(0, i))}<mark>${esc(s.slice(i, i + needle.length))}</mark>${esc(s.slice(i + needle.length))}`;
+  }
+
+  /** A call's lines that match the search, each with its ▶ minute. */
+  function hitsHtml(c, needle) {
+    const lines = (c.search_lines || []).filter((l) => String(l.text || '').toLowerCase().includes(needle));
+    if (!lines.length) return '';
+    const shown = lines.slice(0, 4);
+    return `<ul class="hits" aria-label="${esc(`Matches in ${c.topic}`)}">${shown.map((l) => `<li class="hit">
+        <span class="hit-kind">${esc(HIT_KIND[l.kind] || 'Line')}</span>
+        <span class="hit-text">${markMatch(l.text, needle)}</span>${l.ts ? ` ${ts(c.id, l.ts)}` : ''}
+      </li>`).join('')}${lines.length > shown.length ? `<li class="hit hit-more">${esc(`and ${plural(lines.length - shown.length, 'more line')}`)}</li>` : ''}</ul>`;
+  }
+
+  /** What a call is searched by: what was said (digest, quotes, names), plus its topic, team, type and people. */
+  const searchBlob = (c) => `${c.search || ''}\n${[c.topic, c.team, c.call_type, ...(c.participants || []), ...(c.external_participants || []), ...(c.tags || [])].join(' ')}`.toLowerCase();
+
   function callsView(parts, query) {
+    if (parts[0] === 'decisions') { decisionsView(); return; }
+    if (parts.length) { go('#/calls', { replace: true }); return; }
     const w = workspace();
     const teams = [...new Set(w.calls.map((c) => c.team).filter(Boolean))].sort();
     const dates = w.calls.map((c) => c.date).filter(Boolean).sort();
@@ -1300,13 +1972,13 @@
       ? `${esc(plural(w.window && w.window.truncated ? w.window.total : w.calls.length, 'call'))}${dates.length ? ` · ${esc(fmtDay(dates[0]))} to ${esc(fmtDay(dates[dates.length - 1]))}` : ''}`
       : '';
     const filters = w.calls.length ? `
-      <form class="filters" role="search" aria-label="Filter calls" data-calls-filters>
+      <form class="filters" role="search" aria-label="Search and filter calls" data-calls-filters>
+        <label class="grow">Search <input type="search" name="q" value="${esc(query.q || '')}" placeholder="Search decisions, quotes, names" autocomplete="off"></label>
         <label>Team <select name="team"><option value="">All teams</option>${teams.map((t) => `<option value="${esc(t)}"${t === query.team ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
         <label class="check"><input type="checkbox" name="waiting" value="1"${query.waiting === '1' ? ' checked' : ''}> Only calls waiting for a decision</label>
-        <label class="grow">Search <input type="search" name="q" value="${esc(query.q || '')}" placeholder="Topic, person or tag" autocomplete="off"></label>
       </form>
       <p class="sr-only" role="status" data-calls-status></p>` : '';
-    render('Calls', `${filters}<div data-calls-list></div>`, 'calls', {
+    render('Calls', `${callsTabs('calls')}${filters}<div data-calls-list></div>`, 'calls', {
       eyebrow,
       lede: 'Every recorded call: what it decided and what it proposed.',
       actions: isDemo ? `<a class="btn btn-small btn-ghost" href="${esc(href('sources', 'imports'))}">Import a transcript</a>` : '',
@@ -1326,17 +1998,17 @@
       const needle = f.q.toLowerCase();
       const rows = w.calls.filter((c) => (!f.team || c.team === f.team)
         && (!f.waiting || (effectiveProposals(c.id) || { pending: 0 }).pending > 0)
-        && (!needle || [c.topic, c.team, c.call_type, ...(c.participants || []), ...(c.external_participants || []), ...(c.tags || [])].join(' ').toLowerCase().includes(needle)));
+        && (!needle || searchBlob(c).includes(needle)));
       if (!rows.length) {
-        list.innerHTML = emptyState('<p>No calls match these filters.</p><p><button class="btn btn-small btn-ghost" type="button" data-clear>Clear filters</button></p>');
+        list.innerHTML = emptyState(`<p>${needle ? `Nothing on a call matches “${esc(f.q)}”.` : 'No calls match these filters.'}</p><p><button class="btn btn-small btn-ghost" type="button" data-clear>Clear filters</button></p>`);
         $('[data-clear]', list).addEventListener('click', () => {
           field('team').value = '';
           field('waiting').checked = false;
           field('q').value = '';
           apply();
-          field('team').focus();
+          field('q').focus();
         });
-        status.textContent = 'No calls match these filters.';
+        status.textContent = needle ? `Nothing on a call matches “${f.q}”.` : 'No calls match these filters.';
         return;
       }
       const weeks = new Map();
@@ -1348,13 +2020,27 @@
       list.innerHTML = [...weeks].map(([wk, cs]) => `
         <section class="week" aria-labelledby="wk-${esc(wk)}">
           <h2 class="week-head" id="wk-${esc(wk)}"><span>Week of ${esc(fmtDay(wk))}</span><span class="week-n">${esc(plural(cs.length, 'call'))}</span></h2>
-          <ol class="call-list">${cs.map((c) => callRow(c)).join('')}</ol>
+          <ol class="call-list">${cs.map((c) => callRow(c, { after: needle ? hitsHtml(c, needle) : '' })).join('')}</ol>
         </section>`).join('');
-      status.textContent = rows.length === w.calls.length ? '' : `${plural(rows.length, 'call')} shown.`;
+      status.textContent = needle ? `${plural(rows.length, 'call')} ${rows.length === 1 ? 'matches' : 'match'} “${f.q}”.`
+        : rows.length === w.calls.length ? '' : `${plural(rows.length, 'call')} shown.`;
     };
     form.addEventListener('input', apply);
     form.addEventListener('submit', (e) => e.preventDefault());
     apply();
+  }
+
+  /** Every decision made on a call, newest first: what, why, when (▶), which call, who follows up. */
+  function decisionsView() {
+    const w = workspace();
+    const list = w.decisions || [];
+    const dates = list.map((d) => d.date).filter(Boolean).sort();
+    render('Calls', `${callsTabs('decisions')}
+      ${list.length ? `<ol class="dec-list dec-register">${list.map((d) => decisionRow(d)).join('')}</ol>`
+    : emptyState('<p>No decisions yet. Each call\'s digest lists what it decided, with why and the minute it was said; they collect here.</p>')}`, 'calls', {
+      eyebrow: list.length ? `${esc(plural(list.length, 'decision'))}${dates.length ? ` · ${esc(fmtDay(dates[0]))} to ${esc(fmtDay(dates[dates.length - 1]))}` : ''}` : '',
+      lede: 'Every decision made on a call, newest first: why it was made, the minute it was said, and who follows up.',
+    });
   }
 
   // ================================================================ Call detail (§3.3)
@@ -1503,22 +2189,43 @@
     }
   }
 
+  const NONE_LINE = /^\s*(?:[-*]\s+|\d+\.\s+)?(?:none|n\/a|nothing)\.?\s*$/i;
+
+  /** A digest section's markdown without "None." lines, and without ### blocks that hold only "None.". */
+  function dropEmpty(src) {
+    const lines = String(src || '').split('\n');
+    const out = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (/^#{3,6}\s/.test(lines[i])) {
+        let j = i + 1;
+        while (j < lines.length && !/^#{3,6}\s/.test(lines[j])) j++;
+        if (lines.slice(i + 1, j).every((l) => !l.trim() || NONE_LINE.test(l))) { i = j - 1; continue; }
+      }
+      if (!NONE_LINE.test(lines[i])) out.push(lines[i]);
+    }
+    return out.join('\n').trim();
+  }
+
+  /** The digest, decisions and agreements first (what the call settled), then the rest; empty sections are left out. */
   function digestHtml(c) {
     const ctx = { call: c.id };
     const d = c.digest || {};
     const party = (p) => (profiled(p) ? `<a class="chip" href="${esc(href('people', p))}">${esc(p)}</a>` : `<span class="chip">${esc(p)}</span>`);
-    const secs = (c.sections || []).map((s, i) => {
-      const h = String(s.heading).trim().toLowerCase();
-      let inner;
-      if (h === 'decisions' && d.decisions && d.decisions.length) {
-        inner = `<ol>${d.decisions.map((x) => `<li><strong>${inline(x.title, ctx)}</strong>${x.why ? ` <span class="why">— ${inline(x.why, ctx)}</span>` : ''} ${ts(c.id, x.ts)}</li>`).join('')}</ol>`;
-      } else if (h === 'agreements' && d.agreements && d.agreements.length) {
-        inner = `<ol>${d.agreements.map((x) => `<li>${x.parties && x.parties.length ? `<span class="parties">${x.parties.map(party).join(' ↔ ')}</span>` : ''}${inline(x.text, ctx)} ${ts(c.id, x.ts)}</li>`).join('')}</ol>`;
-      } else {
-        inner = md(s.md, ctx) || '<p class="muted">None.</p>';
-      }
-      return `<section class="digest-section" aria-labelledby="dg-${i}"><h2 id="dg-${i}">${esc(s.heading)}</h2>${inner}</section>`;
-    }).join('');
+    const rank = (h) => (h === 'decisions' ? 0 : h === 'agreements' ? 1 : 2);
+    const secs = (c.sections || []).map((s, i) => ({ s, i, h: String(s.heading).trim().toLowerCase() }))
+      .sort((a, b) => rank(a.h) - rank(b.h) || a.i - b.i)
+      .map(({ s, i, h }) => {
+        let inner;
+        if (h === 'decisions' && d.decisions && d.decisions.length) {
+          inner = `<ol class="dg-decisions">${d.decisions.map((x) => `<li><p class="dg-dec"><strong>${inline(x.title, ctx)}</strong> ${ts(c.id, x.ts)}</p>${x.why ? `<p class="why">Why: ${inline(x.why, ctx)}</p>` : ''}</li>`).join('')}</ol>`;
+        } else if (h === 'agreements' && d.agreements && d.agreements.length) {
+          inner = `<ol>${d.agreements.map((x) => `<li>${x.parties && x.parties.length ? `<span class="parties">${x.parties.map(party).join(' ↔ ')}</span>` : ''}${inline(x.text, ctx)} ${ts(c.id, x.ts)}</li>`).join('')}</ol>`;
+        } else {
+          inner = md(dropEmpty(s.md), ctx);
+        }
+        if (!String(inner || '').trim()) return '';
+        return `<section class="digest-section" aria-labelledby="dg-${i}"><h2 id="dg-${i}">${esc(s.heading)}</h2>${inner}</section>`;
+      }).join('');
     return `<article class="digest" aria-label="Digest">${secs || '<p class="muted">This call has no digest yet.</p>'}</article>`;
   }
 
@@ -1574,7 +2281,7 @@
     const refs = c.references || [];
     return `<aside class="call-aside" aria-label="Proposals, action items and earlier calls">
       <section class="panel" id="proposals" tabindex="-1" data-call-aside></section>
-      <section class="panel" aria-labelledby="h-items"><h2 id="h-items">Action items</h2>${groups || '<p class="panel-note">No action items on this call.</p>'}</section>
+      ${groups ? `<section class="panel" aria-labelledby="h-items"><h2 id="h-items">Action items</h2>${groups}</section>` : ''}
       ${refs.length ? `<section class="panel" aria-labelledby="h-built"><h2 id="h-built">Built on</h2>
         <p class="panel-note">Earlier calls this digest was written with.</p>
         <ul class="link-list">${refs.map((r) => `<li><a href="${esc(href('call', r.id))}">${esc(r.topic)}</a> <span class="mono muted">${esc(fmtDay(String(r.id).slice(0, 10)))}</span></li>`).join('')}</ul></section>` : ''}
@@ -1589,13 +2296,29 @@
     return isDemo ? 'Recording: not in the demo' : 'Recording: not kept';
   }
 
+  /** The Slack thread tab: the call's whole thread, as cabinet-tasks.js renders it (BB.hooks.slackThread). */
+  function fillSlack(c) {
+    const box = $('[data-slack-thread]', ui.view);
+    if (!box) return;
+    try {
+      hooks.slackThread(c, box);
+    } catch (e) {
+      console.error('BB.hooks.slackThread failed.', e);
+      box.innerHTML = emptyState('<p>The Slack thread could not be shown.</p>');
+    }
+  }
+
   function callView(parts) {
     const [id, tab, at] = parts;
     if (!id) { go('#/calls', { replace: true }); return; }
     const c = cached(`call:${id}`);
     const withTranscriptTab = Boolean(API.transcript);
-    if (tab && (tab !== 'transcript' || !withTranscriptTab)) { go(href('call', id), { replace: true }); return; }
+    // The thread tab needs the module that renders it, and a call that was posted (or the demo's settings).
+    const withSlackTab = typeof hooks.slackThread === 'function' && (isDemo || Boolean(c.slack));
+    const tabOk = !tab || (tab === 'transcript' && withTranscriptTab) || (tab === 'slack' && withSlackTab);
+    if (!tabOk || (tab === 'slack' && at)) { go(href('call', id), { replace: true }); return; }
     const onTranscript = tab === 'transcript';
+    const onSlack = tab === 'slack';
     const e = effectiveProposals(id);
     const waiting = e ? e.pending : 0;
     const guests = c.external_participants || [];
@@ -1612,25 +2335,29 @@
       c.slack && c.slack.channel ? `Posted in <span class="mono">${esc(c.slack.channel)}</span>${c.slack.posted_at ? ` at <span class="mono">${esc(c.slack.posted_at)}</span>` : ''}` : '',
     ].filter(Boolean).join(' · ');
     const buttons = [
-      c.slack ? `<a class="btn btn-small btn-ghost" href="${esc(href('tasks', 'slack', id))}">Preview the Slack post</a>` : '',
+      // With the Slack thread tab, the thread is one tab away; the delivery preview is a setting.
+      c.slack && !withSlackTab ? `<a class="btn btn-small btn-ghost" href="${esc(href('tasks', 'slack', id))}">Preview the Slack post</a>` : '',
       isDemo ? `<a class="btn btn-small btn-ghost" href="${esc(href('memory', { node: c.path }))}">Show the file</a>`
         : safeUrl(c.vault_file_url) ? `<a class="btn btn-small btn-ghost" href="${esc(c.vault_file_url)}" target="_blank" rel="noopener">Open in GitHub</a>` : '',
     ].filter(Boolean).join('');
     const strip = tabs([
       { key: 'digest', href: href('call', id), label: 'Digest' },
       ...(withTranscriptTab ? [{ key: 'transcript', href: href('call', id, 'transcript'), label: 'Transcript' }] : []),
-    ], onTranscript ? 'transcript' : 'digest', { label: 'Call views' });
+      ...(withSlackTab ? [{ key: 'slack', href: href('call', id, 'slack'), label: 'Slack thread' }] : []),
+    ], onTranscript ? 'transcript' : onSlack ? 'slack' : 'digest', { label: 'Call views' });
+    const main = onTranscript ? transcriptHtml(c)
+      : onSlack ? '<section class="slack-tab" aria-label="Slack thread" data-slack-thread></section>' : digestHtml(c);
     const html = `
       <div class="call-bar">${strip}<div class="call-links"><p class="call-info">${info}</p>${buttons ? `<p class="call-btns">${buttons}</p>` : ''}</div></div>
       <div class="call-layout">
-        <div class="call-main">${onTranscript ? transcriptHtml(c) : digestHtml(c)}</div>
+        <div class="call-main">${main}</div>
         ${asideHtml(c)}
       </div>`;
     render(c.topic, html, 'calls', {
       eyebrow: '<a href="#/calls">← Calls</a>',
       lede: `${meta}${waiting ? ` <button class="chip-mark jump-proposals" type="button" data-jump="proposals">${esc(waiting)} waiting ↓</button>` : ''}`,
       focus: onTranscript && at ? () => cueFor(at) : null,
-      before: () => fillProposals(c),
+      before: () => { if (onSlack) fillSlack(c); fillProposals(c); },
     });
     if (onTranscript) wireTranscript(at);
     else if (withTranscriptTab && c.transcript && c.transcript.available) load(`transcript:${id}`).catch(() => {});
@@ -1643,8 +2370,9 @@
     contact,
     API,
     // helpers
-    esc, safeUrl, inline, md, fmtDate, fmtDay, clock, stamp, now, plural, joinAnd, initials, href,
-    verdict, prio, ref, teamChip, ts, person, callRow, loading, emptyState, managed, deliveryPhrase, DEMO_NOTE,
+    esc, safeUrl, inline, md, fmtDate, fmtDay, clock, stamp, now, today, plural, joinAnd, initials, href,
+    verdict, prio, ref, teamChip, ts, person, callRow, decisionRow, isOpenItem, bookHref,
+    loading, emptyState, managed, deliveryPhrase, DEMO_NOTE,
     // data
     load, cached, workspace,
     // router
@@ -1652,6 +2380,7 @@
     // demo state
     state, save, reset, changeCount, decide, refresh,
     effectiveProposals, effectiveActionItems, effectiveStats, effectivePeople, effectiveSources, effectiveSlack, waitingCount,
+    effectiveMetrics, viewingAs,
     // UI kit
     toast, dialog, confirm, tabs,
     // hooks and events
@@ -1686,11 +2415,20 @@
       readStore();
       refresh();
     });
-    if (ui.reset) ui.reset.addEventListener('click', onReset);
+    if (ui.reset) ui.reset.addEventListener('click', () => onReset(ui.reset));
+    wireMenu();
+    window.addEventListener('hashchange', () => setMenu(false));
+    // The toast never covers what has focus; the phone nav shows when more items wait to its right.
+    document.addEventListener('focusin', () => { if (shownToast) keepClear(); });
+    if (ui.nav) ui.nav.addEventListener('scroll', navCue, { passive: true });
+    window.addEventListener('resize', navCue, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(navCue).catch(() => {});
+    navCue();
     try {
       if (API.me) {
         const me = await getJson(API.me);
         if (ui.user) ui.user.textContent = me.email || '';
+        if (ui.menuUser) ui.menuUser.textContent = me.email ? `Signed in as ${me.email}` : '';
       }
       await load('workspace');
     } catch (e) {
@@ -1701,6 +2439,7 @@
       return;
     }
     if (ui.wsName) ui.wsName.textContent = displayName();
+    settleStamps();
     booted = true;
     syncChrome();
     run({ initial: true });

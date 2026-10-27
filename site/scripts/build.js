@@ -179,10 +179,11 @@ function copyDir(from, to) {
  *   demo/transcripts/<id>.json  the call's .vtt as [{speaker, ts_mmss, text}]
  *   demo/people.json            profiles + activity, unprofiled names, "Add person" rules
  *   demo/vault.json             the vault as a folder tree + the links between files + AGENTS.md's recipes
- *   demo/settings.json          sources (Zoom, Slack, Linear, GitHub), Slack delivery, tracker issues
+ *   demo/settings.json          sources (Zoom, Slack, Linear, GitHub; + health), Slack delivery, tracker issues
  *
- * Facts no vault holds (connection status, accounts, scope wording, delivery
- * toggles and channels, setup dates, the ids a click would create and the
+ * Facts no vault holds (connection status, accounts, scope wording, failures
+ * in the last 30 days, delivery toggles and channels, setup dates and the
+ * signed agreement, the ids a click would create and the
  * issue bodies behind them, model suggestions for an unprofiled name, what
  * the tracker says about each issue, the demo's frozen clock) come from
  * demo.config.json, marked "_demo_only" and read here only.
@@ -318,8 +319,9 @@ export function demoData() {
   ws.task_log.forEach(withOnApprove);
 
   // How the demo workspace was set up: the dates are config, the rest comes
-  // from the vault (confirmed profiles, the first call).
-  const SETUP = ['sources', 'people', 'slack', 'first_call'];
+  // from the vault (confirmed profiles, the first call). "agreement" (step 00)
+  // is the signed agreement that comes before any setup.
+  const SETUP = ['agreement', 'sources', 'people', 'slack', 'first_call'];
   ws.overview.setup = ((demo.overview && demo.overview.setup) || []).map((s) => {
     if (!SETUP.includes(s.id)) throw new Error(`demo.config.json overview.setup: unknown step ${s.id}`);
     const step = { id: s.id, done: s.done !== false, at: s.at || null };
@@ -333,6 +335,15 @@ export function demoData() {
   const fromVault = settingsFromVault({ tenant, calls, taskLog: ws.task_log, slackScopes: slackScopes() });
   const sources = fromVault.sources.map((s) => {
     const c = (demo.sources || {})[s.id] || {};
+    // Health: the last event comes from the vault (config only fills a gap); the vault keeps no
+    // failure log, so failures in the last 30 days are config.
+    const h = c.health || {};
+    if (h.failures_30d !== undefined && !(Number.isInteger(h.failures_30d) && h.failures_30d >= 0)) {
+      throw new Error(`demo.config.json sources.${s.id}.health.failures_30d must be a whole number, 0 or more`);
+    }
+    if (h.last_event !== undefined && !Number.isFinite(Date.parse(h.last_event))) {
+      throw new Error(`demo.config.json sources.${s.id}.health.last_event must be an ISO time`);
+    }
     return {
       id: s.id,
       category: s.category,
@@ -343,6 +354,10 @@ export function demoData() {
       ...(c.events ? { events: c.events } : {}),
       settings: s.settings,
       activity: s.activity,
+      health: {
+        last_event: (s.health && s.health.last_event) || h.last_event || null,
+        failures_30d: h.failures_30d !== undefined ? h.failures_30d : (s.health ? s.health.failures_30d : null),
+      },
     };
   });
   // Channels the bot could post to: what a channel picker lists (a demo cannot ask Slack).

@@ -139,6 +139,9 @@ export function parseCall(rel, text) {
   return {
     id: callId(rel, fromName.date || date),
     path: rel,
+    // The file's own record keys, passed through as written (Company memory shows the frontmatter).
+    type: str(meta.type),
+    schema_version: Number.isFinite(meta.schema_version) ? meta.schema_version : str(meta.schema_version),
     topic: title,
     date,
     time,
@@ -150,8 +153,11 @@ export function parseCall(rel, text) {
     call_type: str(meta.call_type),
     tags: list(meta.tags),
     source: str(meta.source),
+    source_id: str(meta.source_id),
     platform: str(meta.platform),
     filed_by: str(meta.filed_by),
+    filer_model: str(meta.filer_model),
+    pipeline_version: str(meta.pipeline_version),
     digest_version: str(meta.digest_version),
     recording_url: str(meta.recording_url),
     transcript_file: str(meta.transcript_file),
@@ -951,9 +957,11 @@ function weekOf(date) {
  *                         `now`, more than 48 h after their call ended
  *   owner_coverage        {with_owner, total}: distinct tasks (call + minute)
  *                         that are open or were filed as an issue
- *   processing            {calls, median_digest_minutes, max_digest_minutes}:
+ *   processing            {calls, median_digest_minutes, max_digest_minutes, last}:
  *                         call end → tasks file `generated` (else the Slack post);
- *                         the minutes are null without tenant.yaml (no zone)
+ *                         the minutes are null without tenant.yaml (no zone), and a
+ *                         digest stamped before its call ended counts as unknown;
+ *                         last = {call_id, at, minutes} for the newest call
  * Call times are wall-clock in tenant.yaml's timezone (UTC when it names none).
  */
 export function metrics({ calls, taskLog, states = itemStates(calls), timezone = null, now = null, tenant = null }) {
@@ -991,19 +999,26 @@ export function metrics({ calls, taskLog, states = itemStates(calls), timezone =
     if (p.status === 'approved' && p.decision.result === 'created') tasks.set(`${e.call_id}|${p.ts || p.title}`, p.owner || null);
   }
 
-  // Minutes to the digest need the tenant's clock: without tenant.yaml (/app today) they stay null.
-  const digestMinutes = [];
-  for (const c of tenant ? calls : []) {
-    const end = callEndMs(c, timezone);
-    if (end === null) continue;
+  // When a call's digest was out: the tasks file's `generated`, else the Slack post (tenant clock only).
+  const digestAt = (c) => {
     const e = taskLog.find((x) => x.call_id === c.id);
     let at = e && e.generated ? Date.parse(e.generated) : NaN;
-    if (!Number.isFinite(at)) {
+    if (!Number.isFinite(at) && tenant) {
       const post = slackPost(c, tenant);
       at = post && post.posted_at ? zonedMs(c.date, post.posted_at, timezone) ?? NaN : NaN;
     }
-    if (Number.isFinite(at)) digestMinutes.push(Math.round((at - end) / 60000));
-  }
+    return at;
+  };
+  // Minutes to the digest need the tenant's clock: without tenant.yaml (/app today) they stay null.
+  // A digest cannot come out before its call ends: a negative gap means a stamp is missing or
+  // was written in the wrong zone, so that call counts as unknown rather than as a negative time.
+  const minutesAfter = (c, at) => {
+    const end = tenant ? callEndMs(c, timezone) : null;
+    return end !== null && Number.isFinite(at) && at >= end ? Math.round((at - end) / 60000) : null;
+  };
+  const digestMinutes = calls.map((c) => minutesAfter(c, digestAt(c))).filter((m) => m !== null);
+  const newest = [...calls].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))[0] || null;
+  const newestAt = newest ? digestAt(newest) : NaN;
 
   return {
     verdict_agreement: {
@@ -1022,6 +1037,10 @@ export function metrics({ calls, taskLog, states = itemStates(calls), timezone =
       calls: calls.length,
       median_digest_minutes: median(digestMinutes),
       max_digest_minutes: digestMinutes.length ? Math.max(...digestMinutes) : null,
+      // The newest call: when its digest was out (ISO) and how long after the call ended (null without the tenant's clock).
+      last: newest && Number.isFinite(newestAt)
+        ? { call_id: newest.id, at: new Date(newestAt).toISOString(), minutes: minutesAfter(newest, newestAt) }
+        : null,
     },
   };
 }
@@ -1280,6 +1299,9 @@ function readmeAbout(readmePath, text) {
   return out;
 }
 
+/** What .backbrief/training/ holds, in the workspace's words (the kit's README calls it training data). */
+export const TRAINING_ABOUT = "this team's review feedback: every approve, edit and skip with its reason (task-decisions.jsonl), and replies in call threads (feedback.jsonl); your Backbrief team reads it to tune the backlog check";
+
 /**
  * The vault as a map: a folder tree (what each part is, what it holds) and
  * the edges that link calls, tasks files, tracker issues and profiles.
@@ -1294,6 +1316,8 @@ export function vaultTree({ files, calls, tasks, members, tenant = null, agentsM
   const map = folderMap(agentsMd);
   for (const [k, a] of Object.entries(map)) if (!k.includes('<')) about[k] = a;
   for (const t of Array.isArray(v.teams) ? v.teams : []) if (t.description) about[`${t.folder || t.tag}/`] = t.description;
+  // The workspace's own words for the review log: feedback people read, not "training data".
+  if (visible.some((f) => f.startsWith('.backbrief/training/'))) about['.backbrief/training/'] = TRAINING_ABOUT;
   const transcriptsAbout = Object.entries(map).find(([k]) => /^<[^>]+>\/transcripts\/$/.test(k));
 
   const byPath = new Map(calls.map((c) => [c.path, c]));
@@ -1458,6 +1482,20 @@ export function settingsFromVault({ tenant, calls, taskLog, slackScopes = [] }) 
     digest_channel: str(slack.digest_channel),
     per_team_channels: slack.per_team_channels && typeof slack.per_team_channels === 'object' ? slack.per_team_channels : {},
   };
+  // Health: when each source last did something for the newest call. The vault keeps no failure
+  // log, so failures_30d stays null here; the caller merges what it knows.
+  const tz = str(tenant && tenant.tenant && tenant.tenant.timezone);
+  const newest = [...calls].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))[0] || null;
+  const latest = (...ms) => { const v = ms.filter(Number.isFinite); return v.length ? new Date(Math.max(...v)).toISOString() : null; };
+  const ended = newest ? callEndMs(newest, tz) ?? NaN : NaN; // the recording completes
+  const post = newest ? slackPost(newest, tenant) : null;
+  const posted = post && post.posted_at ? zonedMs(newest.date, post.posted_at, tz) ?? NaN : NaN; // the digest's root post
+  const entry = newest ? taskLog.find((e) => e.call_id === newest.id) : null;
+  const checked = entry && entry.generated ? Date.parse(entry.generated) : NaN; // proposals checked, replied and committed
+  const filed = taskLog.flatMap((e) => e.proposals)
+    .filter((p) => p.status === 'approved' && (p.decision.result === 'created' || p.decision.result === 'commented'))
+    .map((p) => Date.parse(p.decided_at || '')).filter(Number.isFinite);
+  const health = (...ms) => ({ last_event: latest(...ms), failures_30d: null });
   return {
     sources: [
       {
@@ -1468,12 +1506,14 @@ export function settingsFromVault({ tenant, calls, taskLog, slackScopes = [] }) 
           history_import: { enabled: Boolean(f.history_import && f.history_import.enabled), days: (f.history_import && f.history_import.days) || 30 },
         },
         activity: { calls: calls.filter((c) => (c.platform || c.source) === 'zoom').length, last },
+        health: health(ended),
       },
       {
         id: 'slack', category: 'chat', enabled: slack.enabled !== false && Boolean(f.slack),
         scopes: slackScopes,
         settings: slackSettings,
         activity: { digests: calls.length, last },
+        health: health(posted, checked),
       },
       {
         id: 'linear', category: 'tracker', enabled: tracker.enabled !== false && tracker.kind !== 'other',
@@ -1489,11 +1529,13 @@ export function settingsFromVault({ tenant, calls, taskLog, slackScopes = [] }) 
           comments: decided.filter((p) => p.decision.result === 'commented').length,
           file_only: decided.filter((p) => p.decision.result === 'file-only').length,
         },
+        health: health(checked, ...filed),
       },
       {
         id: 'github', category: 'git_hosting',
         settings: { repo: str(v.repo), branch: str(v.branch) || 'main' },
         activity: { calls_filed: calls.length, last },
+        health: health(checked, posted),
       },
     ],
     slack: { channel: slackSettings.digest_channel, per_team_channels: slackSettings.per_team_channels },

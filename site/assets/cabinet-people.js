@@ -69,7 +69,9 @@
   }
   const repoText = () => repoName() || 'your repository';
 
+  /** The workspace's today: the demo's fixed day in the demo, the real date in /app. */
   function todayYmd() {
+    if (typeof BB.today === 'function') return BB.today();
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }

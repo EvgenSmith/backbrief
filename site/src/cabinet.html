@@ -13,31 +13,48 @@
   <div class="app-header-row">
     <a class="brand" href="/" aria-label="{{ product }} home">
       <img src="/assets/logo.svg" alt="" width="26" height="26">
-      <span>{{ product }}</span>
+      <span class="brand-word">{{ product }}</span>
     </a>
     <span class="ws-name" data-ws-name>Workspace</span>
     <span class="badge" data-demo-only>Demo</span>
     <div class="app-actions">
-      <button class="btn btn-small btn-ghost" type="button" data-reset data-demo-only>Reset demo</button>
-      <a class="btn btn-small" href="/book" data-demo-only>Book a demo</a>
-      <span class="small muted" data-user data-app-only></span>
-      <form method="post" action="/api/auth/logout" data-app-only>
+      <button class="btn btn-small btn-ghost app-reset" type="button" data-reset data-demo-only>Reset demo</button>
+      <a class="btn btn-small" href="/book" data-book data-demo-only>Book a demo</a>
+      <span class="small muted app-user" data-user data-app-only></span>
+      <form class="app-signout" method="post" action="/api/auth/logout" data-app-only>
         <button class="btn btn-small btn-ghost" type="submit">Sign out</button>
       </form>
+      <div class="app-menu-wrap">
+        <button class="btn btn-small btn-ghost menu-btn" type="button" aria-expanded="false" aria-controls="app-menu" data-menu-btn><span aria-hidden="true">⋯</span><span class="sr-only">More</span></button>
+        <div class="app-menu" id="app-menu" data-menu hidden>
+          <button class="menu-item" type="button" data-menu-reset data-demo-only>Reset demo</button>
+          <button class="menu-item" type="button" data-menu-tour data-demo-only hidden>Show the tour</button>
+          <p class="menu-note" data-demo-only>Everything runs in your browser.</p>
+          <p class="menu-note" data-menu-user data-app-only></p>
+          <form method="post" action="/api/auth/logout" data-app-only>
+            <button class="menu-item" type="submit">Sign out</button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 </header>
-<p class="demo-banner" data-demo-banner data-demo-only>Demo workspace for a fictional team. Everything in it runs in your browser.</p>
+<div class="demo-banner" data-demo-banner data-demo-only>
+  <p class="banner-lead">Demo workspace for a fictional team.</p>
+  <p class="banner-sub">Everything runs in your browser.</p>
+</div>
 <div class="app-layout">
-  <nav class="app-nav" aria-label="Workspace">
-    <a href="#/" data-nav="overview">Overview</a>
-    <a href="#/calls" data-nav="calls">Calls</a>
-    <a href="#/tasks" data-nav="tasks">Action items <span class="nav-count" data-nav-count hidden></span></a>
-    <a href="#/people" data-nav="people">People</a>
-    <hr class="nav-rule">
-    <a href="#/memory" data-nav="memory">Company memory</a>
-    <a href="#/sources" data-nav="sources">Sources</a>
-  </nav>
+  <div class="app-nav-wrap" data-nav-wrap>
+    <nav class="app-nav" aria-label="Workspace">
+      <a href="#/" data-nav="overview">Overview</a>
+      <a href="#/calls" data-nav="calls">Calls</a>
+      <a href="#/tasks" data-nav="tasks">Action items <span class="nav-count" data-nav-count hidden></span></a>
+      <a href="#/people" data-nav="people">People</a>
+      <hr class="nav-rule">
+      <a href="#/memory" data-nav="memory">Company memory</a>
+      <a href="#/sources" data-nav="sources">Sources</a>
+    </nav>
+  </div>
   <main id="main" class="app-main" tabindex="-1">
     <div class="page-head">
       <p class="eyebrow" data-view-eyebrow hidden></p>

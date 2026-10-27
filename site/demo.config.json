@@ -1,6 +1,6 @@
 {
   "_demo_only": true,
-  "_about": "Facts no vault holds, for the public demo at /demo only: the demo's frozen clock, connection status and accounts, scope wording, Slack delivery toggles and the channels the bot can post to, the dates the workspace was set up, what the tracker says about each issue a proposal names, the ids a click would create and the issue bodies of the waiting proposals, and the role, zone and account suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
+  "_about": "Facts no vault holds, for the public demo at /demo only: the demo's frozen clock, connection status and accounts, scope wording, failures in the last 30 days per source, Slack delivery toggles and the channels the bot can post to, the date the agreement was signed and the dates the workspace was set up, what the tracker says about each issue a proposal names, the ids a click would create and the issue bodies of the waiting proposals, and the role, zone and account suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
   "demo_now": "2026-10-19T11:05:00+01:00",
   "sources": {
     "zoom": {
@@ -11,18 +11,21 @@
         { "scope": "meeting:read:list_past_participants:admin", "required": true },
         { "scope": "cloud_recording:read:list_user_recordings:admin", "for": "history import" }
       ],
-      "events": ["recording.completed", "recording.transcript_completed"]
+      "events": ["recording.completed", "recording.transcript_completed"],
+      "health": { "failures_30d": 0 }
     },
     "slack": {
       "status": "connected",
       "account": "acme.slack.com",
-      "connected_at": "2026-10-01"
+      "connected_at": "2026-10-01",
+      "health": { "failures_30d": 0 }
     },
     "linear": {
       "status": "connected",
       "account": "linear.app/acme",
       "connected_at": "2026-10-01",
-      "scopes": ["read issues", "create issues", "comment", "label backbrief"]
+      "scopes": ["read issues", "create issues", "comment", "label backbrief"],
+      "health": { "failures_30d": 0 }
     },
     "github": {
       "status": "connected",
@@ -31,13 +34,15 @@
       "scopes": [
         { "who": "pipeline", "permission": "Contents: Read and write" },
         { "who": "workspace", "permission": "Contents: Read-only" }
-      ]
+      ],
+      "health": { "failures_30d": 0 }
     }
   },
   "coming_next": ["Google Meet", "Microsoft Teams", "Jira", "Asana", "Single sign-on"],
   "imports": ["Granola export", "Fireflies export"],
   "overview": {
     "setup": [
+      { "id": "agreement", "at": "2026-09-30" },
       { "id": "sources", "at": "2026-10-01" },
       { "id": "people", "at": "2026-10-02" },
       { "id": "slack", "at": "2026-10-02" },
