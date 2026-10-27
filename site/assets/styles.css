@@ -428,7 +428,7 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   .compare-row { grid-template-columns: 1fr; gap: 12px; padding: 22px 0; }
   .cell-label { position: static; width: auto; height: auto; overflow: visible; clip: auto; display: block; font: 500 .68rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--faint); margin-bottom: 4px; }
   .lede { font-size: 1.1rem; }
-  .outputs li { grid-template-columns: 62px minmax(0, 1fr); gap: 10px; }
+  .outputs li { grid-template-columns: 72px minmax(0, 1fr); gap: 10px; }
   .transcript { width: 100%; padding-bottom: 34px; }
   .transcript p { grid-template-columns: 40px minmax(0, 1fr); }
   .transcript .who { display: none; }
