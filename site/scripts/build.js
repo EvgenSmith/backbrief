@@ -7,6 +7,7 @@
  *   <!-- @include NAME -->   inline src/partials/NAME.html
  *   <!-- @team -->           team cards from site.config.json
  *   <!-- @hosts -->          demo hosts' photos (demo_hosts in site.config.json)
+ *   <!-- @rating -->         G2 stars, only when links.g2_rating holds the rating G2 shows
  *   <!-- @demo -->           demo video block, only when demo_video_url is set
  *   {{ dotted.path }}        HTML-escaped value from site.config.json, the
  *                            page entry below, or {year, updated}
@@ -105,6 +106,15 @@ function renderHosts(hosts) {
           <p class="hosts-names">You'll talk to ${esc(who)}.</p>`;
 }
 
+// Stars are drawn only from the rating the public G2 page shows for real
+// reviews (links.g2_rating); with no rating there is nothing to show.
+function renderRating(rating) {
+  const r = Number(rating);
+  if (!rating || !(r >= 1 && r <= 5)) return '';
+  const full = Math.round(r);
+  return `<span class="rating" aria-label="Rated ${r.toFixed(1)} out of 5 on G2"><span class="stars" aria-hidden="true">${'★'.repeat(full)}${'☆'.repeat(5 - full)}</span>${r.toFixed(1)}</span>`;
+}
+
 function renderDemo(url) {
   if (!url) return '';
   return `      <div class="demo"><video controls preload="none" src="${esc(url)}"></video></div>`;
@@ -118,6 +128,7 @@ function render(name, page, stack = []) {
   html = html.replace(/<!-- @team -->/g, () => renderTeam(config.team));
   html = html.replace(/<!-- @demo -->/g, () => renderDemo(config.demo_video_url));
   html = html.replace(/<!-- @hosts -->/g, () => renderHosts(config.demo_hosts));
+  html = html.replace(/<!-- @rating -->/g, () => renderRating(config.links.g2_rating));
   const scope = {
     ...config,
     page,

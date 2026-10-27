@@ -201,17 +201,14 @@ section { padding-block: 104px; }
 .outputs strong { font-weight: 600; }
 .dest { font: 500 .74rem/1.75 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
 .dest-stack { display: flex; flex-direction: column; align-items: center; justify-self: start; width: max-content; }
-.cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 32px 0 22px; }
-.g2 {
-  display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px 0 8px;
-  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--sheet);
-  color: var(--ink); text-decoration: none; font-weight: 600; font-size: .95rem;
-}
-.g2:hover { border-color: var(--faint); color: var(--ink); }
-.g2-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--on-ink); font: 600 .74rem/1 var(--mono); }
-.facts { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 0; margin: 0; color: var(--muted); font: .82rem/1.5 var(--mono); }
-.facts li { position: relative; padding-left: 14px; }
-.facts li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 1px; background: var(--faint); }
+.cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 32px 0 0; }
+.g2 { display: inline-flex; align-items: center; gap: 8px; padding: 0 6px; color: var(--ink); text-decoration: none; font-weight: 500; font-size: .95rem; }
+.g2-text { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 4px; }
+.g2:hover { color: var(--ink); }
+.g2:hover .g2-text { text-decoration-color: currentColor; }
+.rating { display: inline-flex; align-items: center; gap: 6px; font: 500 .85rem/1 var(--mono); color: var(--muted); }
+.rating .stars { color: var(--ink); letter-spacing: .08em; font-size: .95rem; }
+.g2-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--on-ink); font: 600 .66rem/1 var(--mono); }
 
 /* Hero visual: a transcript line becomes the record in Slack */
 .hero-visual { position: relative; min-width: 0; padding-top: 34px; }
