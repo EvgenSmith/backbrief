@@ -449,7 +449,7 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
 
 /* Responsive */
 @media (max-width: 1180px) {
-  .nav a:not(.nav-mid):not(.nav-login) { display: none; }
+  .nav a:not(.nav-login) { display: none; }
 }
 @media (max-width: 1020px) {
   .hero-grid { grid-template-columns: 1fr; grid-template-areas: "head" "visual" "body"; row-gap: 36px; }
@@ -472,7 +472,6 @@ details p { color: var(--muted); margin: -4px 0 22px; max-width: 44rem; }
   section { padding-block: 72px; }
   .hero { padding-block: 40px 72px; }
   .nav { gap: 16px; }
-  .nav a.nav-mid { display: none; }
   .header-row { gap: 16px; }
   .section-head { grid-template-columns: 1fr; margin-bottom: 32px; }
   .samples, .fit-grid, .ledger, .steps, .footer-grid, .start, .book { grid-template-columns: 1fr; }
