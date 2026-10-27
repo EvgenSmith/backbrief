@@ -20,7 +20,7 @@
           <li>Saves the call as a markdown file in your git repository, so your AI agents know what the team decided.</li>
         </ul>
         <div class="cta-row">
-          <a class="btn" href="{{ cta.book_demo }}">Book a demo</a>
+          <a class="btn" href="/book">Book a demo</a>
           <a class="btn btn-ghost" href="/demo">See the demo workspace</a>
         </div>
         <p class="small muted">Prefer to run it yourself? <a href="{{ links.github }}">Self-host from GitHub</a>, MIT-licensed.</p>
@@ -209,7 +209,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
             <li>Jira or Asana instead of Linear</li>
             <li>Single sign-on and per-meeting access control</li>
           </ul>
-          <p class="muted">These are on the roadmap. <a href="{{ cta.book_demo }}">Book a demo</a> and tell us what you run on; requests decide what we build next.</p>
+          <p class="muted">These are on the roadmap. <a href="/book">Book a demo</a> and tell us what you run on; requests decide what we build next.</p>
         </div>
       </div>
     </div>
@@ -228,7 +228,7 @@ zones: [onboarding-emails, paid-acquisition]</pre>
             <li>A data processing agreement before any call is processed</li>
             <li>Private handling of 1:1 and board calls, other trackers and single sign-on: tell us what you need</li>
           </ul>
-          <a class="btn" href="{{ cta.book_demo }}">Book a demo</a>
+          <a class="btn" href="/book">Book a demo</a>
         </div>
         <div class="plan">
           <h3>Self-hosted</h3>
@@ -287,25 +287,13 @@ zones: [onboarding-emails, paid-acquisition]</pre>
   </section>
 
   <section id="beta" class="band band-strong">
-    <div class="wrap narrow">
-      <h2>Book a demo</h2>
-      <p>Thirty minutes on a call with the founder. Bring one recording of your own team's call, and we'll show you its digest and Linear tasks live.</p>
-      <form class="beta-form" action="/api/waitlist" method="post" data-waitlist>
-        <label for="beta-email" class="sr-only">Work email</label>
-        <input id="beta-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com">
-        <div class="hp" aria-hidden="true">
-          <label for="beta-website">Leave this field empty</label>
-          <input id="beta-website" name="website" type="text" tabindex="-1" autocomplete="off">
-        </div>
-        <button class="btn" type="submit">Book a demo</button>
-        <p class="form-status" role="status" aria-live="polite" data-status></p>
-      </form>
-      <p class="small muted">Leave a work email and we'll reply with a few times that suit you. We use your email only to arrange the demo. <a href="/privacy">Privacy policy</a>.</p>
+    <div class="wrap">
+<!-- @include book -->
     </div>
   </section>
 
 </main>
 <!-- @include footer -->
-<script src="/assets/waitlist.js" defer></script>
+<script src="/assets/book.js" defer></script>
 </body>
 </html>

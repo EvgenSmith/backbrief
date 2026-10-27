@@ -1,0 +1,34 @@
+      <div class="book">
+        <div class="book-intro">
+          <!-- @hosts -->
+          <h2>See it on one of your own calls</h2>
+          <p class="lede">Thirty minutes with the people who built {{ product }}. Bring one recording of your team's call, and we'll show you its decisions, owners and Linear tasks live, then talk through your setup.</p>
+        </div>
+        <div class="book-card" id="book-form">
+          <ol class="stepper" aria-label="Booking steps">
+            <li class="is-current" data-step-label><span class="dot">1</span> Contact details</li>
+            <li data-step-label><span class="dot">2</span> Call booking</li>
+          </ol>
+          <form class="book-form" action="/api/waitlist" method="post" data-book data-calendar="{{ links.book_demo }}">
+            <label for="book-name">Name</label>
+            <input id="book-name" name="name" type="text" required autocomplete="name" maxlength="100">
+            <label for="book-email">Work email</label>
+            <input id="book-email" name="email" type="email" required autocomplete="email" placeholder="you@company.com">
+            <div class="hp" aria-hidden="true">
+              <label for="book-website">Leave this field empty</label>
+              <input id="book-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <button class="btn btn-block" type="submit">Book a demo</button>
+            <p class="form-status" role="status" aria-live="polite" data-status></p>
+            <p class="small muted">By submitting, you agree to our <a href="/terms">Terms</a> and <a href="/privacy">Privacy policy</a>.</p>
+          </form>
+          <div class="book-next" data-book-next hidden tabindex="-1">
+            <div data-calendar-slot></div>
+            <div data-book-done>
+              <h3>Thanks<span data-book-name></span>.</h3>
+              <p>We'll email you at <strong data-book-email>your work email</strong> with a few times for the demo.</p>
+              <p class="small muted">Meanwhile, look around the <a href="/demo">demo workspace</a>.</p>
+            </div>
+          </div>
+        </div>
+      </div>

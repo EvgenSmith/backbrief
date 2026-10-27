@@ -216,12 +216,20 @@ test('sign-in requests are rate limited per email', async (t) => {
   assert.equal((await call('/api/auth/request', postJson({ email: 'not-an-email' }))).status, 400);
 });
 
-test('beta waitlist form posts through the same-origin function', async (t) => {
-  const { srv, call } = await server();
+test('book-a-demo form posts through the same-origin function', async (t) => {
+  const { srv, base, call } = await server();
   t.after(() => srv.close());
   let r = await call('/api/waitlist', postJson({ email: 'a@b.co' }));
   assert.equal(r.status, 201);
-  r = await call('/api/waitlist', postForm({ email: 'a@b.co' }));
+  r = await call('/api/waitlist', postForm({ email: 'a@b.co', name: 'Ann' }));
   assert.equal(r.status, 303);
-  assert.match(r.headers.get('location'), /#beta-thanks$/);
+  assert.equal(new URL(r.headers.get('location')).pathname + new URL(r.headers.get('location')).hash, '/#booked');
+  // Without JavaScript the form returns to the page it was sent from, but only to a known same-origin page.
+  const from = (referer) => ({ ...postForm({ email: 'a@b.co' }), headers: { ...postForm({}).headers, referer } });
+  r = await call('/api/waitlist', from(`${base}/book`));
+  assert.match(r.headers.get('location'), /\/book#booked$/);
+  r = await call('/api/waitlist', from('https://elsewhere.example/book'));
+  assert.match(r.headers.get('location'), /:\d+\/#booked$/);
+  r = await call('/api/waitlist', { ...from(`${base}/book`), body: new URLSearchParams({ email: 'nope' }).toString() });
+  assert.match(r.headers.get('location'), /\/book#book-form$/);
 });

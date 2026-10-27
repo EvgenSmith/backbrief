@@ -32,6 +32,16 @@
       "bio": "Built Backbrief to stop losing his own team's decisions between calls, and has run every internal call through it since."
     }
   ],
+  "demo_hosts": [
+    {
+      "name": "Eugene",
+      "photo": "/assets/people/eugene.jpg"
+    },
+    {
+      "name": "Kristina",
+      "photo": "/assets/people/kristina.jpg"
+    }
+  ],
   "demo": {
     "name": "Acme (demo)",
     "vault_url": "https://github.com/EvgenSmith/backbrief/tree/main/site/demo-vault",

@@ -159,7 +159,11 @@ if (RELEASE) {
   }
   if (!fs.existsSync(path.join(DIST, 'sitemap.xml'))) fail('sitemap.xml missing (set domain and rebuild)');
 }
-if (!config.links || !config.links.book_demo) warn('links.book_demo is empty — "Book a demo" opens the on-page form instead of a booking calendar');
+if (!config.links || !config.links.book_demo) warn('links.book_demo is empty — step 2 of the booking form promises an email instead of showing a calendar');
+for (const host of config.demo_hosts || []) {
+  if (!host.photo || !fs.existsSync(path.join(DIST, host.photo))) fail(`demo_hosts: no photo for ${host.name} at ${host.photo}`);
+}
+if ((config.demo_hosts || []).length === 0) warn('demo_hosts is empty — the booking form shows no faces');
 if (!config.demo_video_url) warn('no demo video yet (demo_video_url) — Speechmatics and OVH ask for a demo');
 
 for (const w of warnings) console.log(`  warn  ${w}`);

@@ -14,7 +14,8 @@
  *
  * Accepts JSON ({email, website}) from the enhanced form, or
  * application/x-www-form-urlencoded from the no-JavaScript form, which gets a
- * 303 redirect back to the page instead of JSON.
+ * 303 redirect back to the page it came from (the landing page or /book)
+ * instead of JSON. The form's name field is never forwarded or stored.
  */
 
 const DEFAULT_API = 'https://backbrief-telemetry.backbrief.workers.dev';
@@ -64,9 +65,16 @@ export async function onRequestPost({ request, env = {} }) {
   return reply(isForm, request, 502, { error: 'waitlist unavailable' });
 }
 
+const FORM_PAGES = ['/', '/book'];
+
 function reply(isForm, request, status, body) {
   if (isForm) {
-    const to = new URL(status < 300 ? '/#beta-thanks' : '/#beta', request.url);
+    let page = '/';
+    try {
+      const from = new URL(request.headers.get('referer') || '');
+      if (from.origin === new URL(request.url).origin && FORM_PAGES.includes(from.pathname)) page = from.pathname;
+    } catch { /* no or malformed referer: back to the landing page */ }
+    const to = new URL(`${page}${status < 300 ? '#booked' : '#book-form'}`, request.url);
     return Response.redirect(to.toString(), 303);
   }
   return new Response(JSON.stringify(body), {

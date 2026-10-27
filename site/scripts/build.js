@@ -6,6 +6,7 @@
  * directives:
  *   <!-- @include NAME -->   inline src/partials/NAME.html
  *   <!-- @team -->           team cards from site.config.json
+ *   <!-- @hosts -->          demo hosts' photos (demo_hosts in site.config.json)
  *   <!-- @demo -->           demo video block, only when demo_video_url is set
  *   {{ dotted.path }}        HTML-escaped value from site.config.json, the
  *                            page entry below, or {year, updated}
@@ -63,6 +64,11 @@ export const PAGES = [
     description: `Your ${config.product} workspace: calls, digests, action items and people from your team's vault.`,
   },
   {
+    src: 'book.html', out: 'book.html', path: '/book',
+    title: `Book a demo | ${config.product}`,
+    description: `Thirty minutes with the people who built ${config.product}: bring one recording of your team's call and see its decisions and tracker tasks live.`,
+  },
+  {
     src: '404.html', out: '404.html', path: '/404',
     title: `Page not found | ${config.product}`,
     description: `This page does not exist.`,
@@ -87,6 +93,17 @@ function renderTeam(team) {
   return `      <div class="team">${people}\n      </div>`;
 }
 
+function renderHosts(hosts) {
+  const list = (hosts || []).filter((h) => h.name && h.photo);
+  if (!list.length) return '';
+  const names = list.map((h) => h.name);
+  const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names.at(-1)}` : names[0];
+  const faces = list.map((h) =>
+    `<img src="${esc(h.photo)}" alt="${esc(h.name)}" width="88" height="88" loading="lazy">`).join('');
+  return `<div class="hosts">${faces}</div>
+          <p class="hosts-names">You'll talk to ${esc(who)}.</p>`;
+}
+
 function renderDemo(url) {
   if (!url) return '';
   return `      <div class="demo"><video controls preload="none" src="${esc(url)}"></video></div>`;
@@ -99,10 +116,9 @@ function render(name, page, stack = []) {
     render(path.join('partials', `${part}.html`), page, [...stack, name]).trimEnd());
   html = html.replace(/<!-- @team -->/g, () => renderTeam(config.team));
   html = html.replace(/<!-- @demo -->/g, () => renderDemo(config.demo_video_url));
+  html = html.replace(/<!-- @hosts -->/g, () => renderHosts(config.demo_hosts));
   const scope = {
     ...config,
-    // "Book a demo" goes to the booking link when one is configured, else to the on-page form.
-    cta: { book_demo: isSet(config.links.book_demo) ? config.links.book_demo : '/#beta' },
     page,
     year: new Date().getUTCFullYear(),
     updated: new Date().toISOString().slice(0, 10),
@@ -182,11 +198,13 @@ export function build() {
   copyDir(path.join(ROOT, 'assets'), path.join(OUT, 'assets'));
   buildDemo(OUT);
 
-  // Cloudflare Pages response headers: strict CSP (everything is same-origin),
-  // no framing, no referrer leakage.
+  // Cloudflare Pages response headers: strict CSP (everything is same-origin
+  // except the booking calendar, when one is configured), no framing, no
+  // referrer leakage.
+  const calendar = isSet(config.links.book_demo) ? ` frame-src ${new URL(config.links.book_demo).origin};` : '';
   fs.writeFileSync(path.join(OUT, '_headers'), [
     '/*',
-    "  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; media-src 'self' https:; form-action 'self'; base-uri 'self'; frame-ancestors 'none'",
+    `  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; media-src 'self' https:;${calendar} form-action 'self'; base-uri 'self'; frame-ancestors 'none'`,
     '  Referrer-Policy: strict-origin-when-cross-origin',
     '  X-Content-Type-Options: nosniff',
     '  Permissions-Policy: camera=(), microphone=(), geolocation=()',
