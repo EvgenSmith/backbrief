@@ -3,9 +3,11 @@
  * cabinet-people.js — People (spec §3.7): one card per profile, the profile
  * page (zones with their evidence, the names people use, who they work
  * with, activity, the file itself), and the names heard on calls that have
- * no profile yet. Add person (spec §3.8): 1 Name → 2 What we found →
- * 3 Review and save; saving writes people_added to the demo overlay, so
- * People, Overview and the stats update together. Styles live in
+ * no profile yet. Add person (spec §3.8): 1 Name → 2 What we found (accept
+ * one by one or all at once; the team can be one typed in, as a slug) →
+ * 3 Review and save (what changes first; on phones the file waits behind a
+ * toggle). Saving writes people_added to the demo overlay, so People,
+ * Overview and the stats update together. Styles live in
  * cabinet-people.css (shared with cabinet-memory.js and cabinet-sources.js).
  * API: the BB block at the top of cabinet.js.
  *
@@ -31,6 +33,24 @@
   const ws = () => BB.workspace();
   const allCalls = () => (ws() ? ws().calls : []);
   const callOf = (id) => allCalls().find((c) => c.id === id) || null;
+  const BACK = '<a class="back-link" href="#/people">← People</a>';
+  /** Every view of this module renders inside .screen, so its phone rules (tap targets) stay scoped. */
+  const show = (title, html, opts) => BB.render(title, `<div class="screen screen-people">${html}</div>`, 'people', opts);
+
+  // A team the person is on, typed in when the vault's teams don't fit ("Other team…"): a slug, like the tags in tenant.yaml.
+  const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const slugify = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  function teamSlugError(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return "Enter the team's name, like customer-support.";
+    if (v === 'team') return '“team” is the folder for profiles. Pick another name.';
+    if (v === 'none' || v === 'other') return `“${v}” can't be a team name. Pick another.`;
+    if (!SLUG.test(v)) {
+      const s = slugify(v);
+      return s && s !== 'team' ? `Use lowercase words joined by hyphens: ${s}.` : 'Use lowercase words joined by hyphens, like customer-support.';
+    }
+    return null;
+  }
   const firstOf = (p) => (p.first_names && p.first_names[0]) || String(p.name || '').split(' ')[0] || p.lastname;
   const nameOf = (p) => p.name || [firstOf(p), p.lastname].filter(Boolean).join(' ');
   const findPerson = (last) => {
@@ -214,7 +234,7 @@
     const strip = !BB.isDemo && !people.length
       ? '<p class="setup-strip"><span class="setup-strip-k">Setup · step 2 of 4</span> Check who\'s who. We draft a profile for each Slack member on your company domain, and you confirm them.</p>'
       : '';
-    BB.render('People', `${strip}${body}${unprofiledHtml(unprofiled)}${managed}`, 'people', {
+    show('People', `${strip}${body}${unprofiledHtml(unprofiled)}${managed}`, {
       eyebrow: esc(eyebrow),
       lede: esc(`One profile per teammate, so digests name owners instead of speakers.${aliasLine(people)}`),
       actions: BB.isDemo ? `<a class="btn btn-small" href="${esc(href('people', 'add'))}">Add person</a>` : '',
@@ -306,11 +326,11 @@
         <p class="panel-note">Said on a call or typed in Slack, each of these resolves to ${esc(p.lastname)} in digests and tasks.</p>`
     : `<p class="muted">No other names yet. ${esc(p.lastname)} still resolves.</p>`}
       </section>
-      <section class="panel" aria-labelledby="h-partners">
+      ${partnerRows || typical.length ? `<section class="panel" aria-labelledby="h-partners">
         <h2 id="h-partners">Works most with</h2>
-        ${partnerRows ? `<ul class="partners">${partnerRows}</ul>` : '<p class="muted">Nobody yet.</p>'}
-        ${typical.length ? `<p class="panel-note">The profile also lists ${BB.joinAnd(typical.map(BB.person))}.</p>` : ''}
-      </section>
+        ${partnerRows ? `<ul class="partners">${partnerRows}</ul>` : ''}
+        ${typical.length ? `<p class="panel-note">${partnerRows ? 'The profile also lists' : 'The profile lists'} ${BB.joinAnd(typical.map(BB.person))}.</p>` : ''}
+      </section>` : ''}
       ${BB.isDemo ? '' : `<p class="small muted">To change this profile: ${BB.managed()}</p>`}`;
 
     const helpingList = a.helping.map((x) => `<li>${esc(x.title)}
@@ -320,8 +340,7 @@
         <h2 id="h-activity">Activity</h2>
         <p class="profile-counts">${esc(counts)}</p>
         ${a.refs.length ? `<h3>In Linear</h3><p class="profile-refs">${a.refs.map(BB.ref).join(' ')}</p>` : ''}
-        <h3>Open items</h3>
-        ${a.open.length ? `<ul class="item-list">${a.open.map(itemLine).join('')}</ul>` : '<p class="panel-note">Nothing open.</p>'}
+        ${a.open.length ? `<h3>Open items</h3><ul class="item-list">${a.open.map(itemLine).join('')}</ul>` : ''}
         ${helpingList ? `<h3>Helping</h3><ul class="item-list">${helpingList}</ul>` : ''}
         ${a.recent.length ? `<h3>${a.namedOnly ? `Calls that name ${esc(first)}` : 'Recent calls'}</h3><ol class="call-list">${a.recent.slice(0, 5).map((c) => BB.callRow(c, { compact: true })).join('')}</ol>` : ''}
       </section>
@@ -335,8 +354,8 @@
           <p class="profile-contact">${p.email ? `<span class="mono">${esc(p.email)}</span> · ` : ''}<span class="mono">${esc(path)}</span></p>
         </div>
       </div>`;
-    BB.render(nameOf(p), `${fileHtml}<div class="call-layout profile-layout"><div class="profile-main">${main}</div>${aside}</div>`, 'people', {
-      eyebrow: '<a href="#/people">← People</a>',
+    show(nameOf(p), `${fileHtml}<div class="call-layout profile-layout"><div class="profile-main">${main}</div>${aside}</div>`, {
+      eyebrow: BACK,
       lede,
       actions: `<button class="btn btn-small btn-ghost" type="button" data-view-file aria-expanded="${open ? 'true' : 'false'}" aria-controls="profile-file">View the file</button>`,
     });
@@ -377,14 +396,15 @@
     const html = u
       ? `<p>${esc(u.token)} ${guest ? `joined ${esc(plural(u.calls, 'call'))} as a guest. Guests don't need a profile: digests name them, and tasks only go to teammates.` : `is named on ${esc(plural(u.calls, 'call'))} but has no profile yet.`}</p>${add}`
       : `<p>There's no profile for ${esc(last)}.</p>${add}`;
-    BB.render(u ? `No profile for ${u.token} yet` : 'No such profile', BB.emptyState(html), 'people', { eyebrow: '<a href="#/people">← People</a>' });
+    show(u ? `No profile for ${u.token} yet` : 'No such profile', BB.emptyState(html), { eyebrow: BACK });
   }
 
   // ------------------------------------------------------------ Add person
 
   let draft = null;
   let searching = null;
-  BB.on('reset', () => { draft = null; searching = null; fileOpenFor = null; });
+  let fileShown = false; // step 3 on phones: the file preview waits behind "Show the file"
+  BB.on('reset', () => { draft = null; searching = null; fileOpenFor = null; fileShown = false; });
 
   const LETTERS = /^[A-Za-z]+(?:['’-][A-Za-z]+)*$/;
   const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -490,9 +510,18 @@
       callIds,
       mentions: (u && u.mentioned_in) || [],
       guest: Boolean(u && u.kind === 'external'),
-      team: { answer: null, options: (addPerson() || {}).teams || [], error: false },
-      manual: { role: '', team: '', zones: '' },
+      team: { answer: null, other: '', otherError: null, options: (addPerson() || {}).teams || [], error: false },
+      manual: { role: '', team: '', teamOther: '', teamOtherError: null, zones: '' },
     };
+  }
+
+  /** The team question is answered: a listed team, "No team", or a valid name typed under "Other team…". */
+  const teamAnswered = (d) => Boolean(d.team.answer) && (d.team.answer !== 'other' || !teamSlugError(d.team.other));
+  /** The team the draft would save: a tag, or null for no team. */
+  function draftTeam(d) {
+    const ans = d.mode === 'none' ? d.manual.team : d.team.answer;
+    if (ans === 'other') return String(d.mode === 'none' ? d.manual.teamOther : d.team.other).trim() || null;
+    return ans && ans !== 'none' ? ans : null;
   }
 
   // --- step 1
@@ -548,8 +577,8 @@
           <p class="small muted">Nothing is saved until you review the file in step 3.</p>
         </aside>
       </div>`;
-    BB.render('Add a person', html, 'people', {
-      eyebrow: '<a href="#/people">← People</a>',
+    show('Add a person', html, {
+      eyebrow: BACK,
       lede: 'Start with a name. Backbrief searches your calls for every way people say it and drafts the rest for you to check.',
     });
     wireStep1();
@@ -664,6 +693,7 @@
     if (searching !== token || location.hash !== at) return;
     searching = null;
     draft = makeDraft(first, last, email);
+    fileShown = false;
     BB.go(href('people', 'add', 'found'));
   }
 
@@ -673,7 +703,7 @@
 
   function rowValueHtml(r) {
     if (r.kind === 'aliases' || r.kind === 'partners') {
-      return `<p class="suggest-value">${r.values.length ? r.values.map((v) => `<span class="chip">${r.edited ? `<mark>${esc(v)}</mark>` : esc(v)}</span>`).join(' ') : '<span class="muted">None</span>'}</p>`;
+      return `<p class="suggest-value">${r.values.map((v) => `<span class="chip">${r.edited ? `<mark>${esc(v)}</mark>` : esc(v)}</span>`).join(' ')}</p>`;
     }
     return `<p class="suggest-value">${r.edited ? `<mark>${esc(r.value)}</mark>` : esc(r.value)}</p>`;
   }
@@ -733,13 +763,25 @@
     </li>`;
   }
 
+  /** The name field under "Other team…": a slug, checked when the person moves on. */
+  function otherTeamHtml(id, value, error, shown, data) {
+    return `<div class="ask-other form" data-other-box="${id}"${shown ? '' : ' hidden'}>
+        <label for="${id}">Team name</label>
+        <input id="${id}" type="text" ${data} value="${esc(value)}" maxlength="40" autocomplete="off" spellcheck="false" aria-describedby="${id}-help ${id}-err"${error ? ' aria-invalid="true"' : ''}>
+        <p class="help" id="${id}-help"${error ? ' hidden' : ''}>Lowercase words joined by hyphens, like customer-support.</p>
+        <p class="error" id="${id}-err" role="alert"${error ? '' : ' hidden'}>${esc(error || '')}</p>
+      </div>`;
+  }
+
   function teamAskHtml(d) {
-    const opts = [...d.team.options.map((t) => [t, t]), ['none', 'No team: cross-team calls only']];
-    return `<li class="suggest suggest-ask${d.team.answer ? ' is-answered' : ''}" data-row="team">
-      <p class="suggest-k">${d.team.answer ? 'Team' : 'Needs your answer'}</p>
+    const opts = [...d.team.options.map((t) => [t, t]), ['other', 'Other team…'], ['none', 'No team: cross-team calls only']];
+    const done = teamAnswered(d);
+    return `<li class="suggest suggest-ask${done ? ' is-answered' : ''}" data-row="team">
+      <p class="suggest-k">${done ? 'Team' : 'Needs your answer'}</p>
       <fieldset class="suggest-main" aria-describedby="sg-team-help sg-team-err">
         <legend class="suggest-q">Which team is ${esc(d.first)} on? We couldn't tell from the calls.</legend>
         <div class="ask-options">${opts.map(([v, label]) => `<label class="ask-option"><input type="radio" name="sg-team" value="${esc(v)}"${d.team.answer === v ? ' checked' : ''}> <span>${esc(label)}</span></label>`).join('')}</div>
+        ${otherTeamHtml('sg-team-other', d.team.other, d.team.otherError, d.team.answer === 'other', 'data-team-other')}
         <p class="help" id="sg-team-help">Tasks ${esc(d.first)} owns go to this team in Linear.</p>
         <p class="error" id="sg-team-err" role="alert"${d.team.error ? '' : ' hidden'}>Answer this to review the profile.</p>
       </fieldset>
@@ -757,9 +799,11 @@
         <select id="mf-team" data-manual="team" aria-describedby="mf-team-help">
           <option value="">Not sure yet</option>
           ${teams.map((t) => `<option value="${esc(t)}"${d.manual.team === t ? ' selected' : ''}>${esc(t)}</option>`).join('')}
+          <option value="other"${d.manual.team === 'other' ? ' selected' : ''}>Other team…</option>
           <option value="none"${d.manual.team === 'none' ? ' selected' : ''}>No team: cross-team calls only</option>
         </select>
         <p class="help" id="mf-team-help">Tasks ${esc(d.first)} owns go to this team in Linear.</p>
+        ${otherTeamHtml('mf-team-other', d.manual.teamOther, d.manual.teamOtherError, d.manual.team === 'other', 'data-manual="teamOther"')}
       </div>` : '';
     const zones = `<div class="field">
         <label for="mf-zones">Zones</label>
@@ -786,8 +830,18 @@
     const parts = [];
     if (d.rows.length) parts.push(`${acc} accepted`);
     if (pend) parts.push(`${pend} to check`);
-    if (d.mode !== 'none' && !d.team.answer) parts.push('1 question left');
+    if (d.mode !== 'none' && !teamAnswered(d)) parts.push('1 question left');
     return parts.join(' · ') || 'Fill in what you know, or review the file as it is.';
+  }
+
+  /** Suggestions one click can accept: still open, not being edited, with no clash to fix first. */
+  const acceptable = (d) => d.rows.filter((r) => r.state === 'pending' && !r.editing && !r.error);
+
+  function bulkHtml(d) {
+    const n = acceptable(d).length;
+    if (n < 2) return '';
+    return `<p class="addp-bulk-text">${esc(plural(n, 'suggestion'))} to check, each with the call it comes from.</p>
+      <button class="btn btn-small" type="button" data-act="accept-all" data-key="addp-accept-all">Accept all ${n}</button>`;
   }
 
   function step2() {
@@ -798,9 +852,11 @@
     const lede = found
       ? "Accept what's right, fix what's close, dismiss what's wrong. Nothing is saved until the last step."
       : `Nobody said ${BB.joinAnd(terms).replace(/ and ([^,]+)$/, ' or $1')} on the ${plural(allCalls().length, 'call')} so far. Fill in what you know; zones are suggested once ${d.first} shows up on a call.`;
+    const bulk = bulkHtml(d);
     const html = `${stepper(2)}
       <div class="addp addp-found" data-addp>
         ${d.guest ? `<p class="addp-note small muted">${esc(d.last)} joined as a guest. Guests don't need a profile: digests name them, and tasks only go to teammates.</p>` : ''}
+        <div class="addp-bulk" data-bulk${bulk ? '' : ' hidden'}>${bulk}</div>
         <ul class="suggests" data-rows>${rowsHtml(d)}</ul>
         ${mentionsHtml(d)}
         ${d.mode !== 'found' ? manualHtml(d) : ''}
@@ -811,7 +867,7 @@
         </div>
         ${d.rows.length ? '<p class="small muted addp-foot-note">Suggestions you leave unchecked stay out of the file.</p>' : ''}
       </div>`;
-    BB.render(title, html, 'people', { eyebrow: '<a href="#/people">← People</a>', lede: esc(lede) });
+    show(title, html, { eyebrow: BACK, lede: esc(lede) });
     wireStep2();
   }
 
@@ -825,8 +881,41 @@
     box.innerHTML = rowsHtml(draft);
     const count = $('[data-count]');
     if (count) count.textContent = countText(draft);
+    const bulk = $('[data-bulk]');
+    if (bulk) { const b = bulkHtml(draft); bulk.innerHTML = b; bulk.hidden = !b; }
     const t = focusSel ? $(focusSel, box) || $(focusSel) : null;
     if (t) t.focus();
+  }
+
+  /** The control the team question needs next: the name under "Other team…", or the first option. */
+  const teamFocus = (d) => (d.team.answer === 'other' ? '#sg-team-other' : 'input[name="sg-team"]');
+
+  function acceptAll() {
+    const d = draft;
+    for (const r of acceptable(d)) {
+      const clash = r.kind === 'aliases' ? r.values.map((v) => aliasClash(v)).find(Boolean) : null;
+      if (clash) { r.error = clash; continue; }
+      r.state = 'accepted';
+    }
+    // What is left after the bulk accept: the team question, else the next step.
+    repaint(d.mode !== 'none' && !teamAnswered(d) ? teamFocus(d) : '[data-key="addp-review"]');
+  }
+
+  /** Keep the team question's label, state and count in step with what was picked or typed. */
+  function syncTeam(li) {
+    const done = teamAnswered(draft);
+    li.classList.toggle('is-answered', done);
+    $('.suggest-k', li).textContent = done ? 'Team' : 'Needs your answer';
+    $('[data-count]').textContent = countText(draft);
+  }
+
+  function showFieldError(id, msg) {
+    const input = $(`#${id}`);
+    const err = $(`#${id}-err`);
+    const help = $(`#${id}-help`);
+    if (err) { err.textContent = msg || ''; err.hidden = !msg; }
+    if (help) help.hidden = Boolean(msg); // the error says the same rule, with the fix
+    if (input) { if (msg) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid'); }
   }
 
   function commitEdit(r, box) {
@@ -835,6 +924,7 @@
     r.typed = input ? input.value : null;
     if (r.values) {
       const vals = [...new Set(raw.split(',').map((x) => x.trim()).filter(Boolean))];
+      if (!vals.length) { r.error = `Enter at least one ${r.kind === 'aliases' ? 'name' : 'last name'}, or dismiss it.`; return false; }
       for (const v of vals) {
         const clash = r.kind === 'aliases' ? aliasClash(v) : null;
         if (clash) { r.error = clash; return false; }
@@ -863,6 +953,7 @@
       if (!b || !draft) return;
       const act = b.dataset.act;
       if (act === 'review') { review(); return; }
+      if (act === 'accept-all') { acceptAll(); return; }
       const rowEl = b.closest('[data-row]');
       const r = rowEl ? draft.rows.find((x) => x.key === rowEl.dataset.row) : null;
       if (!r) return;
@@ -886,23 +977,37 @@
       if (e.key !== 'Enter') return;
       if (e.target.matches('[data-edit-input]')) { e.preventDefault(); const done = e.target.closest('[data-row]').querySelector('[data-act="done"]'); if (done) done.click(); }
       if (e.target.matches('[data-alias-input]')) { e.preventDefault(); const add = e.target.closest('[data-row]').querySelector('[data-act="alias-add"]'); if (add) add.click(); }
-      if (e.target.matches('[data-manual]')) e.preventDefault();
+      if (e.target.matches('[data-manual], [data-team-other]')) e.preventDefault();
     });
     root.addEventListener('change', (e) => {
       if (e.target.name === 'sg-team') {
         draft.team.answer = e.target.value;
         draft.team.error = false;
         const li = e.target.closest('[data-row="team"]');
-        li.classList.add('is-answered');
-        $('.suggest-k', li).textContent = 'Team';
         const err = $('#sg-team-err');
         if (err) err.hidden = true;
-        $('[data-count]').textContent = countText(draft);
+        // "Other team…" opens a name field right under the options; focus stays on the option.
+        const box = $('[data-other-box="sg-team-other"]', li);
+        if (box) box.hidden = draft.team.answer !== 'other';
+        syncTeam(li);
       }
     });
     root.addEventListener('input', (e) => {
-      const m = e.target.dataset && e.target.dataset.manual;
-      if (m) draft.manual[m] = e.target.value;
+      const t = e.target;
+      if (t.matches('[data-team-other]')) {
+        draft.team.other = t.value;
+        if (draft.team.otherError) { draft.team.otherError = null; showFieldError('sg-team-other', null); }
+        syncTeam(t.closest('[data-row="team"]'));
+        return;
+      }
+      const m = t.dataset && t.dataset.manual;
+      if (!m) return;
+      draft.manual[m] = t.value;
+      if (m === 'team') {
+        const box = $('[data-other-box="mf-team-other"]', root);
+        if (box) box.hidden = t.value !== 'other';
+      }
+      if (m === 'teamOther' && draft.manual.teamOtherError) { draft.manual.teamOtherError = null; showFieldError('mf-team-other', null); }
     });
   }
 
@@ -933,6 +1038,17 @@
       repaint('input[name="sg-team"]');
       return;
     }
+    if (d.mode !== 'none' && d.team.answer === 'other') {
+      d.team.otherError = teamSlugError(d.team.other);
+      if (d.team.otherError) { repaint('#sg-team-other'); return; }
+      d.team.other = d.team.other.trim();
+    }
+    if (d.mode === 'none' && d.manual.team === 'other') {
+      d.manual.teamOtherError = teamSlugError(d.manual.teamOther);
+      showFieldError('mf-team-other', d.manual.teamOtherError);
+      if (d.manual.teamOtherError) { const input = $('#mf-team-other'); if (input) input.focus(); return; }
+      d.manual.teamOther = d.manual.teamOther.trim();
+    }
     BB.go(href('people', 'add', 'review'));
   }
 
@@ -946,8 +1062,7 @@
     const accountsRow = acceptedRow(d, 'accounts');
     const hasRoleRow = d.rows.some((r) => r.kind === 'role');
     const role = hasRoleRow ? (roleRow ? roleRow.value : '') : d.manual.role.trim();
-    const teamAns = d.mode === 'none' ? d.manual.team : d.team.answer;
-    const team = teamAns && teamAns !== 'none' ? teamAns : null;
+    const team = draftTeam(d);
     const zones = d.rows.filter((r) => r.kind === 'zone' && r.state === 'accepted').map((r) => ({ zone: r.value, evidence: r.evidence }));
     const manualZones = d.manual.zones.split(',').map((x) => x.trim().toLowerCase().replace(/\s+/g, '-')).filter((z) => z && !zones.some((y) => y.zone === z));
     for (const z of [...new Set(manualZones)]) zones.push({ zone: z, evidence: null });
@@ -983,16 +1098,17 @@
     };
   }
 
+  /** The new profile file: frontmatter, then only the sections that have something in them. */
   function fileLines(p) {
     const lines = frontmatterLines(p);
     const z = p.zone_evidence.map((x) => (x.evidence
       ? `- **${x.zone}** — evidence: ${JSON.stringify(x.evidence.quote)} (${x.evidence.date} call, ${x.evidence.ts})`
       : `- **${x.zone}** — added by hand, no call evidence yet`));
-    lines.push('', `# ${p.name}${p.role ? ` — ${p.role}` : ''}`, '', '## Role', p.role ? `${p.role}.` : 'None.', '',
-      '## Responsibility zones', ...(z.length ? z : ['None yet.']), '',
-      '## Typical topics', ...(p.zones.length ? p.zones.map((x) => `- ${x.replace(/-/g, ' ')}`) : ['None yet.']), '',
-      '## Typical partners', ...(p.typical_partners.length ? p.typical_partners.map((x) => `- **${x}**`) : ['None yet.']), '',
-      '## Notes', 'None.');
+    lines.push('', `# ${p.name}${p.role ? ` — ${p.role}` : ''}`);
+    if (p.role) lines.push('', '## Role', `${p.role}.`);
+    if (z.length) lines.push('', '## Responsibility zones', ...z);
+    if (p.zones.length) lines.push('', '## Typical topics', ...p.zones.map((x) => `- ${x.replace(/-/g, ' ')}`));
+    if (p.typical_partners.length) lines.push('', '## Typical partners', ...p.typical_partners.map((x) => `- **${x}**`));
     return lines;
   }
 
@@ -1013,22 +1129,24 @@
     const d = draft;
     const p = personFromDraft(d);
     const path = p.path;
-    const settings = BB.cached('settings');
-    const linear = settings && settings.sources ? settings.sources.find((s) => s.id === 'linear') : null;
+    const linear = BB.effectiveSources().find((s) => s.id === 'linear') || null;
     const key = p.team && linear && linear.settings && linear.settings.team_mapping ? linear.settings.team_mapping[p.team] : null;
+    const known = p.team && (d.team.options.includes(p.team) || Boolean(key));
     const accountsRow = acceptedRow(d, 'accounts');
     const changes = [];
     changes.push(p.aliases.length
       ? `From the next call, ${BB.joinAnd(p.aliases.map(curly))} ${p.aliases.length === 1 ? 'resolves' : 'resolve'} to ${p.lastname}.`
       : `From the next call, ${curly(p.lastname)} resolves to this profile.`);
-    if (p.team) changes.push(`Tasks ${d.first} owns go to ${p.team}${key ? ` (${key})` : ''} in Linear${accountsRow ? `, assigned to ${accountsRow.accounts.tracker}` : ''}.`);
+    if (p.team && known) changes.push(`Tasks ${d.first} owns go to ${p.team}${key ? ` (${key})` : ''} in Linear${accountsRow ? `, assigned to ${accountsRow.accounts.tracker}` : ''}.`);
+    else if (p.team) changes.push(`Tasks ${d.first} owns go to the new team ${p.team}. Backbrief maps it to a Linear team before your next call.`);
     else if ((d.mode === 'none' ? d.manual.team : d.team.answer) === 'none') changes.push(`${d.first} has no team: listed for cross-team calls only.`);
     if (d.calls) changes.push(d.calls === 1 ? `The call that names ${d.first} now links to this profile.` : `The ${d.calls} calls that name ${d.first} now link to this profile.`);
     const skipped = notAdded(d);
     if (skipped.length) changes.push(`Not added: ${BB.joinAnd(skipped)}.`);
+    // "What changes" and Save come first in reading order. On wide screens the file sits on the
+    // left; on phones it waits behind "Show the file" (the toggle is hidden on wider screens).
     const html = `${stepper(3)}
-      <div class="addp addp-review" data-addp>
-        <div class="addp-file">${fileWin(path, fileLines(p))}</div>
+      <div class="addp addp-review${fileShown ? ' is-file-open' : ''}" data-addp>
         <section class="panel addp-changes" aria-labelledby="h-changes">
           <h2 id="h-changes">What changes</h2>
           <ul class="plain-list">${changes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
@@ -1038,10 +1156,22 @@
           </div>
           <p class="small muted addp-save-note" data-save-status role="status"></p>
         </section>
+        <div class="addp-file">
+          <button class="btn btn-small btn-ghost addp-file-toggle" type="button" data-file-toggle data-key="addp-file-toggle" aria-expanded="${fileShown}" aria-controls="addp-file-win">${fileShown ? 'Hide' : 'Show'} the file ${esc(path)}</button>
+          <div class="addp-file-win" id="addp-file-win">${fileWin(path, fileLines(p))}</div>
+        </div>
       </div>`;
-    BB.render('Review and save', html, 'people', {
-      eyebrow: '<a href="#/people">← People</a>',
-      lede: esc(`This is the file Backbrief adds to ${repoText()}. You can edit it there any time.`),
+    show('Review and save', html, {
+      eyebrow: BACK,
+      lede: esc(`Backbrief adds ${path} to ${repoText()}. You can edit it there any time.`),
+    });
+    const toggle = $('[data-file-toggle]');
+    toggle.addEventListener('click', () => {
+      fileShown = !fileShown;
+      $('[data-addp]').classList.toggle('is-file-open', fileShown);
+      toggle.setAttribute('aria-expanded', String(fileShown));
+      toggle.textContent = `${fileShown ? 'Hide' : 'Show'} the file ${path}`;
+      if (fileShown) $('#addp-file-win').scrollIntoView({ block: 'nearest', behavior: 'instant' });
     });
     const btn = $('[data-save]');
     btn.addEventListener('click', async () => {
@@ -1055,7 +1185,9 @@
       BB.state.people_added = [...BB.state.people_added.filter((x) => x.lastname !== p.lastname), { ...p, added_at: BB.now() }];
       BB.save();
       draft = null;
-      BB.toast(`Saved ${path}. ${d.first} is now in People.`, BB.DEMO_NOTE.github);
+      fileShown = false;
+      // True of the product too: the pipeline reads team/ afresh for every call.
+      BB.toast(`Saved ${path}. Backbrief uses it from the next call.`, BB.DEMO_NOTE.github);
       BB.go(href('people', p.lastname));
     });
   }

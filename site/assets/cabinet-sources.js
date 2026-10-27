@@ -3,10 +3,12 @@
  * cabinet-sources.js — Sources (spec §3.10): a ruled ledger of what
  * Backbrief reads from and writes to (call recordings, chat, tracker, the
  * record repository, context repositories, imports, what comes next), and a
- * page per source: status, what it does, access with a reason for each
- * permission, settings, activity, disconnect. In the demo, Connect walks the
- * three steps a new customer sees, with a stand-in for the OAuth approval;
- * every change goes to the overlay (sources, requests, imports). Styles live
+ * page per source: health, what it does (for Zoom, what gets processed and
+ * who can read it), access with a reason for each permission (Slack: what it
+ * can and never can do), settings, activity, disconnect. In the demo, Connect
+ * walks the steps of the setup call, with a stand-in for the tool's approval
+ * screen, and Request offers a demo call; every change goes to the overlay
+ * (sources, requests, imports). Styles live
  * in cabinet-people.css. API: the BB block at the top of cabinet.js.
  *
  * An imported file is read in the browser only to count its lines; its text
@@ -27,7 +29,21 @@
   const NAMES = { zoom: 'Zoom', slack: 'Slack', linear: 'Linear', github: 'GitHub' };
   const CATEGORY = { zoom: 'Call recordings', slack: 'Chat', linear: 'Tracker', github: 'Repository' };
   const ORDER = ['zoom', 'slack', 'linear', 'github'];
-  const back = '<a href="#/sources">← Sources</a>';
+  // Who approves the access in each tool, for the Connect dialog's managed first step.
+  const ADMIN = { zoom: 'an account admin', slack: 'a workspace admin', linear: 'a workspace admin', github: 'an organization owner' };
+  const back = '<a class="back-link" href="#/sources">← Sources</a>';
+  /** Every view of this module renders inside .screen, so its phone rules (tap targets) stay scoped. */
+  const show = (title, html, opts) => BB.render(title, `<div class="screen screen-sources">${html}</div>`, 'sources', opts);
+  const reducedMotion = () => Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /** The nav's own name for the Action items section, so links here follow a rename. */
+  function tasksLabel() {
+    const a = document.querySelector('.app-nav [data-nav="tasks"]');
+    if (!a) return 'Action items';
+    const copy = a.cloneNode(true);
+    for (const x of copy.querySelectorAll('.nav-count, .sr-only')) x.remove();
+    return copy.textContent.replace(/\s+/g, ' ').trim() || 'Action items';
+  }
 
   function repoName() {
     const v = BB.cached('vault');
@@ -59,14 +75,18 @@
     'cloud_recording:read:list_user_recordings:admin': 'List past recordings, for history import',
   };
   const ZOOM_EVENTS = { 'recording.completed': 'Recording finished', 'recording.transcript_completed': 'Transcript ready' };
+  // Everything Slack's scopes allow, grouped under the "Can" line; nothing in this list reads
+  // a direct message or a channel the app isn't in.
   const SLACK_GROUPS = [
-    ['Post messages and threads', ['chat:write', 'chat:write.public']],
-    ['Message the owner if a call fails', ['im:write']],
+    ['Post in the channels you choose', ['chat:write', 'chat:write.public']],
+    ['See the channel list, so you can choose', ['channels:read', 'groups:read']],
+    ["Message a call's owner if processing fails", ['im:write']],
+    ['Read replies in threads it started', ['channels:history', 'groups:history']],
     ['Match people by email', ['users:read', 'users:read.email']],
-    ['Find channels', ['channels:read', 'groups:read']],
-    ['Read thread replies for corrections', ['channels:history', 'groups:history']],
-    ['Reactions', ['reactions:read', 'reactions:write']],
+    ['Add and read reactions on its own posts', ['reactions:read', 'reactions:write']],
   ];
+  const SLACK_CAN = 'post in the channels you choose · read replies in threads it started · match people by email · add reactions to its own posts.';
+  const SLACK_NEVER = "read channels it isn't invited to · read direct messages.";
   const LINEAR_WHY = [
     ['read issues', 'Check each proposal against your backlog'],
     ['create issues', 'File the proposals your team approves'],
@@ -107,8 +127,105 @@
         <span class="access-why">${esc(r.why)}${r.required ? ' <span class="chip">Required</span>' : ''}</span>
         <span class="access-scopes">${r.scopes.map((x) => `<code>${esc(x)}</code>`).join(' ')}</span>
       </li>`).join('');
+    if (s.id === 'slack') {
+      // Plain words first, then the scopes that make each "Can" true.
+      return `<div class="access-cn">
+          <p class="access-line"><span class="access-k">Can</span> <span>${esc(SLACK_CAN)}</span></p>
+          <ul class="access access-under">${rows}</ul>
+          <p class="access-line is-never"><span class="access-k">Never</span> <span>${esc(SLACK_NEVER)}</span></p>
+          <p class="access-never-why">Slack only lets it read channels it's invited to, and it has no <code>im:history</code> scope, so it can't read direct messages.</p>
+        </div>`;
+    }
     const events = s.id === 'zoom' ? ((s.events && s.events.length ? s.events : Object.keys(ZOOM_EVENTS)).map((e) => ZOOM_EVENTS[e] || e)) : [];
     return `<ul class="access">${rows}</ul>${events.length ? `<p class="access-events"><span class="access-k">Events</span> ${esc(events.join(' · '))}</p>` : ''}`;
+  }
+
+  // ------------------------------------------------------------ what a source means for your calls
+
+  /** The Zoom statement: what gets processed and who can read it. */
+  function zoomStatement(s) {
+    const set = s.settings || {};
+    const min = Number(set.min_duration_min);
+    const longer = set.min_duration_min !== undefined && set.min_duration_min !== null && Number.isFinite(min) && min > 0
+      ? ` longer than ${plural(min, 'minute')}` : '';
+    const slack = BB.effectiveSources().find((x) => x.id === 'slack');
+    const readers = slack && slack.status === 'connected'
+      ? `everyone in this workspace and ${BB.effectiveSlack().channel || 'the digest channel'} can read it`
+      : 'everyone in this workspace can read it';
+    return `${s.status === 'connected' ? 'Every' : 'Once connected, every'} cloud recording on ${s.account || 'your Zoom account'}${longer} is processed, and ${readers}. Keep 1:1, board and HR calls off the cloud recording.`;
+  }
+
+  // ------------------------------------------------------------ health
+
+  const OFF = {
+    zoom: "new recordings aren't processed",
+    slack: "digests aren't posted to Slack",
+    linear: "approved tasks aren't filed",
+    github: "new calls aren't saved",
+  };
+
+  function addMinutes(hhmm, min) {
+    const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return null;
+    const t = Number(m[1]) * 60 + Number(m[2]) + Number(min || 0);
+    return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+  }
+
+  /** The workspace's own date for an ISO time, as YYYY-MM-DD. */
+  function localDay(iso) {
+    try {
+      const tz = (ws() && ws().workspace.timezone) || undefined;
+      return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+    } catch {
+      return String(iso).slice(0, 10);
+    }
+  }
+
+  function latestCall() {
+    const w = ws();
+    if (!w || !w.calls.length) return null;
+    return [...w.calls].sort((a, b) => `${b.date} ${b.time || ''}`.localeCompare(`${a.date} ${a.time || ''}`))[0];
+  }
+
+  /**
+   * When a source last did something for Backbrief, {date, time}: settings' own
+   * health.last_event when the data has it, else from the latest call: Zoom when
+   * the recording ended, Slack when it posted (the proposals reply, if the task
+   * log is on), Linear and GitHub when the proposals were checked and committed.
+   */
+  function lastEvent(s) {
+    const h = s.health || {};
+    if (h.last_event) return { date: localDay(h.last_event), time: BB.clock(h.last_event) };
+    const c = latestCall();
+    if (!c) return null;
+    const ended = { date: c.date, time: c.time ? addMinutes(c.time, c.duration_min || 0) : null };
+    const entry = ((ws() && ws().task_log) || []).find((e) => e.call_id === c.id && e.generated);
+    const checked = entry ? { date: localDay(entry.generated), time: BB.clock(entry.generated) } : null;
+    const detail = BB.cached(`call:${c.id}`);
+    const posted = detail && detail.slack && detail.slack.posted_at ? { date: c.date, time: detail.slack.posted_at } : null;
+    const later = (a, b) => (!a ? b : !b ? a : `${a.date} ${a.time}` >= `${b.date} ${b.time}` ? a : b);
+    if (s.id === 'zoom') return ended;
+    if (s.id === 'slack') return later(posted, BB.effectiveSlack().delivery.task_log ? checked : null) || ended;
+    return checked || posted || ended;
+  }
+
+  /** "Healthy · last event 19 Oct, 10:44 · no failures in 30 days", or what stops while disconnected. */
+  function health(s) {
+    if (s.status !== 'connected') return { ok: false, text: `Not connected · ${OFF[s.id] || 'nothing new comes in'}` };
+    if (!BB.isDemo && !s.health) return null; // /app has no health data yet: claim nothing
+    const f = Number((s.health || {}).failures_30d) || 0;
+    const ev = lastEvent(s);
+    return {
+      ok: f === 0,
+      text: [f ? 'Needs a look' : 'Healthy', ev ? `last event ${BB.fmtDay(ev.date)}${ev.time ? `, ${ev.time}` : ''}` : '',
+        f ? `${plural(f, 'failure')} in 30 days` : 'no failures in 30 days'].filter(Boolean).join(' · '),
+    };
+  }
+
+  function healthHtml(s, cls = '') {
+    const h = health(s);
+    if (!h) return '';
+    return `<p class="source-health${cls ? ` ${cls}` : ''}${h.ok ? '' : ' is-off'}"><span class="status-dot${h.ok ? '' : ' is-off'}" aria-hidden="true"></span>${esc(h.text)}</p>`;
   }
 
   // ------------------------------------------------------------ activity
@@ -189,7 +306,7 @@
     } else if (s.id === 'slack') {
       const sl = BB.effectiveSlack();
       const chans = [sl.channel, ...Object.values(sl.per_team_channels || {})].filter(Boolean);
-      if (chans.length) parts.push(`<span class="mono">${esc([...new Set(chans)].join(', '))}</span>`);
+      if (chans.length) parts.push([...new Set(chans)].map((c) => `<span class="mono nowrap">${esc(c)}</span>`).join(', '));
       else parts.push(esc(a.line)); // /app: no channel list without the tenant's settings
     } else if (s.id === 'linear') {
       parts.push(esc(a.short));
@@ -218,13 +335,19 @@
       : on
         ? `<a class="btn btn-small btn-ghost" href="${esc(href('sources', s.id))}" data-key="source-${esc(s.id)}-action">Manage<span class="sr-only"> ${esc(name)}</span></a>`
         : `<button class="btn btn-small" type="button" data-connect="${esc(s.id)}" data-key="source-${esc(s.id)}-action">Connect ${esc(name)}</button>`;
+    // The health line carries the status (with its dot); without health data (/app) the plain status stays.
+    const healthLine = healthHtml(s);
     return `<li class="source-row${on ? '' : ' is-off'}">
       <p class="source-cat">${esc(CATEGORY[s.id] || '')}</p>
       <div class="source-what">
         <p class="source-title"><a href="${esc(href('sources', s.id))}">${esc(name)}</a></p>
-        <p class="source-state${on ? '' : ' is-off'}"><span class="status-dot${on ? '' : ' is-off'}" aria-hidden="true"></span>${on ? 'Connected' : 'Not connected'}</p>
+        ${healthLine ? '' : `<p class="source-state${on ? '' : ' is-off'}"><span class="status-dot${on ? '' : ' is-off'}" aria-hidden="true"></span>${on ? 'Connected' : 'Not connected'}</p>`}
       </div>
-      <p class="source-detail">${sourceDetailLine(s)}</p>
+      <div class="source-detail">
+        <p class="source-facts">${sourceDetailLine(s)}</p>
+        ${healthLine}
+        ${s.id === 'zoom' && on ? `<p class="source-note">${esc(zoomStatement(s))}</p>` : ''}
+      </div>
       <p class="source-do">${action}</p>
     </li>`;
   }
@@ -263,7 +386,7 @@
     </li>`);
     const lede = `<p>What Backbrief reads from and writes to, and what it’s allowed to do there.</p>${BB.isDemo ? '<p class="sources-try">Try it: disconnect and reconnect any source. <span class="chip">Demo</span></p>' : ''}`;
     const on = sources.filter((s) => s.status === 'connected').length;
-    BB.render('Sources', `${setupStrip()}<ul class="ruled source-list" aria-label="Sources">${rows.join('')}</ul>${BB.isDemo ? '' : `<p class="small muted source-managed">${BB.managed()}</p>`}`, 'sources', {
+    show('Sources', `${setupStrip()}<ul class="ruled source-list" aria-label="Sources">${rows.join('')}</ul>${BB.isDemo ? '' : `<p class="small muted source-managed">${BB.managed()}</p>`}`, {
       eyebrow: esc(`${on} of ${sources.length} connected${BB.isDemo ? ` · records to ${repoName()}` : ''}`),
       lede,
     });
@@ -272,19 +395,24 @@
 
   // ------------------------------------------------------------ a source
 
+  /** The page's lede: the health line first, then the account and since when (or since when it's off). */
   function statusLine(s) {
     const on = s.status === 'connected';
-    const bits = [on ? 'Connected' : 'Not connected'];
+    const bits = [];
     if (BB.isDemo && s.account) bits.push(`<span class="mono">${esc(s.account)}</span>`);
     if (on && s.connected_at) {
       const again = historyOf(s).filter((x) => x.status === 'connected').pop();
-      bits.push(again ? `connected again ${esc(BB.stamp(again.at, ' '))}` : `since ${esc(BB.fmtDate(s.connected_at))}`);
+      bits.push(again ? `connected again ${esc(BB.stamp(again.at, ' '))}` : `connected since ${esc(BB.fmtDate(s.connected_at))}`);
     }
     if (!on) {
       const h = historyOf(s).filter((x) => x.status === 'not_connected').pop();
       if (h) bits.push(`disconnected ${esc(BB.stamp(h.at, ' '))}`);
     }
-    return `<p class="source-status${on ? '' : ' is-off'}"><span class="status-dot${on ? '' : ' is-off'}" aria-hidden="true"></span>${bits.join(' · ')}</p>`;
+    const healthLine = healthHtml(s, 'is-lede');
+    if (!healthLine) {
+      return `<p class="source-status${on ? '' : ' is-off'}"><span class="status-dot${on ? '' : ' is-off'}" aria-hidden="true"></span>${[on ? 'Connected' : 'Not connected', ...bits].join(' · ')}</p>`;
+    }
+    return `${healthLine}${bits.length ? `<p class="source-sub">${bits.join(' · ')}</p>` : ''}`;
   }
 
   const pct = (x) => `${Math.round(Number(x) * 100)}%`;
@@ -329,11 +457,15 @@
       </form>`;
     }
     if (id === 'slack') {
+      // A read-only summary of the delivery defaults; they are set in the tasks section's Slack delivery.
       const sl = BB.effectiveSlack();
+      const d = sl.delivery || {};
+      const what = BB.joinAnd(['summary', d.transcript_link && 'transcript link', d.recording_link && 'recording link',
+        d.task_log && 'task proposals with Approve and Skip'].filter(Boolean));
       const per = Object.entries(sl.per_team_channels || {}).filter(([, v]) => v);
-      return `<p>After each call: ${esc(BB.deliveryPhrase(sl.delivery || {}))}.</p>
-        <p>Posted in <span class="mono">${esc(sl.channel || '#call-digests')}</span>${per.length ? `; ${per.map(([t, c]) => `${esc(t)} calls in <span class="mono">${esc(c)}</span>`).join(', ')}` : ''}.</p>
-        <p class="source-link">What gets posted and where: <a href="#/tasks/slack">Action items › Slack delivery</a></p>`;
+      const where = `<span class="mono">${esc(sl.channel || '#call-digests')}</span>${per.length ? `; ${per.map(([t, c]) => `<span class="mono">${esc(c)}</span> for ${esc(t)}`).join(', ')}` : ''}`;
+      return `<p class="source-defaults">After each call: ${esc(what)}, in ${where}.</p>
+        <p class="source-link">Read-only here. <a href="#/tasks/slack">Change it in ${esc(tasksLabel())} › Slack delivery</a></p>`;
     }
     if (id === 'linear') {
       const map = set.team_mapping || {};
@@ -367,7 +499,7 @@
     const name = NAMES[s.id] || s.id;
     const hist = historyOf(s).map((h) => `<li>${esc(HISTORY_WORD[h.status] || h.status)} <span class="mono">${esc(BB.stamp(h.at))}</span></li>`).join('');
     const blocks = [
-      ['What it does', `<p>${esc(DOES[s.id] ? DOES[s.id]() : '')}</p>`],
+      ['What it does', `<p>${esc(DOES[s.id] ? DOES[s.id]() : '')}</p>${s.id === 'zoom' ? `<p class="source-statement">${esc(zoomStatement(s))}</p>` : ''}`],
       ['Access', accessHtml(s)],
       ['Settings', settingsHtml(s)],
       ['Activity', `<p>${esc(activityOf(s).line)}</p>${hist ? `<ul class="source-history" aria-label="In this browser">${hist}</ul>` : ''}`],
@@ -381,7 +513,7 @@
         <h2 class="source-k" id="sb-${slug(k)}">${esc(k)}</h2>
         <div class="source-body">${body}</div>
       </section>`).join('')}</div>`;
-    BB.render(name, html, 'sources', {
+    show(name, html, {
       eyebrow: back,
       lede: statusLine(s),
       actions: BB.isDemo && !on ? `<button class="btn btn-small" type="button" data-connect="${esc(s.id)}" data-key="source-${esc(s.id)}-head">Connect ${esc(name)}</button>` : '',
@@ -440,7 +572,8 @@
       }
       writeSource(s.id, { settings }, 'settings');
       BB.refresh({ focus: '[data-key="settings-save"]' });
-      BB.toast(`${NAMES[s.id]} settings saved. They apply from the next call.`, BB.DEMO_NOTE.browser);
+      // Managed service: the Backbrief team applies a change to the workspace before the next call.
+      BB.toast('Saved. Backbrief applies it before your next call.', BB.DEMO_NOTE.browser);
     });
   }
 
@@ -465,8 +598,8 @@
     const steps = ['Access', `Approve in ${name}`, 'One setting'];
     const head = `<ol class="stepper source-steps" aria-label="Connect ${esc(name)}: step ${step} of 3">${steps.map((x, i) => `<li class="${i + 1 < step ? 'is-done' : i + 1 === step ? 'is-current' : ''}"${i + 1 === step ? ' aria-current="step"' : ''}><span class="dot">${i + 1}</span> <span class="step-label">${esc(x)}</span></li>`).join('')}</ol>`;
     if (step === 1) {
-      return `${head}<p class="source-step-h" tabindex="-1" data-step-h>Backbrief will ask ${esc(name)} for:</p>${accessHtml(s)}
-        <p class="small muted">You approve this in ${esc(name)}${s.id === 'zoom' || s.id === 'slack' ? ' as an account admin' : ''}.</p>`;
+      // A managed service: connecting is a step of the setup call, not a self-serve sign-in.
+      return `${head}<p class="source-step-h" tabindex="-1" data-step-h>In your workspace we connect this with you on the setup call. This is what ${esc(name)} asks ${esc(ADMIN[s.id] || 'an admin')} to approve:</p>${accessHtml(s)}`;
     }
     if (step === 2) {
       const reasons = accessOf(s).map((r) => `<li>${esc(r.why)}</li>`).join('');
@@ -558,7 +691,7 @@
             if (step < 3) { step++; paint(dlg); return false; }
             if (!read(dlg)) return false;
             dlg.busy(`Connecting to ${name}…`);
-            await wait(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 200 : 900);
+            await wait(reducedMotion() ? 200 : 900);
             return true;
           },
         },
@@ -689,7 +822,7 @@
     const list = mine.length
       ? `<ul class="source-imports">${mine.map((x) => `<li><span class="source-imports-name">${esc(x.name)}</span>
           <span class="mono small muted">${esc([x.source, plural(Number(x.lines) || 0, 'line'), `${kb(Number(x.size) || 0)} KB`, BB.stamp(x.at)].join(' · '))}</span></li>`).join('')}</ul>`
-      : '<p class="muted">Nothing imported in this browser yet.</p>';
+      : '';
     const blocks = [
       ['What it does', '<p>Brings in calls recorded before Backbrief, or exported from another notetaker. Each file becomes a call with its digest and task proposals, filed like a recorded one.</p>'],
       ['Formats', `<p>${esc([...kinds, '.vtt, .txt or .md'].join(' · '))}</p>`],
@@ -697,9 +830,9 @@
         ? `<form class="import-page" data-import-page novalidate>${importFormHtml('impp')}<p><button class="btn btn-small" type="submit" data-key="import-go">Import</button></p></form>`
         : `<p class="muted">${BB.managed()}</p>`],
     ];
-    if (BB.isDemo) blocks.push(['Imported here', list]);
-    BB.render('Import a transcript', `<div class="source-sheet">${blocks.map(([k, body]) => `<section class="source-block" aria-labelledby="sb-${slug(k)}">
-        <h2 class="source-k" id="sb-${slug(k)}">${esc(k)}</h2><div class="source-body">${body}</div></section>`).join('')}</div>`, 'sources', {
+    if (BB.isDemo && list) blocks.push(['Imported here', list]);
+    show('Import a transcript', `<div class="source-sheet">${blocks.map(([k, body]) => `<section class="source-block" aria-labelledby="sb-${slug(k)}">
+        <h2 class="source-k" id="sb-${slug(k)}">${esc(k)}</h2><div class="source-body">${body}</div></section>`).join('')}</div>`, {
       eyebrow: back,
       lede: 'Granola and Fireflies exports, or any transcript as .vtt, .txt or .md.',
     });
@@ -732,20 +865,60 @@
       for (const b of $$('[data-connect]', root)) b.addEventListener('click', () => connectDialog(b.dataset.connect, b));
       for (const b of $$('[data-disconnect]', root)) b.addEventListener('click', () => disconnect(b.dataset.disconnect, b));
       for (const b of $$('[data-import]', root)) b.addEventListener('click', () => importDialog(b));
-      for (const b of $$('[data-request]', root)) {
-        b.addEventListener('click', () => {
-          const key = b.dataset.request;
-          BB.state.requests = { ...BB.state.requests, [key]: BB.now() };
-          BB.save();
-          BB.refresh({ focus: `[data-key="req-${slug(key)}"]` });
-          BB.toast(`${b.dataset.label} requested.`, BB.DEMO_NOTE.browser);
-        });
-      }
+      for (const b of $$('[data-request]', root)) b.addEventListener('click', () => requestDialog(b.dataset.request, b.dataset.label, b));
     }
   }
 
-  BB.route('sources', (parts) => {
+  /** The header's own Book a demo link: the static bundles rewrite that href, so reuse it as it is. */
+  function bookHref() {
+    const a = document.querySelector('.app-actions a.btn[href]');
+    const raw = a ? a.getAttribute('href') : null;
+    return (raw && (BB.safeUrl(raw) || (/^mailto:/i.test(raw) ? raw : null))) || '/book';
+  }
+
+  /** Request a coming-next tool: the way in is a demo call; "Mark as requested" keeps the demo's record. */
+  function requestDialog(key, label, trigger) {
+    const verb = key === 'context-repositories' ? 'are' : 'is';
+    const h = BB.dialog({
+      title: `Request ${label}`,
+      html: `<p class="source-request-text">${esc(label)} ${verb} coming next. Tell us on a 30-minute demo call; requests decide what we connect next.</p>`,
+      trigger,
+      className: 'source-request',
+      // Both buttons are secondary (type="button"): the primary action is the Book a demo link.
+      actions: [
+        {
+          label: 'Mark as requested',
+          cancel: true,
+          value: true,
+          onClick: () => {
+            BB.state.requests = { ...BB.state.requests, [key]: BB.now() };
+            BB.save();
+            return true;
+          },
+        },
+        { label: 'Close', cancel: true },
+      ],
+      onOpen: (dlg) => {
+        dlg.button(0).insertAdjacentHTML('beforebegin', `<a class="btn btn-small" href="${esc(bookHref())}" data-book-demo>Book a demo</a>`);
+        const link = $('[data-book-demo]', dlg.el);
+        if (link) link.focus();
+      },
+    });
+    h.result.then((ok) => {
+      if (ok !== true) return;
+      BB.refresh({ focus: `[data-key="req-${slug(key)}"]` });
+      BB.toast(`${label} requested.`, BB.DEMO_NOTE.browser);
+    });
+  }
+
+  BB.route('sources', async (parts, query, ctx) => {
     const [id] = parts;
+    // The latest call's Slack timing feeds the health lines (demo); without it they fall back to the call's end.
+    const last = BB.isDemo ? latestCall() : null;
+    if (last && BB.cached(`call:${last.id}`) === undefined) {
+      await BB.load(`call:${last.id}`).catch(() => null);
+      if (ctx.stale()) return;
+    }
     if (!id) { listView(); return; }
     if (id === 'imports') { importsView(); return; }
     const s = BB.effectiveSources().find((x) => x.id === id);

@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT
 /*
- * cabinet-memory.js — Company memory (spec §3.9): what the repository holds
- * (a tree with plain-English descriptions and who writes each part), how one
- * call links up (a clickable chain with an excerpt of each file, the linking
- * lines marked), and how AI agents read it (AGENTS.md and an example).
- * Reads vault.json (tree, edges, counts, agents), the chain call's detail and
- * people.json. Styles live in cabinet-people.css. API: the BB block at the
- * top of cabinet.js.
+ * cabinet-memory.js — Company memory (spec §3.9). The page leads with what
+ * the memory is for: a question an AI agent answers from the files, quoting
+ * the decision with its reason and minute, and citing the file. Then what the
+ * repository holds (a tree with plain-English descriptions and who writes
+ * each part; a selected call file shows its frontmatter and Decisions
+ * section), how one call links up (a clickable chain with an excerpt of each
+ * file, the linking lines marked) and, folded away for engineers, how agents
+ * find things (AGENTS.md). Reads vault.json (tree, edges, counts, agents),
+ * call details and people.json. Styles live in cabinet-people.css. API: the
+ * BB block at the top of cabinet.js.
  *
  * Every excerpt is rebuilt here from the JSON the demo already loads,
  * escaped, in the file's own format; no file body is fetched or rendered.
@@ -25,6 +28,13 @@
     const w = ws();
     return (w && w.workspace.company && w.workspace.company.name) || 'your company';
   };
+  const repo = () => {
+    const v = BB.cached('vault') || (model && model.v);
+    return (v && v.repo) || 'your repository';
+  };
+  /** Every view of this module renders inside .screen, so its phone rules (tap targets) stay scoped. */
+  const show = (title, html, opts) => BB.render(title, `<div class="screen screen-memory" data-memory>${html}</div>`, 'memory', opts);
+  const TASKS_DONE = (n) => plural(n, 'approved or skipped task');
 
   // ------------------------------------------------------------ what each part is
   // The vault's own descriptions are written for engineers; these are for everyone.
@@ -32,7 +42,7 @@
   const WHO = { bb: 'Backbrief', you: 'You', both: 'Backbrief and your team' };
   const KIND = {
     'team-folder': { by: WHO.bb },
-    calls: { about: () => 'One file per call: the digest, plus its transcript (.vtt).', by: WHO.bb },
+    calls: { about: () => 'Call files (digests), one per call, each with its transcript (.vtt).', by: WHO.bb },
     call: { by: WHO.bb },
     tasks: { about: () => "Every proposal and the team's decision, one file per call.", by: WHO.both },
     'tasks-file': { by: WHO.both },
@@ -45,22 +55,30 @@
     templates: { about: (n) => `${plural((n.counts && n.counts.templates) || (n.children || []).length, 'template')} your AI agents copy from.`, by: WHO.bb },
     template: { about: () => 'A template your AI agents copy from.', by: WHO.bb },
     doc: { about: () => 'The writing rules every file in the repository follows.', by: WHO.bb },
-    training: { about: () => "Decisions and corrections, kept as your team's training data.", by: WHO.both },
-    'training-log': { about: (n) => `${plural(n.rows || 0, 'decision')}, one line each.`, by: WHO.both },
+    training: { about: () => `Every approve, edit and skip, kept in ${repo()} as feedback; your Backbrief team reviews it. Nothing here trains an AI model.`, by: WHO.both },
+    'training-log': { about: (n) => `${TASKS_DONE(n.rows || 0)}, one line each. Feedback your Backbrief team reviews; nothing here trains an AI model.`, by: WHO.both },
     agents: { about: () => 'Instructions any AI agent reads first.', by: WHO.bb },
     'tenant.yaml': { about: () => 'Teams, people and connections. No passwords or keys.', by: WHO.both },
   };
   const kindOf = (n) => (n.path === 'tenant.yaml' ? 'tenant.yaml' : n.kind);
   const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '');
   const HIDDEN = new Set(['readme', 'roadmap', 'transcript', 'machine']);
+  const CALL_FILE = 'Call file (digest)';
 
-  // ------------------------------------------------------------ the tree
+  // ------------------------------------------------------------ state
 
   let model = null; // {roots, byPath, parent, vtt, ids} for the loaded vault
   let selected = null;
   const expanded = new Set();
   let chainAt = 0;
   let lastQueryNode = null;
+  let engOpen = false; // "For engineers" stays as the person left it across refreshes
+  const failed = new Set(); // call details that could not load: say so instead of "Loading…"
+
+  const loadCall = (id) => BB.load(`call:${id}`).catch(() => { failed.add(id); return null; });
+  const ensureModel = (v) => { if (!model || model.v !== v) { model = buildModel(v); model.v = v; } };
+
+  // ------------------------------------------------------------ the tree
 
   function buildModel(v) {
     const top = v.tree || [];
@@ -133,13 +151,13 @@
     const team = String(n.path).split('/')[0];
     if (k === 'team-folder' || k === 'calls') {
       if (k === 'team-folder') about = n.about ? `${cap(n.about)}.` : 'Calls of this team.';
-      facts.push(['Holds', [plural(c.calls || 0, 'call'), plural(c.raw_transcripts || 0, 'transcript')].join(' · ')]);
+      facts.push(['Holds', [plural(c.calls || 0, 'call file'), plural(c.raw_transcripts || 0, 'transcript')].join(' · ')]);
       if (n.last_call) facts.push(['Last call', BB.fmtDay(n.last_call)]);
       onward = { href: href('calls', { team }), label: `All ${team} calls` };
     } else if (k === 'call') {
       const t = model.vtt.get(n.call_id);
-      about = `The digest of ${n.topic || 'this call'}${n.date ? `, ${BB.fmtDay(n.date)}` : ''}: what was decided and agreed, who owns what next, and links to earlier calls.`;
-      facts.push(['Holds', 'Digest and frontmatter']);
+      about = `The digest of ${n.topic || 'this call'}${n.date ? `, ${BB.fmtDay(n.date)}` : ''}: what was decided and why, who owns what next, and links to earlier calls.`;
+      facts.push(['Holds', 'Frontmatter and the digest']);
       if (t) facts.push(['Transcript', t.name]);
       if (n.call_id) onward = { href: href('call', n.call_id), label: 'Open the call' };
     } else if (k === 'tasks') {
@@ -159,16 +177,16 @@
     } else if (k === 'templates') {
       facts.push(['Holds', plural(c.templates || (n.children || []).length, 'template')]);
     } else if (k === 'training') {
-      facts.push(['Holds', plural(c.rows || 0, 'logged decision')]);
+      facts.push(['Holds', TASKS_DONE(c.rows || 0)]);
       onward = { href: '#/tasks/history', label: 'Open Review history' };
     } else if (k === 'training-log') {
       onward = { href: '#/tasks/history', label: 'Open Review history' };
     } else if (k === 'agents') {
-      onward = { href: '#memory-agents', label: 'How AI agents read it', jump: true };
+      onward = { href: '#memory-agents', label: 'For engineers: how agents find things', jump: true };
     } else if (k === 'tenant.yaml') {
       onward = { href: '#/sources', label: 'Go to Sources' };
     }
-    return { about, by: (KIND[k] && KIND[k].by) || WHO.bb, facts, onward, folder: Boolean(n.children) };
+    return { about, by: (KIND[k] && KIND[k].by) || WHO.bb, facts, onward, folder: Boolean(n.children), label: k === 'call' ? CALL_FILE : null };
   }
 
   function rootDetails(v) {
@@ -177,13 +195,13 @@
       return {
         about: `Your calls, tasks files and profiles${v.repo ? ` in ${v.repo}` : ''}${v.windowed ? ', for the latest calls' : ''}. Pick a folder or a file to see what it holds, who writes it and where it leads.`,
         by: WHO.both,
-        facts: [['Holds', [plural(c.calls || 0, 'call'), plural(c.tasks_files || 0, 'tasks file'), plural(c.profiles || 0, 'profile')].join(' · ')]],
+        facts: [['Holds', [plural(c.calls || 0, 'call file'), plural(c.tasks_files || 0, 'tasks file'), plural(c.profiles || 0, 'profile')].join(' · ')]],
         onward: null,
         folder: true,
       };
     }
     return {
-      about: `Everything Backbrief writes, in one repository on GitHub. Pick a folder or a file to see what it holds, who writes it and where it leads.`,
+      about: 'Everything Backbrief writes, in one repository on GitHub. Pick a folder or a file to see what it holds, who writes it and where it leads.',
       by: WHO.both,
       facts: [['Holds', plural(c.files || 0, 'file')], ['Branch', v.branch || 'main']],
       onward: null,
@@ -196,15 +214,17 @@
     const title = n ? (n.name === '.backbrief/training/' ? n.name : n.path) : `${v.repo || 'repository'}`;
     const H = inline ? 'h3' : 'h2';
     const facts = [['Written by', d.by], ...d.facts];
-    return `<p class="k">${n ? (d.folder ? 'Folder' : 'File') : 'Repository'}</p>
+    const kind = n ? d.label || (d.folder ? 'Folder' : 'File') : 'Repository';
+    return `<p class="k">${esc(kind)}</p>
       <${H} class="memory-detail-title"${inline ? '' : ' id="h-detail"'}>${esc(title)}</${H}>
       <p class="memory-detail-about">${esc(d.about)}</p>
       <dl class="memory-facts">${facts.map(([k, val]) => `<div><dt>${esc(k)}</dt><dd>${esc(val)}</dd></div>`).join('')}</dl>
-      ${d.onward ? `<p class="memory-onward"><a href="${esc(d.onward.href)}">${esc(d.onward.label)} ${d.onward.jump ? '↓' : '→'}</a></p>` : ''}
+      ${d.onward ? `<p class="memory-onward"><a href="${esc(d.onward.href)}"${d.onward.jump ? ' data-open-eng' : ''}>${esc(d.onward.label)} ${d.onward.jump ? '↓' : '→'}</a></p>` : ''}
       ${v.partial ? githubLink(v, n || { path: '', children: true }) : ''}`;
   }
 
   function treeHtml(nodes) {
+    const v = BB.cached('vault') || model.v;
     return nodes.map((n) => {
       const kids = n.children;
       const open = Boolean(kids) && expanded.has(n.path);
@@ -215,7 +235,8 @@
           <span class="tree-name">${esc(n.name)}</span>
           <span class="tree-about">${esc(aboutShort(n))}</span>
         </button>
-        ${sel ? `<div class="memory-inline">${detailHtml(BB.cached('vault'), n, true)}</div>` : ''}
+        ${sel ? `<div class="memory-inline">${detailHtml(v, n, true)}</div>` : ''}
+        ${sel && kindOf(n) === 'call' ? fileHtml(n) : ''}
         ${kids ? `<ul id="${id}"${open ? '' : ' hidden'}>${treeHtml(kids)}</ul>` : ''}
       </li>`;
     }).join('');
@@ -234,6 +255,94 @@
     selected = p;
     for (let up = model.parent.get(p); up; up = model.parent.get(up)) expanded.add(up);
     if (model.byPath.get(p).children) expanded.add(p);
+  }
+
+  /** The call a ?node= path shows (a call file, or its .vtt), so its file can load with the page. */
+  function callIdOfPath(path) {
+    if (!path || !model) return null;
+    const n = model.byPath.get(path);
+    if (n) return kindOf(n) === 'call' ? n.call_id || null : null;
+    const t = [...model.vtt.values()].find((x) => x.path === path);
+    return t ? t.call_id : null;
+  }
+
+  // ------------------------------------------------------------ a call file, as it is in the repository
+
+  // An excerpt line: a string, {t, mark}, or an array of those (a line marked in part).
+  const seg = (s) => (typeof s === 'string' ? esc(s) : s.mark ? `<mark>${esc(s.t)}</mark>` : esc(s.t));
+  const lineHtml = (l) => (Array.isArray(l) ? l.map(seg).join('') : seg(l));
+  const yamlScalar = (v) => (/^[A-Za-z][A-Za-z0-9_-]*$/.test(String(v)) ? String(v) : JSON.stringify(String(v)));
+  const yamlList = (a) => `[${(a || []).map(yamlScalar).join(', ')}]`;
+  const winHtml = (app, path, lines) => `<div class="win">
+      <div class="win-bar"><span class="win-app">${esc(app)}</span><span class="win-path">${esc(path)}</span></div>
+      <div class="win-body"><pre class="code">${lines.map(lineHtml).join('\n')}</pre></div>
+    </div>`;
+
+  /**
+   * The call file's frontmatter, in the file's own key order, then its title
+   * and Decisions section. `markItem` marks the owner and tracker_ref lines of
+   * one action item (the lines a chain link rests on).
+   */
+  function callFileLines(c, markItem = -1) {
+    const L = ['---', `type: ${c.type || 'transcript'}`, `schema_version: ${c.schema_version || 1}`, `team: ${c.team}`, `topic: ${JSON.stringify(String(c.topic || ''))}`, `date: ${c.date}`];
+    if (c.time) L.push(`time: ${JSON.stringify(String(c.time))}`);
+    if (c.duration_min !== null && c.duration_min !== undefined) L.push(`duration_min: ${c.duration_min}`);
+    L.push(`participants: ${yamlList(c.participants)}`);
+    for (const k of ['language', 'source', 'digest_version', 'filed_by', 'filer_model', 'pipeline_version', 'source_id', 'platform', 'call_type']) {
+      if (c[k]) L.push(`${k}: ${yamlScalar(c[k])}`);
+    }
+    if (c.tags && c.tags.length) L.push(`tags: ${yamlList(c.tags)}`);
+    if (c.external_participants && c.external_participants.length) L.push(`external_participants: ${yamlList(c.external_participants)}`);
+    if (c.recording_url) L.push(`recording_url: ${JSON.stringify(String(c.recording_url))}`);
+    if (c.transcript_file) L.push(`transcript_file: ${JSON.stringify(String(c.transcript_file))}`);
+    const refs = (c.references || []).map((r) => (typeof r === 'string' ? r : r.path)).filter(Boolean);
+    if (refs.length) L.push(`references_prior_calls: [${refs.map((p) => JSON.stringify(p)).join(', ')}]`);
+    const items = c.action_items || [];
+    if (items.length) {
+      L.push('action_items:');
+      items.forEach((a, i) => {
+        const m = i === markItem;
+        L.push(`  - title: ${JSON.stringify(String(a.title || ''))}`, { t: `    owner: ${a.owner || 'null'}`, mark: m && Boolean(a.owner) },
+          `    helpers: ${yamlList(a.helpers)}`, `    status: ${a.status || 'null'}`, `    priority: ${a.priority || 'null'}`,
+          `    ts: ${a.ts ? JSON.stringify(String(a.ts)) : 'null'}`, { t: `    tracker_ref: ${a.tracker_ref || 'null'}`, mark: m && Boolean(a.tracker_ref) });
+      });
+    }
+    L.push('---', '', `# ${c.topic} — ${c.date}`, '', '…');
+    const dec = (c.sections || []).find((s) => /^decisions$/i.test(String(s.heading || '').trim()));
+    if (dec) L.push('', '## Decisions', '', ...String(dec.md || '').split('\n'), '', '…');
+    return L;
+  }
+
+  /** What a call file links to: its tasks file, the issues its action items became, and their owners' profiles. */
+  function linksOf(c) {
+    const tasks = (c.task_log && c.task_log.tasks_path) || (c.tasks && c.tasks.path) || null;
+    const items = c.action_items || [];
+    const refs = [...new Set(items.map((a) => a.tracker_ref).filter(Boolean))];
+    const profiles = [...new Set(items.map((a) => a.owner).filter(Boolean))].map((o) => `team/${o}.md`).filter((p) => model.byPath.has(p));
+    return { tasks: tasks && model.byPath.has(tasks) ? tasks : null, refs, profiles };
+  }
+
+  /** "Show the file": the selected call file, under its row in the tree. */
+  function fileHtml(n) {
+    const id = n.call_id;
+    const c = id ? BB.cached(`call:${id}`) : null;
+    if (!c) {
+      const why = !id || failed.has(id) ? "This file couldn't load here. Open the call to read its digest." : 'Loading the file…';
+      return `<div class="memory-file"><p class="small muted" role="status">${esc(why)}</p></div>`;
+    }
+    const l = linksOf(c);
+    const parts = [
+      l.tasks ? `<a href="${esc(href('memory', { node: l.tasks }))}">tasks file</a>` : '',
+      ...l.refs.map((r) => BB.ref(r)),
+      ...l.profiles.map((p) => `<a class="mono" href="${esc(href('memory', { node: p }))}">${esc(p)}</a>`),
+    ].filter(Boolean);
+    return `<figure class="memory-file">
+        ${winHtml('GitHub', n.path, callFileLines(c))}
+        <figcaption class="memory-file-cap">
+          <p class="memory-file-note small muted">The frontmatter and the Decisions section, as they are in ${esc(repo())}.</p>
+          ${parts.length ? `<p class="memory-linked"><span class="memory-linked-k">Linked:</span> ${parts.join(' · ')}</p>` : ''}
+        </figcaption>
+      </figure>`;
   }
 
   // ------------------------------------------------------------ the chain
@@ -274,12 +383,6 @@
     return null;
   }
 
-  // An excerpt line: a string, {t, mark}, or an array of those (a line marked in part).
-  const seg = (s) => (typeof s === 'string' ? esc(s) : s.mark ? `<mark>${esc(s.t)}</mark>` : esc(s.t));
-  const lineHtml = (l) => (Array.isArray(l) ? l.map(seg).join('') : seg(l));
-  const yamlScalar = (v) => (/^[A-Za-z][A-Za-z0-9_-]*$/.test(String(v)) ? String(v) : JSON.stringify(String(v)));
-  const yamlList = (a) => `[${(a || []).map(yamlScalar).join(', ')}]`;
-
   function excerptFor(ch, at) {
     const c = BB.cached(`call:${ch.callId}`);
     const later = BB.cached(`call:${ch.laterId}`);
@@ -289,16 +392,10 @@
     const ts = ai && ai.ts;
     const tlink = ts ? BB.ts(ch.callId, ts) : '';
     if (at === 0) {
-      const lines = ['---', 'type: transcript', `team: ${c.team}`, `topic: ${JSON.stringify(c.topic)}`, `date: ${c.date}`, `time: "${c.time}"`,
-        `participants: ${yamlList(c.participants)}`, '…', 'action_items:'];
-      (c.action_items || []).slice(0, ch.item).forEach(() => lines.push('  - …'));
-      lines.push(`  - title: ${JSON.stringify(ai.title)}`, { t: `    owner: ${ai.owner}`, mark: true }, `    helpers: ${yamlList(ai.helpers)}`,
-        `    status: ${ai.status}`, `    priority: ${ai.priority}`, `    ts: "${ai.ts}"`, { t: `    tracker_ref: ${ai.tracker_ref}`, mark: true });
-      if ((c.action_items || []).length > ch.item + 1) lines.push('  - …');
-      lines.push('---', '', `# ${c.topic} — ${c.date}`, '…');
       return {
-        app: 'GitHub', path: ch.callPath, lines,
-        text: `${esc(c.topic)} is a plain file. Its action item names the owner, <span class="mono">owner: ${esc(owner)}</span>, and the issue it became, <span class="mono">${esc(ch.ref)}</span>. Its tasks file has the same file name, ending in <span class="mono">.tasks.md</span>.`,
+        app: 'GitHub', path: ch.callPath, lines: callFileLines(c, ch.item),
+        linked: [['tasks file', 1], [ch.ref, 2], [ch.profilePath, 3]],
+        text: `${esc(c.topic)} is a plain file: its frontmatter, then the digest. Its action item names the owner, <span class="mono">owner: ${esc(owner)}</span>, and the issue it became, <span class="mono">${esc(ch.ref)}</span>. Its tasks file has the same file name, ending in <span class="mono">.tasks.md</span>.`,
         onward: { href: href('call', ch.callId), label: 'Open the call' },
       };
     }
@@ -321,8 +418,7 @@
     if (at === 2) {
       const t = c.tasks || {};
       const draft = (t.drafts || []).find((x) => x.result_ref === ch.ref || (x.refs || []).includes(ch.ref)) || {};
-      const st = BB.cached('settings');
-      const lin = st && st.sources ? st.sources.find((s) => s.id === 'linear') : null;
+      const lin = BB.effectiveSources().find((s) => s.id === 'linear') || null;
       const teamKey = lin && lin.settings && lin.settings.team_mapping && draft.owner_team ? lin.settings.team_mapping[draft.owner_team] : null;
       const lines = [`${ch.ref} · ${draft.title || (ai && ai.title) || ''}`, '', { t: `Assignee: ${owner}`, mark: true }, 'Label: backbrief'];
       if (teamKey) lines.push(`Team: ${teamKey}`);
@@ -376,7 +472,7 @@
     const ts = ai ? BB.ts(ch.callId, ai.ts) : '';
     const drafts = (c && c.tasks && c.tasks.drafts) || [];
     return [
-      { kind: 'Call file', title: c ? c.topic : ch.callPath, via: '<span class="sr-only">Links to </span>02: same file name' },
+      { kind: CALL_FILE, title: c ? c.topic : ch.callPath, via: '<span class="sr-only">Links to </span>02: same file name' },
       { kind: 'Tasks file', title: drafts.length ? `${plural(drafts.length, 'proposal')} and the decisions` : 'Proposals and the decisions', via: `<span class="sr-only">Links to </span>03: accepted → ${esc(ch.ref)}` },
       { kind: 'Linear issue', title: ch.ref, via: `<span class="sr-only">Links to </span>01: its description links back to the call at ${ts}` },
       { kind: 'Profile', title: ch.profilePath, via: `<span class="sr-only">Linked </span>from 01: owner: ${esc(owner)}`, from: true },
@@ -396,11 +492,11 @@
   function excerptHtml(ch) {
     const x = excerptFor(ch, chainAt);
     const n = chainNodes(ch)[chainAt];
+    const linked = x.linked
+      ? `<p class="memory-linked"><span class="memory-linked-k">Linked:</span> ${x.linked.map(([label, to]) => `<button class="btn-link" type="button" data-chain-go="${to}">${esc(label)}<span class="sr-only">: link ${String(to + 1).padStart(2, '0')}</span></button>`).join(' · ')}</p>`
+      : '';
     return `<figure class="memory-excerpt">
-        <div class="win">
-          <div class="win-bar"><span class="win-app">${esc(x.app)}</span><span class="win-path">${esc(x.path)}</span></div>
-          <div class="win-body"><pre class="code">${x.lines.map(lineHtml).join('\n')}</pre></div>
-        </div>
+        <div class="memory-excerpt-file">${winHtml(x.app, x.path, x.lines)}${linked}</div>
         <figcaption class="memory-excerpt-cap">
           <p class="k">${String(chainAt + 1).padStart(2, '0')} · ${esc(n.kind)}</p>
           <p>${x.text}</p>
@@ -412,36 +508,92 @@
       </figure>`;
   }
 
-  // ------------------------------------------------------------ AI agents
+  /** Long excerpts scroll inside their window: bring the first marked line into view. */
+  function revealMark(root) {
+    const body = root && $('.memory-excerpt .win-body', root);
+    if (!body) return;
+    const m = $('mark', body);
+    if (!m) { body.scrollTop = 0; return; }
+    const off = m.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+    body.scrollTop = Math.max(0, off - 36);
+  }
 
-  function agentsHtml(v, ch) {
+  // ------------------------------------------------------------ ask the memory
+
+  /** The call the example question answers from: the chain's call, else the Slack preview call, else any call with a decision. */
+  function askCallId(ch) {
+    if (ch) return ch.callId;
+    const st = BB.cached('settings');
+    const pref = st && st.slack && st.slack.preview_call_id;
+    const calls = ws() ? ws().calls : [];
+    if (pref && calls.some((c) => c.id === pref)) return pref;
+    const c = calls.find((x) => x.decisions_count > 0);
+    return c ? c.id : null;
+  }
+
+  function askHtml(c) {
+    const decs = (c && c.digest && c.digest.decisions) || [];
+    const dec = decs.find((d) => /\$\d/.test(d.title)) || decs[0];
+    if (!dec) return '';
+    const price = (String(dec.title).match(/\$\d[\d,.]*/) || [])[0] || null;
+    const q = price
+      ? `Why did we pick ${price}${/self-serve/i.test(dec.title) ? ' for self-serve' : ''}?`
+      : `Why did we decide to ${dec.title.charAt(0).toLowerCase()}${dec.title.slice(1)}?`;
+    const quote = `${dec.title}${dec.why ? ` — ${dec.why}` : ''}`.replace(/\.?$/, '.');
+    // The reasoning behind a price is usually in the Summary: the points that name it, with their minute.
+    const themes = (c.digest.themes || []).map((t) => ({ ts: t.ts, points: (t.points || []).filter((p) => price && String(p).includes(price)) })).filter((t) => t.points.length);
+    const points = themes.flatMap((t) => t.points).slice(0, 3);
+    const reason = points.length
+      ? `<p>The Summary of that call gives the reasoning behind the price${themes[0].ts ? ` ${BB.ts(c.id, themes[0].ts)}` : ''}:</p>
+         <ul class="ask-points">${points.map((p) => `<li>${BB.inline(p)}</li>`).join('')}</ul>`
+      : '';
+    const file = href('memory', { node: c.path });
+    const term = price ? ` for “${esc(price)}”` : '';
+    return `<section class="memory-ask" aria-labelledby="h-ask">
+        <h2 class="memory-h" id="h-ask">Ask the memory</h2>
+        <p class="memory-sub">Any AI agent your team runs, on Claude or GPT, answers from these files and says where it found the answer.</p>
+        <div class="win memory-ask-win">
+          <div class="win-bar"><span class="win-app">AI agent</span><span class="win-path">reads ${esc(repo())}</span></div>
+          <div class="memory-ask-body">
+            <div class="ask-turn ask-q">
+              <p class="ask-who">You</p>
+              <p class="ask-text">${esc(q)}</p>
+            </div>
+            <div class="ask-turn ask-a">
+              <p class="ask-who">Agent</p>
+              <div class="ask-text">
+                <p>${esc(c.topic)} decided it on ${esc(BB.fmtDay(c.date))}. From the call file's Decisions section:</p>
+                <blockquote class="evidence ask-quote"><p>${BB.inline(quote)}</p><span class="evidence-src">Decisions · ${esc(c.topic)} · ${esc(BB.fmtDay(c.date))} · ${BB.ts(c.id, dec.ts)}</span></blockquote>
+                ${reason}
+                <p class="ask-src"><span class="ask-src-k">Source</span> <a class="mono" href="${esc(file)}">${esc(c.path)}</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="memory-ask-how">To answer, the agent read AGENTS.md, searched the call files${term} and read the Decisions section. <a href="#memory-agents" data-open-eng>For engineers: how agents find things ↓</a></p>
+      </section>`;
+  }
+
+  // ------------------------------------------------------------ for engineers
+
+  function engineersHtml(v) {
     const a = v.agents;
     if (!a) return '';
     const rows = (a.recipes || []).map((r) => `<tr><td>${esc(r.want)}</td><td>${BB.inline(r.do)}</td></tr>`).join('');
-    const c = ch ? BB.cached(`call:${ch.callId}`) : null;
-    const dec = c && c.digest && (c.digest.decisions || [])[0];
-    let example = '';
-    if (c && dec) {
-      const file = `<a href="${esc(href('memory', { node: c.path }))}">a link to the file</a>`;
-      example = /\$19\b/.test(dec.title)
-        ? `Asked “Why did we pick $19 for self-serve?”, an agent on Claude or GPT reads AGENTS.md, searches the call files and answers from the Decisions section of ${esc(c.topic)} (${esc(BB.fmtDay(c.date))}, ${BB.ts(c.id, dec.ts)}), with ${file}.`
-        : `Asked why the team decided “${esc(dec.title)}”, an agent on Claude or GPT reads AGENTS.md, searches the call files and answers from the Decisions section of ${esc(c.topic)} (${esc(BB.fmtDay(c.date))}, ${BB.ts(c.id, dec.ts)}), with ${file}.`;
-    }
-    return `<section class="memory-section" id="memory-agents" tabindex="-1" aria-labelledby="h-agents">
-      <h2 class="memory-h" id="h-agents">How AI agents read it</h2>
-      <p class="memory-sub">Any agent your team runs, on Claude or GPT, opens ${esc(a.path || 'AGENTS.md')} first. It says what the repository holds and how to find things in it.</p>
-      <div class="memory-agents">
-        <div class="win">
-          <div class="win-bar"><span class="win-app">GitHub</span><span class="win-path">${esc(a.path || 'AGENTS.md')}</span></div>
-          <div class="win-body memory-agents-body">
-            <p class="memory-agents-intro">${esc(a.intro || '')}</p>
-            ${rows ? `<p class="memory-agents-h">How to find things</p>
-            <table class="memory-recipes"><thead><tr><th scope="col">You want</th><th scope="col">Do</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+    return `<details class="memory-eng" data-eng${engOpen ? ' open' : ''}>
+        <summary id="memory-agents">For engineers: how agents find things</summary>
+        <div class="memory-eng-body">
+          <p class="memory-eng-lede">Any agent your team runs opens ${esc(a.path || 'AGENTS.md')} first. It says what the repository holds and how to find things in it, with plain commands like these.</p>
+          <div class="win">
+            <div class="win-bar"><span class="win-app">GitHub</span><span class="win-path">${esc(a.path || 'AGENTS.md')}</span></div>
+            <div class="win-body memory-agents-body">
+              <p class="memory-agents-intro">${esc(a.intro || '')}</p>
+              ${rows ? `<p class="memory-agents-h">How to find things</p>
+              <table class="memory-recipes"><thead><tr><th scope="col">You want</th><th scope="col">Do</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+            </div>
           </div>
         </div>
-        ${example ? `<div class="panel memory-example"><p class="k">Example</p><p>${example}</p></div>` : ''}
-      </div>
-    </section>`;
+      </details>`;
   }
 
   // ------------------------------------------------------------ the page
@@ -451,9 +603,9 @@
     const decided = BB.effectiveProposals().reduce((n, e) => n + e.proposals.filter((p) => p.by === 'you').length, 0);
     const added = BB.effectivePeople().people.filter((p) => p.added).length;
     const edits = Object.keys(BB.state.zone_reviews || {}).length;
-    const parts = [decided && plural(decided, 'decision'), added && plural(added, 'new profile'), edits && plural(edits, 'profile change')].filter(Boolean);
+    const parts = [decided && TASKS_DONE(decided), added && plural(added, 'new profile'), edits && plural(edits, 'profile change')].filter(Boolean);
     if (!parts.length) return '';
-    return `<p class="memory-local"><span class="memory-local-dot" aria-hidden="true"></span>+${esc(BB.joinAnd(parts))} in this browser, not in ${esc(BB.cached('vault').repo || 'the repository')}.</p>`;
+    return `<p class="memory-local"><span class="memory-local-dot" aria-hidden="true"></span>+${esc(parts.join(', '))} in this browser, not in ${esc(repo())}.</p>`;
   }
 
   /**
@@ -531,29 +683,33 @@
     const w = ws();
     const url = BB.safeUrl(w && w.workspace.vault_url);
     const m = String(url || '').match(/^https:\/\/github\.com\/([^/]+\/[^/?#]+)/);
-    const repo = m ? m[1] : null;
+    const name = m ? m[1] : null;
     const body = w && w.calls.length
-      ? `<p>The map of your repository isn't shown in this workspace yet. Every file is in ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(repo || 'your repository')} on GitHub</a>` : 'your repository'}.</p><p>${BB.managed()}</p>`
+      ? `<p>The map of your repository isn't shown in this workspace yet. Every file is in ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name || 'your repository')} on GitHub</a>` : 'your repository'}.</p><p>${BB.managed()}</p>`
       : '<p>Files appear here after your first call.</p>';
-    BB.render('Company memory', BB.emptyState(body), 'memory', {
-      eyebrow: repo ? esc(`${repo} · GitHub`.toUpperCase()) : '',
+    show('Company memory', BB.emptyState(body), {
+      eyebrow: name ? esc(`${name} · GitHub`.toUpperCase()) : '',
       lede: esc(LEDE),
     });
   }
 
   function view(v, query) {
-    if (!model || model.v !== v) { model = buildModel(v); model.v = v; }
+    ensureModel(v);
     // The selection follows the URL (?node=…); clicks keep the URL in step.
     const node = query.node || null;
-    if (node !== lastQueryNode) { selected = null; selectFromQuery(node); lastQueryNode = node; }
+    const fresh = node !== lastQueryNode;
+    if (fresh) { selected = null; selectFromQuery(node); lastQueryNode = node; }
     const c = v.counts || {};
-    const counts = [plural(c.calls || 0, 'call'), plural(c.raw_transcripts || 0, 'transcript'), plural(c.tasks_files || 0, 'tasks file'),
-      plural(c.profiles || 0, 'profile'), plural(c.training_rows || 0, 'logged decision')].join(' · ');
+    const counts = [plural(c.calls || 0, 'call file'), plural(c.raw_transcripts || 0, 'transcript'), plural(c.tasks_files || 0, 'tasks file'),
+      plural(c.profiles || 0, 'profile'), TASKS_DONE(c.training_rows || 0)].join(' · ');
     const ch = v.partial ? null : pickChain(v);
     const chainReady = ch && BB.cached(`call:${ch.callId}`) && BB.cached(`call:${ch.laterId}`);
     const chainCall = ch ? BB.cached(`call:${ch.callId}`) : null;
+    const askId = v.partial ? null : askCallId(ch);
+    const askCall = askId ? BB.cached(`call:${askId}`) : null;
     const sel = selected ? model.byPath.get(selected) : null;
     const html = `
+      ${askCall ? askHtml(askCall) : ''}
       <div class="memory-layout">
         <section class="panel memory-tree" aria-labelledby="h-inside">
           <div class="panel-head"><h2 id="h-inside">What's inside</h2>${c.files ? `<span class="mono small muted">${esc(plural(c.files, 'file'))}</span>` : ''}</div>
@@ -570,18 +726,51 @@
           <p class="sr-only" role="status" data-chain-status></p>
         </div>
       </section>` : ''}
-      ${agentsHtml(v, chainReady ? ch : null)}`;
-    BB.render('Company memory', html, 'memory', {
+      ${engineersHtml(v)}`;
+    show('Company memory', html, {
       eyebrow: esc([v.repo || 'repository', v.partial ? '' : v.branch || 'main', 'GitHub'].filter(Boolean).join(' · ').toUpperCase()),
       lede: `<p>${esc(LEDE)}</p><p class="memory-counts">${esc(counts)}</p>${localChanges()}`,
       focus: node && selected ? () => $(`[data-node="${CSS.escape(selected)}"]`) : null,
     });
     wire(v, ch && chainReady ? ch : null);
+    revealMark($('[data-excerpt]'));
+    // Arriving on a call file ("Show the file"): its row at the top, the file right under it.
+    if (fresh && sel && kindOf(sel) === 'call') {
+      const b = $(`[data-node="${CSS.escape(selected)}"]`);
+      if (b) b.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }
+    ensureFile(v, sel);
+  }
+
+  /** A call file picked in the tree whose call isn't loaded yet: load it, then show the file. */
+  function ensureFile(v, n) {
+    if (!n || kindOf(n) !== 'call' || !n.call_id) return;
+    const id = n.call_id;
+    if (BB.cached(`call:${id}`) !== undefined || failed.has(id)) return;
+    loadCall(id).then(() => {
+      const tree = $('[data-tree]');
+      if (!tree || selected !== n.path || BB.current.prefix !== 'memory') return;
+      const hadFocus = tree.contains(document.activeElement);
+      tree.innerHTML = treeHtml(model.roots);
+      const again = $(`[data-node="${CSS.escape(n.path)}"]`, tree);
+      if (again && hadFocus) again.focus({ preventScroll: true });
+    });
   }
 
   function wire(v, ch) {
+    const root = $('[data-memory]');
     const tree = $('[data-tree]');
     const detail = $('[data-detail]');
+    const eng = $('[data-eng]');
+    if (eng) eng.addEventListener('toggle', () => { engOpen = eng.open; });
+    if (root) {
+      // Links to "For engineers" open it first; the core then moves focus to its summary.
+      root.addEventListener('click', (e) => {
+        if (!e.target.closest('[data-open-eng]') || !eng) return;
+        eng.open = true;
+        engOpen = true;
+      });
+    }
     if (tree) {
       tree.addEventListener('click', (e) => {
         const b = e.target.closest('[data-node]');
@@ -598,6 +787,7 @@
         detail.innerHTML = detailHtml(v, n, false);
         const again = $(`[data-node="${CSS.escape(path)}"]`, tree);
         if (again) again.focus();
+        ensureFile(v, n);
       });
     }
     if (!ch) return;
@@ -607,6 +797,7 @@
     const paint = (focusNext) => {
       list.innerHTML = chainListHtml(ch);
       box.innerHTML = excerptHtml(ch);
+      revealMark(box);
       const n = chainNodes(ch)[chainAt];
       status.textContent = `Link ${String(chainAt + 1).padStart(2, '0')} of 05: ${n.kind}, ${n.title}.`;
       const f = focusNext ? $('[data-chain-next]', box) : $(`[data-chain="${chainAt}"]`, list);
@@ -619,6 +810,8 @@
       paint(false);
     });
     box.addEventListener('click', (e) => {
+      const go = e.target.closest('[data-chain-go]');
+      if (go) { chainAt = Number(go.dataset.chainGo); paint(false); return; }
       if (!e.target.closest('[data-chain-next]')) return;
       chainAt = (chainAt + 1) % 5;
       paint(true);
@@ -628,14 +821,20 @@
   BB.route('memory', async (parts, query, ctx) => {
     const v = BB.cached('vault') || (BB.isDemo ? null : synthVault());
     if (!v) { appView(); return; }
-    if (!model || model.v !== v) { model = buildModel(v); model.v = v; }
+    ensureModel(v);
+    // Everything the first screen shows loads with the page: the chain's two calls, the
+    // call the example question answers from, and a call file picked by ?node=.
     const ch = v.partial ? null : pickChain(v);
-    if (ch) {
-      const missing = [ch.callId, ch.laterId].filter((id) => BB.cached(`call:${id}`) === undefined);
-      if (missing.length) {
-        await Promise.all(missing.map((id) => BB.load(`call:${id}`).catch(() => null)));
-        if (ctx.stale()) return;
-      }
+    const ids = new Set();
+    if (ch) { ids.add(ch.callId); ids.add(ch.laterId); }
+    const ask = v.partial ? null : askCallId(ch);
+    if (ask) ids.add(ask);
+    const picked = callIdOfPath(query.node);
+    if (picked) ids.add(picked);
+    const missing = [...ids].filter((id) => BB.cached(`call:${id}`) === undefined && !failed.has(id));
+    if (missing.length) {
+      await Promise.all(missing.map(loadCall));
+      if (ctx.stale()) return;
     }
     view(v, query);
   }, { nav: 'memory', title: 'Company memory', needs: ['workspace', 'vault', 'people?', 'settings?'], loading: 'repository map' });

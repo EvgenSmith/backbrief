@@ -5,7 +5,9 @@
    components (.monogram, .evidence, .tree, .chain, .units, .switch,
    dialog.sheet, .toast, .form, .tabs, the landing's .person, .stepper,
    .tools, .win and .soon-tag) live in styles.css; use them as they are, and
-   build anything new here from the tokens only. */
+   build anything new here from the tokens only. Every view of the three
+   modules renders inside .screen (.screen-people, -memory, -sources), which
+   scopes the phone tap-target rules at the end of this file. */
 
 /* ------------------------------------------------------------------ */
 /* People                                                             */
@@ -114,6 +116,10 @@
 .addp .help { margin: 6px 0 0; font-size: .86rem; color: var(--muted); }
 .addp .error { margin: 6px 0 0; font-size: .88rem; font-weight: 500; color: var(--neg); }
 .addp-note { margin: 0 0 12px; max-width: 50rem; }
+/* Step 2: accept every open suggestion at once */
+.addp-bulk { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 0 0 10px; padding: 10px 18px; border: 1px solid var(--rule); border-radius: var(--radius-lg); background: var(--sheet); }
+.addp-bulk[hidden] { display: none; }
+.addp-bulk-text { margin: 0; font-size: .92rem; color: var(--muted); }
 .suggests { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; }
 .suggest {
   display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; grid-template-areas: "k main do";
@@ -149,13 +155,23 @@ fieldset.suggest-main { margin: 0; padding: 0; border: 0; min-width: 0; }
 .ask-option:has(input:checked) { border-color: var(--ink); background: var(--tint); font-weight: 500; }
 .ask-option:has(input:focus-visible) { outline: 2px solid var(--link); outline-offset: 2px; }
 .ask-option input { margin: 0; accent-color: var(--ink); }
+/* "Other team…": the team's name, typed as a slug, right under the options */
+.ask-other { max-width: 520px; margin: 14px 0 4px; }
+.ask-other[hidden] { display: none; }
+.ask-other label { margin-bottom: 6px; }
+.form.ask-other input[type="text"] { max-width: 360px; min-height: 42px; }
+.addp-manual .ask-other { margin-bottom: 0; }
 .addp-mentions .evidence + .evidence { margin-top: 12px; }
 .addp-manual { max-width: 640px; }
 .addp-manual .form .field:last-child { margin-bottom: 0; }
 .addp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 8px; padding-top: 16px; border-top: 2px solid var(--ink); }
 .addp-count { flex: 1 1 200px; margin: 0; font: .84rem/1.4 var(--mono); color: var(--muted); }
 .addp-foot-note { margin: 10px 0 0; }
-.addp-review { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+/* Step 3: "What changes" and Save come first in the markup; on wide screens the file sits left */
+.addp-review { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "file changes"; gap: 20px; align-items: start; }
+.addp-review .addp-changes { grid-area: changes; }
+.addp-review .addp-file { grid-area: file; }
+.addp-review .addp-file-toggle { display: none; }
 .addp-file { min-width: 0; }
 .addp-file .win-body { max-height: 620px; overflow: auto; }
 .addp-changes { margin: 0; position: sticky; top: 84px; }
@@ -169,6 +185,36 @@ fieldset.suggest-main { margin: 0; padding: 0; border: 0; min-width: 0; }
 /* ------------------------------------------------------------------ */
 
 .page-lede .memory-counts { margin: 10px 0 0; font: .84rem/1.5 var(--mono); color: var(--ink); }
+
+/* Ask the memory: the page leads with a question an agent answers from the files */
+.memory-ask { margin: 0 0 36px; }
+.memory-ask-win { background: var(--sheet); }
+.memory-ask-body { padding: 4px 22px 16px; }
+.ask-turn { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 4px 18px; padding: 16px 0; }
+.ask-turn + .ask-turn { border-top: 1px solid var(--rule); }
+.ask-who { margin: 3px 0 0; font: 500 .7rem/1.5 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.ask-q .ask-text { margin: 0; font: 760 1.3rem/1.25 var(--display); font-stretch: 112%; letter-spacing: -.01em; text-wrap: balance; }
+.ask-a .ask-text { min-width: 0; max-width: 48rem; }
+.ask-a .ask-text > p { margin: 0 0 10px; }
+.ask-quote { margin: 0 0 14px; }
+.ask-quote > p { font-size: 1.06rem; font-weight: 500; }
+.ask-points { margin: 0 0 12px; padding-left: 1.2em; }
+.ask-points li { margin: 0 0 4px; }
+.ask-a .ask-text > .ask-src { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--rule); }
+.ask-src-k { font: 500 .7rem/1.5 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.ask-src a { min-width: 0; font-size: .84rem; overflow-wrap: anywhere; }
+.memory-ask-how { margin: 12px 0 0; max-width: 52rem; font-size: .92rem; color: var(--muted); }
+.memory-ask-how a { font-weight: 500; }
+
+/* A call file picked in the tree ("Show the file"): its frontmatter and Decisions, under its row */
+.memory-file { min-width: 0; margin: 6px 0 12px 22px; }
+.memory-file-cap { margin: 8px 0 0; }
+.memory-file-note { margin: 0; }
+.memory-linked { margin: 8px 0 0; font: .8rem/1.8 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.memory-linked-k { margin-right: 4px; font-weight: 500; color: var(--ink); }
+.memory-linked .btn-link { font: inherit; }
+.memory-file > .small.muted, .memory-file > p { margin: 0; }
+.tree-item[aria-current="true"] { scroll-margin-top: 84px; }
 .page-lede .memory-local { display: inline-flex; align-items: center; gap: 8px; margin: 10px 0 0; padding: 4px 10px; border-radius: var(--radius); background: var(--info-soft); color: var(--info); font-size: .86rem; }
 .memory-local-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: currentColor; }
 .memory-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; margin: 0 0 36px; }
@@ -199,14 +245,20 @@ fieldset.suggest-main { margin: 0; padding: 0; border: 0; min-width: 0; }
 .chain-via.is-from::before { content: "← "; }
 .chain-via .ts { font-size: .7rem; }
 .memory-excerpt { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; margin: 26px 0 0; }
-.memory-excerpt .win { min-width: 0; }
+.memory-excerpt .win, .memory-excerpt-file { min-width: 0; }
 .memory-excerpt .win-body { max-height: 440px; overflow: auto; }
 .memory-excerpt-cap p { margin: 0 0 12px; }
 .memory-excerpt-cap .k { margin-bottom: 8px; color: var(--ink); }
 .memory-excerpt-do { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
 .memory-excerpt-do a { font-weight: 500; }
-.memory-agents { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.memory-agents .win { min-width: 0; }
+/* For engineers: AGENTS.md and its commands, folded away */
+details.memory-eng { margin: 0 0 24px; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); }
+.memory-eng > summary { padding: 16px 0; font: 600 1.04rem/1.3 var(--sans); }
+.memory-eng > summary:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.memory-eng-body { padding: 0 0 22px; }
+.memory-eng p { color: inherit; max-width: none; }
+.memory-eng .memory-eng-lede { margin: 0 0 14px; max-width: 46rem; color: var(--muted); }
+.memory-eng .win { min-width: 0; }
 .memory-agents-body { padding: 16px 18px; }
 .memory-agents-intro { margin: 0 0 16px; font-size: .95rem; }
 .memory-agents-h { margin: 0 0 6px; font: 500 .7rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--faint); }
@@ -216,8 +268,6 @@ fieldset.suggest-main { margin: 0; padding: 0; border: 0; min-width: 0; }
 .memory-recipes tr:last-child td { border-bottom: 0; }
 .memory-recipes td:first-child { width: 36%; }
 .memory-recipes code { font: .76rem/1.6 var(--mono); background: var(--tint); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
-.memory-example { margin: 0; }
-.memory-example p:last-child { margin: 0; }
 
 /* ------------------------------------------------------------------ */
 /* Sources                                                            */
@@ -239,8 +289,21 @@ fieldset.suggest-main { margin: 0; padding: 0; border: 0; min-width: 0; }
 .source-title a:hover { text-decoration: underline; }
 .source-what .source-state { margin-top: 3px; }
 .source-what .soon-tag { display: inline-block; margin-top: 6px; }
-.source-detail { grid-area: detail; margin: 2px 0 0; color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+.source-detail { grid-area: detail; min-width: 0; margin: 2px 0 0; color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
 .source-detail .mono { color: var(--ink); }
+.source-detail .nowrap { white-space: nowrap; }
+.source-detail > p { margin: 0; }
+/* Health: the status with its last event, on the row and at the top of a source's page */
+.source-health { color: var(--pos); font-weight: 500; }
+.source-health .status-dot { margin-right: 8px; vertical-align: 1px; }
+.source-health.is-off { color: var(--muted); }
+.source-detail > .source-health { margin-top: 6px; font-size: .9rem; }
+.page-lede .source-health.is-lede { margin: 0; font-size: 1rem; }
+.page-lede .source-sub { margin: 4px 0 0; color: var(--muted); font-size: .92rem; overflow-wrap: anywhere; }
+.page-lede .source-sub .mono { color: var(--ink); }
+/* What Zoom processes and who can read it: on the row, and under "What it does" */
+.source-detail > .source-note { max-width: 46rem; margin-top: 8px; padding-left: 12px; border-left: 3px solid var(--rule); font-size: .88rem; }
+.source-body > .source-statement { margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--ink); border-radius: 0 var(--radius) var(--radius) 0; background: var(--tint); color: var(--ink); font-weight: 500; }
 .source-do { grid-area: do; display: flex; justify-content: flex-end; margin: 0; }
 .source-row.is-soon .source-title { color: var(--muted); }
 .source-row.is-next { grid-template-columns: 150px minmax(0, 1fr); grid-template-areas: "cat next"; }
@@ -272,6 +335,17 @@ fieldset.suggest-main { margin: 0; padding: 0; border: 0; min-width: 0; }
 .access-scopes code { padding: 1px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--tint); color: var(--ink); font: .74rem/1.6 var(--mono); overflow-wrap: anywhere; }
 .access-events { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); }
 .access-k { margin-right: 8px; font: 500 .66rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
+/* Slack: what it can and never can do, in plain words, with the scopes grouped under "Can" */
+.access-line { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 2px 12px; align-items: baseline; margin: 0; font-weight: 500; }
+.access-line .access-k { margin: 0; font-size: .72rem; color: var(--muted); }
+.access-line.is-never .access-k { color: var(--neg); }
+.access.access-under { margin: 12px 0 16px 76px; border-top: 1px solid var(--rule); }
+.access.access-under li:first-child { padding-top: 9px; border-top: 0; }
+.access-under .access-why { font-weight: 400; font-size: .94rem; }
+.access-line.is-never { padding-top: 14px; border-top: 1px solid var(--rule); }
+.access-never-why { margin: 6px 0 0 76px; font-size: .88rem; color: var(--muted); }
+.access-never-why code { padding: 1px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--tint); color: var(--ink); font: .74rem/1.6 var(--mono); }
+.source-defaults .mono { color: var(--ink); white-space: nowrap; }
 .source-form { max-width: 460px; }
 .source-form .field { margin-bottom: 16px; }
 .source-inline { display: flex; align-items: center; gap: 10px; margin: 0; }
@@ -317,7 +391,7 @@ details.source-details { margin: 10px 0 14px; border-top: 1px solid var(--rule);
 .source-imports-name { font-weight: 500; overflow-wrap: anywhere; }
 
 /* File windows in these screens wrap long paths instead of scrolling. */
-.profile-file .code, .addp-file .code, .memory-excerpt .code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.profile-file .code, .addp-file .code, .memory-excerpt .code, .memory-file .code { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ------------------------------------------------------------------ */
 /* Narrower screens                                                   */
@@ -326,7 +400,8 @@ details.source-details { margin: 10px 0 14px; border-top: 1px solid var(--rule);
 /* The side nav stays until 760px, so the content column is narrowest
    (about 480px) just above it: these steps follow the content's width. */
 @media (max-width: 1100px) {
-  .addp-review, .memory-layout, .memory-excerpt, .memory-agents, .addp-start { grid-template-columns: 1fr; }
+  .addp-review, .memory-layout, .memory-excerpt, .addp-start { grid-template-columns: 1fr; }
+  .addp-review { grid-template-areas: "changes" "file"; }
   .addp-start .addp-card, .addp-aside { max-width: 640px; }
   .addp-changes { position: static; }
   .memory-detail { display: none; }
@@ -385,6 +460,31 @@ details.source-details { margin: 10px 0 14px; border-top: 1px solid var(--rule);
   .source-map-row > .muted { grid-column: 3; }
   .import-form .check { min-height: 40px; align-items: center; }
   .import-form .check input { margin-top: 0; }
+
+  /* Add person, step 3: What changes and Save first; the file waits behind "Show the file" */
+  .addp-review .addp-file-toggle { display: flex; width: 100%; }
+  .addp-review:not(.is-file-open) .addp-file-win { display: none; }
+  .addp-file-win { margin-top: 12px; }
+  .addp-bulk { padding: 12px 14px; }
+  .addp-bulk .btn { flex: 1 1 100%; }
+  .ask-other { max-width: none; }
+
+  /* Company memory */
+  .memory-ask-body { padding: 2px 14px 12px; }
+  .ask-turn { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 14px 0; }
+  .ask-q .ask-text { font-size: 1.15rem; }
+  .memory-file { margin-left: 0; }
+
+  /* Sources */
+  .access-line { grid-template-columns: minmax(0, 1fr); }
+  .access.access-under, .access-never-why { margin-left: 0; }
+
+  /* Tap targets of at least 32px for ▶ chips and links in these screens */
+  .screen a.ts { display: inline-flex; align-items: center; min-height: 32px; padding: 0 8px; vertical-align: middle; }
+  .screen a.ts::after { content: none; }
+  .screen a:not(.btn):not(.ts):not(.people-link):not(.call-link):not(.chip) { padding-block: 9px; }
+  .screen button.btn-link { min-height: 32px; }
+  .page-head .eyebrow .back-link { display: inline-flex; align-items: center; min-height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .people-grid .person { transition: none; }
