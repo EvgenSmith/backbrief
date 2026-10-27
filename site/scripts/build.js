@@ -22,8 +22,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  classify, parseCall, parseTasks, parseMember, parseCompany, buildWorkspace, workspaceJson,
+  classify, parseCall, parseTasks, parseMember, parseCompany, parseTenant, parseTrainingLog,
+  buildWorkspace, workspaceJson, transcriptDetail, transcriptPathFor, peopleIndex, vaultTree,
+  settingsFromVault, callId, dateFromName,
 } from '../lib/vault.js';
+import { parseYaml } from '../lib/yaml.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outArg = process.argv.indexOf('--out');
@@ -168,9 +171,30 @@ function copyDir(from, to) {
 /*
  * The public demo workspace: site/demo-vault is a real vault (it passes the
  * kit's validate-vault.js), parsed by the same lib/vault.js the live cabinet
- * uses, and written out as the static JSON /demo reads.
+ * uses, and written out as the static JSON /demo reads:
+ *
+ *   demo/workspace.json         overview, stats, calls, action items, task_log
+ *   demo/calls/<id>.json        one call: digest, proposals, transcript, recording, Slack post
+ *   demo/transcripts/<id>.json  the call's .vtt as [{speaker, ts_mmss, text}]
+ *   demo/people.json            profiles + activity, unprofiled names, "Add person" rules
+ *   demo/vault.json             the vault as a folder tree + the links between files
+ *   demo/settings.json          sources (Zoom, Slack, Linear, GitHub) and Slack delivery
+ *
+ * Facts no vault holds (connection status, accounts, scope wording, delivery
+ * toggles, the ids a click would create, model suggestions for an unprofiled
+ * name) come from demo.config.json, marked "_demo_only" and read here only.
  */
+function slackScopes() {
+  // The scopes the shipped Slack app manifest requests: what "connected" grants.
+  const manifest = parseYaml(fs.readFileSync(path.join(ROOT, '..', 'plugin', 'templates', 'slack-app-manifest.yaml'), 'utf8'));
+  const bot = manifest && manifest.oauth_config && manifest.oauth_config.scopes && manifest.oauth_config.scopes.bot;
+  if (!Array.isArray(bot) || !bot.length) throw new Error('slack-app-manifest.yaml: no oauth_config.scopes.bot');
+  return bot.map(String);
+}
+
 function buildDemo(out) {
+  const demo = JSON.parse(fs.readFileSync(path.join(ROOT, 'demo.config.json'), 'utf8'));
+  if (demo._demo_only !== true) throw new Error('demo.config.json must be marked "_demo_only": true');
   const root = path.join(ROOT, 'demo-vault');
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true })
     .flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
@@ -178,7 +202,15 @@ function buildDemo(out) {
   const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
   const of = (kind) => files.filter((f) => classify(f) === kind).sort();
   const calls = of('call').map((p) => parseCall(p, read(p)));
+  const tasks = of('tasks').map((p) => parseTasks(p, read(p)));
+  const members = of('member').map((p) => parseMember(p, read(p)));
+  const tenant = of('tenant').length ? parseTenant(read('tenant.yaml')) : null;
+  const training = of('training').flatMap((p) => parseTrainingLog(read(p)));
   const latest = calls.map((c) => c.date).sort().pop() || new Date().toISOString().slice(0, 10);
+  const idOf = (callPath) => {
+    if (!calls.some((c) => c.path === callPath)) throw new Error(`demo.config.json: no call at ${callPath}`);
+    return callId(callPath, dateFromName(callPath).date);
+  };
   const ws = buildWorkspace({
     info: {
       id: 'demo',
@@ -186,26 +218,93 @@ function buildDemo(out) {
       mode: 'demo',
       vault_url: config.demo.vault_url || '',
       tracker_url: config.demo.tracker_url || null,
-      integrations: { zoom: true, slack: true, linear: true, github: true },
+      integrations: {},
     },
     callPaths: of('call'),
     calls,
-    tasks: of('tasks').map((p) => parseTasks(p, read(p))),
-    members: of('member').map((p) => parseMember(p, read(p))),
+    tasks,
+    members,
     company: of('company').length ? parseCompany(read('docs/company.md')) : null,
     // A fixed "now" keeps the demo's "last 30 days" stable as real time passes.
     now: new Date(`${latest}T23:59:59Z`).toISOString(),
+    tenant,
+    files,
+    training,
+    transcriptUrl: (c) => `/demo/transcripts/${c.id}.json`,
   });
+
+  // The ids a click on a still-pending proposal would create (a demo cannot ask Linear).
+  const onApprove = demo.on_approve || {};
+  for (const p of Object.keys(onApprove)) {
+    if (!tasks.some((t) => t.path === p)) throw new Error(`demo.config.json on_approve: no tasks file at ${p}`);
+  }
+  const withOnApprove = (entry) => {
+    const ids = onApprove[entry.tasks_path] || {};
+    for (const p of entry.proposals) if (p.status === 'pending') p.on_approve = ids[String(p.n)] || null;
+    return entry;
+  };
+  ws.task_log.forEach(withOnApprove);
+
+  // Settings: per-source settings and activity from the vault; status, accounts
+  // and scope wording from the demo config; the Slack scopes from the manifest.
+  const fromVault = settingsFromVault({ tenant, calls, taskLog: ws.task_log, slackScopes: slackScopes() });
+  const sources = fromVault.sources.map((s) => {
+    const c = (demo.sources || {})[s.id] || {};
+    return {
+      id: s.id,
+      category: s.category,
+      status: c.status || 'not_connected',
+      account: c.account || null,
+      connected_at: c.connected_at || null,
+      scopes: s.scopes && s.scopes.length ? s.scopes : c.scopes || [],
+      ...(c.events ? { events: c.events } : {}),
+      settings: s.settings,
+      activity: s.activity,
+    };
+  });
+  const settings = {
+    sources,
+    coming_next: demo.coming_next || [],
+    imports: demo.imports || [],
+    slack: {
+      ...fromVault.slack,
+      delivery: (demo.slack && demo.slack.delivery) || {},
+      locked: (demo.slack && demo.slack.locked) || [],
+      preview_call_id: demo.slack && demo.slack.preview_call ? idOf(demo.slack.preview_call) : null,
+    },
+  };
+  ws.workspace.integrations = Object.fromEntries(sources.map((s) => [s.id, s.status === 'connected']));
+
+  const suggestions = (demo.people && demo.people.suggestions) || {};
+  for (const s of Object.values(suggestions)) {
+    for (const ev of [...((s.role && s.role.evidence) || []), ...(s.zones || []).flatMap((z) => z.evidence || [])]) idOf(ev.call);
+  }
+  const teams = ((tenant && tenant.vault && tenant.vault.teams) || []).map((t) => t.tag).filter(Boolean);
+  const people = peopleIndex({ members, calls, suggestions, teams });
+  const readmes = Object.fromEntries(files.filter((f) => /(^|\/)README\.md$/i.test(f)).map((f) => [f, read(f)]));
+  const vault = vaultTree({
+    files, calls, tasks, members, tenant, training,
+    agentsMd: files.includes('AGENTS.md') ? read('AGENTS.md') : '',
+    readmes,
+  });
+
   const dir = path.join(out, 'demo');
-  fs.mkdirSync(path.join(dir, 'calls'), { recursive: true });
+  for (const sub of ['calls', 'transcripts']) fs.mkdirSync(path.join(dir, sub), { recursive: true });
   fs.writeFileSync(path.join(dir, 'workspace.json'), JSON.stringify(workspaceJson(ws)));
-  fs.writeFileSync(path.join(dir, 'people.json'), JSON.stringify({ people: ws.people }));
+  fs.writeFileSync(path.join(dir, 'people.json'), JSON.stringify(people));
+  fs.writeFileSync(path.join(dir, 'vault.json'), JSON.stringify(vault));
+  fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(settings));
   for (const c of ws.calls) {
     const detail = ws._detail(c.id);
+    withOnApprove(detail.task_log);
     detail.vault_file_url = config.demo.file_url_base
       ? config.demo.file_url_base + c.path.split('/').map(encodeURIComponent).join('/')
       : null;
     fs.writeFileSync(path.join(dir, 'calls', `${c.id}.json`), JSON.stringify(detail));
+    if (detail.transcript.available) {
+      const t = transcriptDetail(detail, read(transcriptPathFor(detail)), members);
+      fs.writeFileSync(path.join(dir, 'transcripts', `${c.id}.json`), JSON.stringify(t));
+    }
   }
   return ws.calls.length;
 }

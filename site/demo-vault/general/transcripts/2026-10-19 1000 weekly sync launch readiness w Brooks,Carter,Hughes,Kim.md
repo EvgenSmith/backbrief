@@ -6,7 +6,7 @@ topic: "Weekly sync: launch readiness"
 date: 2026-10-19
 time: "10:00"
 duration_min: 35
-participants: [Ivanova, Kim, Petrov, Sidorova]
+participants: [Brooks, Carter, Hughes, Kim]
 language: en
 source: zoom
 digest_version: v1
@@ -15,26 +15,27 @@ filer_model: claude-sonnet-4-6
 pipeline_version: "0.1.0"
 source_id: "DEMOuuid0007x=="
 platform: zoom
-call_type: planning
+call_type: standup
 tags: [weekly-sync, self-serve, launch]
-references_prior_calls: ["product/transcripts/2026-10-14 1500 self serve launch plan w Ivanova,Kim,Petrov.md", "engineering/transcripts/2026-10-12 1000 api rate limit incident review w Okafor,Sidorova.md", "general/transcripts/2026-10-05 1000 weekly sync launch status w Ivanova,Kim,Petrov,Sidorova.md"]
+transcript_file: "2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.vtt"
+references_prior_calls: ["product/transcripts/2026-10-14 1500 self serve launch plan w Brooks,Carter,Kim.md", "engineering/transcripts/2026-10-12 1000 api rate limit incident review w Hughes,Okafor.md", "general/transcripts/2026-10-05 1000 weekly sync launch status w Brooks,Carter,Hughes,Kim.md"]
 action_items:
   - title: "Billing: handle clinics mid-trial on the old plan"
-    owner: Sidorova
+    owner: Hughes
     helpers: [Okafor]
     status: post-call
     priority: high
     ts: "07:30"
     tracker_ref: ENG-311
   - title: "Run the launch go/no-go on 26 October"
-    owner: Petrov
+    owner: Brooks
     helpers: []
     status: post-call
     priority: high
     ts: "21:10"
     tracker_ref: null
   - title: "Per-clinic rate limits shipped"
-    owner: Sidorova
+    owner: Hughes
     helpers: []
     status: done-on-call
     priority: medium
@@ -48,6 +49,7 @@ action_items:
 
 ### Self-serve launch readiness (01:40)
 - Pricing page done; launch email drafted; billing has one open case: **clinics mid-trial on the old plan**
+- Shah's support macros for self-serve signups are ready for launch day
 - Go/no-go stays on **26 October**, as agreed on 14 October
 
 ### Incident follow-up (15:20)
@@ -62,18 +64,18 @@ action_items:
 
 ## Agreements
 
-1. Sidorova ↔ Petrov: billing changes freeze on 23 October, three days before go/no-go (11:20)
+1. Hughes ↔ Brooks: billing changes freeze on 23 October, three days before go/no-go (11:20)
 
 ## Next steps
 
 ### 📋 Post-call
-1. Billing: handle clinics mid-trial on the old plan — **Sidorova** (helpers: Okafor) _[high]_ (07:30)
+1. Billing: handle clinics mid-trial on the old plan — **Hughes** (helpers: Okafor) _[high]_ (07:30)
    > "we'll handle the mid-trial case in billing by Thursday"
-2. Run the launch go/no-go on 26 October — **Petrov** _[high]_ (21:10)
+2. Run the launch go/no-go on 26 October — **Brooks** _[high]_ (21:10)
    > "I'll run the go/no-go Monday morning, everyone brings their checklist"
 
 ### ✅ Done on call
-1. Per-clinic rate limits shipped — **Sidorova** (15:20)
+1. Per-clinic rate limits shipped — **Hughes** (15:20)
 
 ### 👀 Monitoring
 None.
@@ -88,4 +90,4 @@ None.
 
 ## Transcript
 
-Raw transcript: not retained · Recording: not retained
+Raw transcript: [2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.vtt](2026-10-19%201000%20weekly%20sync%20launch%20readiness%20w%20Brooks,Carter,Hughes,Kim.vtt) · Recording: not retained

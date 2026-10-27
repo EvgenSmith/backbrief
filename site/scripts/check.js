@@ -12,6 +12,9 @@
  *   - no wording that ties the product to crypto or to another company
  *     (NVIDIA Inception excludes "companies associated with cryptocurrency";
  *     Google and Oracle screen regulated sectors)
+ *   - the demo data under dist/demo (every file) is complete, English only,
+ *     names only the current demo team, and has no open-source, self-hosting,
+ *     licence or beta wording (visitors read all of it)
  *
  * --release additionally fails on:
  *   - any remaining "TODO" placeholder in the built pages
@@ -138,17 +141,46 @@ for (const page of ['demo.html', 'app.html']) {
   if (!/data-view/.test(html[page])) fail(`${page}: cabinet shell has no [data-view] container`);
 }
 const demoDir = path.join(DIST, 'demo');
+// Everything under dist/demo is rendered to visitors: the demo team is English
+// and renamed, and the demo, like the site, never reads as an open-source,
+// self-hosted or beta kit. Paths and ids are scanned too.
+const DEMO_GUARD = [
+  [/[Ѐ-ԯ]/, 'Cyrillic text'],
+  [/Ivanova|Petrov|Sidorova/, 'a surname of the old demo team'],
+  [/open[- ]source/i, 'open-source wording'],
+  [/self[- ]host/i, 'self-hosting wording'],
+  [/\bMIT\b/, 'licence wording'],
+  [/\bn8n\b/i, 'the n8n engine'],
+  [/\bbeta\b/i, 'beta wording'],
+];
+const filesUnder = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }) : [])
+  .flatMap((e) => (e.isDirectory() ? filesUnder(path.join(d, e.name)) : [path.join(d, e.name)]));
 try {
   const ws = JSON.parse(fs.readFileSync(path.join(demoDir, 'workspace.json'), 'utf8'));
   if (!ws.calls || ws.calls.length < 3) fail('demo workspace has fewer than 3 calls');
-  for (const c of ws.calls || []) {
-    if (!fs.existsSync(path.join(demoDir, 'calls', `${c.id}.json`))) fail(`demo call detail missing: ${c.id}`);
+  if (!ws.overview || !Array.isArray(ws.task_log)) fail('demo workspace.json has no overview or task_log');
+  for (const f of ['people.json', 'vault.json', 'settings.json']) {
+    if (!fs.existsSync(path.join(demoDir, f))) fail(`demo data missing: ${f}`);
   }
-  const blob = fs.readdirSync(path.join(demoDir, 'calls')).map((f) => fs.readFileSync(path.join(demoDir, 'calls', f), 'utf8')).join('\n')
-    + fs.readFileSync(path.join(demoDir, 'workspace.json'), 'utf8');
-  for (const re of DENY) {
-    const hit = blob.match(re);
-    if (hit) fail(`demo data: forbidden wording "${hit[0]}"`);
+  for (const c of ws.calls || []) {
+    const file = path.join(demoDir, 'calls', `${c.id}.json`);
+    if (!fs.existsSync(file)) { fail(`demo call detail missing: ${c.id}`); continue; }
+    const detail = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (detail.transcript && detail.transcript.available && !fs.existsSync(path.join(demoDir, 'transcripts', `${c.id}.json`))) {
+      fail(`demo transcript missing: ${c.id}`);
+    }
+  }
+  for (const file of filesUnder(demoDir)) {
+    const rel = path.relative(DIST, file).split(path.sep).join('/');
+    const text = `${rel}\n${fs.readFileSync(file, 'utf8')}`;
+    for (const re of DENY) {
+      const hit = text.match(re);
+      if (hit) fail(`${rel}: forbidden wording "${hit[0]}"`);
+    }
+    for (const [re, what] of DEMO_GUARD) {
+      const hit = text.match(re);
+      if (hit) fail(`${rel}: ${what} "${hit[0]}" in demo data (visitors read it)`);
+    }
   }
 } catch (e) {
   fail(`demo workspace data unreadable: ${e.message}`);

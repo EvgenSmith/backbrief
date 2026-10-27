@@ -15,32 +15,96 @@ tenant:
   name: Acme
   persona: company_lead       # whose calls the vault holds (A0 fork): solo | team_lead | company_lead
   internal_domains: [acme.dev]
-  languages: [en, ru]
+  languages: [en]
+  primary_language: en
   timezone: Europe/London
 
 vault:
-  repo: null                    # set at B4 (GitHub vault sync); local-only until then
+  repo: acme/vault              # GitHub owner/repo (B4)
   branch: main
   teams:
     - tag: product
       folder: product
-      description: ""            # one line for the classifier: what this team does
+      description: "Product management, pricing, roadmap, launches"
     - tag: growth
       folder: growth
-      description: ""            # one line for the classifier: what this team does
+      description: "Acquisition, onboarding, lifecycle email"
     - tag: engineering
       folder: engineering
-      description: ""            # one line for the classifier: what this team does
+      description: "Booking API, billing, reliability, releases"
   mixed_folder: general         # route when a call spans teams / team unresolved
 
-roster: []                      # filled at A2 (profiles) / B1 (generate-tenant.js)
+# Generated from team/*.md at B1 (generate-tenant.js) — edit the profiles, not this list.
+roster:
+  - lastname: Brooks
+    first_name: Nathan
+    email: nathan@acme.dev
+    role: Head of Product
+    home_team: product
+    aliases: [Nate, "Nathan B.", "@nathan"]
+    is_owner: true              # DLQ DM target (exactly one while Slack is enabled)
+  - lastname: Carter
+    first_name: Emma
+    email: emma@acme.dev
+    role: Growth Lead
+    home_team: growth
+    aliases: [Em, "Emma C.", "@emma"]
+  - lastname: Hughes
+    first_name: Anna
+    email: anna@acme.dev
+    role: Engineering Lead
+    home_team: engineering
+    aliases: ["Anna H.", "@anna"]
+  - lastname: Kim
+    first_name: Daniel
+    email: daniel@acme.dev
+    role: Product Designer
+    home_team: product
+    aliases: [Dan, "Daniel K.", "@dan"]
+  - lastname: Okafor
+    first_name: Chidi
+    email: chidi@acme.dev
+    role: Backend Engineer
+    home_team: engineering
+    aliases: ["Chidi O.", "@chidi"]
 
 # Privacy routing (auto-routing 1:1/board/legal calls into private slices) is
 # deliberately NOT part of v0.1 — every call files into team folders. Need it?
 # Say so: waitlist interest "privacy".
 
 features:
-  raw_retention: none           # none = digest .md only | vtt = .vtt sibling committed
+  slack:
+    enabled: true
+    digest_channel: "#call-digests"
+    per_team_channels:
+      product: "#product-sync"
+  raw_retention: vtt            # none = digest .md only | vtt = .vtt sibling committed
+  tracker:
+    enabled: true
+    kind: linear
+    team_mapping:
+      - team_tag: product
+        tracker_team_key: PRD
+        default_assignee: Brooks
+      - team_tag: growth
+        tracker_team_key: GRW
+        default_assignee: Carter
+      - team_tag: engineering
+        tracker_team_key: ENG
+        default_assignee: Hughes
+    provenance_label: backbrief
+    autonomy_level: L0
+    thresholds:
+      comment: 0.75
+      flag_discovery: 0.55
+      flag_planning: 0.35
+  history_import:
+    enabled: false
+    days: 30
   telemetry:
     enabled: false       # OPT-IN, asked once at A0; false = zero outbound calls
     endpoint: https://backbrief-telemetry.backbrief.workers.dev
+
+pipeline:
+  knobs:
+    min_duration_min: 5         # shorter recordings are not filed

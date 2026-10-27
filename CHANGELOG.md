@@ -11,6 +11,21 @@ it (CI-enforced).
 
 ## [Unreleased]
 
+### Changed — demo workspace data (`site/`)
+- The demo team is English: Carter, Brooks and Hughes replace the former
+  names, the former Russian call is "Onboarding funnel review", and "Pricing
+  model review" matches the landing page (13:00, Carter and Brooks, the
+  16:38 and 16:40 transcript lines, the four task verdicts).
+- The demo vault gains a `.vtt` transcript for every call, decided tasks files
+  for every call but the newest (its four proposals wait for a decision), and
+  `.backbrief/training/task-decisions.jsonl`.
+- `site/lib/vault.js` derives the digest, transcripts, task log, people
+  activity, vault map, overview and source settings from a vault. `/demo`
+  gains `transcripts/<id>.json`, `vault.json` and `settings.json`; facts no
+  vault holds come from `site/demo.config.json` (`"_demo_only": true`).
+- `check.js` fails when any file under `dist/demo` contains Cyrillic, a former
+  demo surname, or open-source, self-hosting, licence or beta wording.
+
 ### Added — beta cabinet and public demo workspace (`site/`)
 - `/demo`: a public workspace for a fictional team. It is built from
   `site/demo-vault/`, a real vault that passes `validate-vault.js` in CI, so

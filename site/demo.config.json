@@ -1,0 +1,79 @@
+{
+  "_demo_only": true,
+  "_about": "Facts no vault holds, for the public demo at /demo only: connection status and accounts, scope wording, Slack delivery toggles, the ids a click would create, and the role/zone suggestions a model would make for an unprofiled name. Read by scripts/build.js and nothing else; the signed-in workspace (/app) never reads it. Everything derivable from the vault is computed by lib/vault.js instead.",
+  "sources": {
+    "zoom": {
+      "status": "connected",
+      "account": "acme.zoom.us",
+      "connected_at": "2026-10-01",
+      "scopes": [
+        { "scope": "meeting:read:list_past_participants:admin", "required": true },
+        { "scope": "cloud_recording:read:list_user_recordings:admin", "for": "history import" }
+      ],
+      "events": ["recording.completed", "recording.transcript_completed"]
+    },
+    "slack": {
+      "status": "connected",
+      "account": "acme.slack.com",
+      "connected_at": "2026-10-01"
+    },
+    "linear": {
+      "status": "connected",
+      "account": "linear.app/acme",
+      "connected_at": "2026-10-01",
+      "scopes": ["read issues", "create issues", "comment", "label backbrief"]
+    },
+    "github": {
+      "status": "connected",
+      "account": "acme/vault",
+      "connected_at": "2026-10-01",
+      "scopes": [
+        { "who": "pipeline", "permission": "Contents: Read and write" },
+        { "who": "workspace", "permission": "Contents: Read-only" }
+      ]
+    }
+  },
+  "coming_next": ["Google Meet", "Microsoft Teams", "Jira", "Asana", "Single sign-on"],
+  "imports": ["Granola export", "Fireflies export"],
+  "slack": {
+    "delivery": { "summary": true, "transcript_link": false, "recording_link": true, "task_log": false },
+    "locked": ["summary"],
+    "preview_call": "product/transcripts/2026-10-07 1300 pricing model review w Carter,Brooks.md"
+  },
+  "on_approve": {
+    "tasks/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.tasks.md": {
+      "1": { "result": "created", "ref": "PRD-58" },
+      "2": { "result": "commented", "ref": "ENG-311" },
+      "3": { "result": "commented", "ref": "GRW-102", "alt": { "label": "Create new instead", "result": "created", "ref": "GRW-232" } },
+      "4": { "result": "created", "ref": "ENG-329", "label": "Create anyway" }
+    }
+  },
+  "people": {
+    "suggestions": {
+      "Shah": {
+        "first_name": "Priya",
+        "email": "priya@acme.dev",
+        "role": {
+          "value": "Customer Support Lead",
+          "evidence": [
+            { "call": "engineering/transcripts/2026-10-12 1000 api rate limit incident review w Hughes,Okafor.md", "ts": "01:45", "quote": "Shah (support): 31 clinics wrote in during the outage" }
+          ]
+        },
+        "zones": [
+          {
+            "value": "customer-comms",
+            "evidence": [
+              { "call": "engineering/transcripts/2026-10-12 1000 api rate limit incident review w Hughes,Okafor.md", "ts": "33:40", "quote": "Write the customer-facing incident note — Hughes (helpers: Shah)" }
+            ]
+          },
+          {
+            "value": "support-macros",
+            "evidence": [
+              { "call": "general/transcripts/2026-10-19 1000 weekly sync launch readiness w Brooks,Carter,Hughes,Kim.md", "ts": "01:40", "quote": "Shah's support macros for self-serve signups are ready for launch day" }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

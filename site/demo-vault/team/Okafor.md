@@ -9,7 +9,7 @@ aliases:
 role: "Backend Engineer"
 team: engineering
 zones: [api, sms-delivery, billing-integration]
-typical_partners: [Sidorova]
+typical_partners: [Hughes]
 languages: [en]
 email: "chidi@acme.dev"
 status: confirmed
@@ -23,9 +23,9 @@ last_updated: 2026-10-20
 Works on the public API and reminder delivery.
 
 ## Responsibility zones
-- **api**
-- **sms-delivery**
-- **billing-integration**
+- **api** — evidence: "per-clinic limits, this week, nothing else goes in first" (2026-10-12 call, 12:30)
+- **sms-delivery** — (inferred — pending review)
+- **billing-integration** — (inferred — pending review)
 
 ## Typical topics
 - api
@@ -33,7 +33,7 @@ Works on the public API and reminder delivery.
 - billing integration
 
 ## Typical partners
-- **Sidorova**
+- **Hughes**
 
 ## Notes
 None.

@@ -35,7 +35,7 @@ placeholder: ask.
 ## The lastname token
 
 One Latin `Lastname` is the canonical token for a person **everywhere**:
-filenames (`w Ivanova`), frontmatter `participants:`, `action_items[].owner`,
+filenames (`w Carter`), frontmatter `participants:`, `action_items[].owner`,
 tracker assignee resolution, and the profile basename `team/<Lastname>.md`.
 WHY: one token makes person lookup a directory listing plus a basename match;
 a second spelling silently splits one person's history in two.

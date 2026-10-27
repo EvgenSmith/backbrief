@@ -1,7 +1,7 @@
 ---
 type: tasks
 schema_version: 1
-call: "engineering/transcripts/2026-10-12 1000 api rate limit incident review w Okafor,Sidorova.md"
+call: "engineering/transcripts/2026-10-12 1000 api rate limit incident review w Hughes,Okafor.md"
 team: engineering
 date: 2026-10-12
 tracker: linear
@@ -19,12 +19,13 @@ counts: { extracted: 3, created: 2, commented: 1, skipped: 0 }
 - **decision: accepted → [ENG-318](https://linear.app/acme/issue/ENG-318)**
 
 ## 2. 💬 COMMENT on [ENG-302](https://linear.app/acme/issue/ENG-302) — "Booking API alerting"
+- owner: **Okafor** (engineering) · priority: high
 - the call sets the threshold (1% of requests for five minutes); commenting instead of duplicating
 - quote: "we need a five-minute alert, not the hourly one" (26:15)
 - **decision: accepted → comment posted**
 
 ## 3. ✏️ CREATE — Write the customer-facing incident note
-- owner: **Sidorova** · priority: high · (33:40)
+- owner: **Hughes** (engineering) · priority: high · (33:40)
 - quote: "I'll write the note to the affected clinics today"
 - **decision: accepted — file-only (customer comms are not tracked in Linear)**
 

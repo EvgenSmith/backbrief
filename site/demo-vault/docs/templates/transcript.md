@@ -18,7 +18,7 @@ topic: "Pricing model review"   # human-readable, call's language OK
 date: 2026-07-10
 time: "13:00"                   # tenant-local, quoted
 duration_min: 47
-participants: [Ivanova, Petrov] # canonical Latin lastnames (roster tokens)
+participants: [Carter, Brooks]  # canonical Latin lastnames (roster tokens)
 language: en                    # dominant call language, ISO 639-1
 source: zoom                    # transcript origin, enum controlled-vocabulary.yaml
 digest_version: v0              # v0 = pre-profiles, v1 = regenerated with team context
@@ -36,15 +36,15 @@ call_type: review               # enum controlled-vocabulary.yaml
 tags: [pricing, self-serve]     # freeform kebab-case EN; extend per AGENTS.md rule
 external_participants: [Smith]  # non-roster attendees, Latin
 recording_url: "https://example.zoom.us/rec/share/EXAMPLE"  # share URL; enables clickable (MM:SS) deep links
-transcript_file: "2026-07-10 1300 pricing model review w Ivanova,Petrov.vtt"  # sibling, when raw_retention >= vtt
+transcript_file: "2026-07-10 1300 pricing model review w Carter,Brooks.vtt"  # sibling, when raw_retention >= vtt
 references_prior_calls:         # vault-relative paths, max 5 — the context the digest was built on
-  - "product/transcripts/2026-06-12 1300 pricing v1 kickoff w Ivanova.md"
+  - "product/transcripts/2026-06-12 1300 pricing v1 kickoff w Carter.md"
 
 # --- action items mirror (agent-readable projection of the body; quotes stay in the body) ---
 action_items:
   - title: "Rewrite pricing page copy for the self-serve tier"
-    owner: Ivanova              # roster lastname or null
-    helpers: [Petrov]
+    owner: Carter               # roster lastname or null
+    helpers: [Brooks]
     status: post-call           # post-call | done-on-call | monitoring
     priority: high              # low | medium | high | urgent
     ts: "14:32"                 # MM:SS anchor into the call

@@ -12,7 +12,7 @@
 # ============================================================================
 type: tasks
 schema_version: 1
-call: "product/transcripts/2026-07-10 1300 pricing model review w Ivanova,Petrov.md"
+call: "product/transcripts/2026-07-10 1300 pricing model review w Carter,Brooks.md"
 team: product
 date: 2026-07-10
 tracker: linear                  # linear | none (file-only mode)
@@ -27,14 +27,14 @@ counts: { extracted: 4, created: 2, commented: 1, skipped: 1 }
      ✏️ CREATE · 💬 COMMENT · ⚠️ FLAG · 🔁 DUPLICATE -->
 
 ## 1. ✏️ CREATE — Rewrite pricing page copy for the self-serve tier
-- owner: **Ivanova** (growth) · priority: high · (14:32)
-- quote: "надо переписать прайсинг под self-serve до пятницы"
+- owner: **Carter** (growth) · priority: high · (14:32)
+- quote: "we need to rewrite pricing for self-serve by Friday"
 - dedup: no similar issues in backlog
 - **decision: accepted → [GRW-214](https://linear.app/acme/issue/GRW-214)**
 
 ## 2. 💬 COMMENT on [GRW-180](https://linear.app/acme/issue/GRW-180) — "Pricing revamp"
 - the call adds a deadline (Friday) and owner; commenting instead of duplicating
-- quote: "это же по сути тот самый тикет про прайсинг" (18:05)
+- quote: "this is basically the pricing ticket we already have" (18:05)
 - **decision: accepted → comment posted**
 
 ## 3. ⚠️ FLAG — Update the billing FAQ
@@ -42,12 +42,12 @@ counts: { extracted: 4, created: 2, commented: 1, skipped: 1 }
 - **decision: skipped by user** ("already covered")
 
 ## 4. ✏️ CREATE — Ask legal about the annual-plan wording
-- owner: **Petrov** · priority: medium · (41:10)
+- owner: **Brooks** · priority: medium · (41:10)
 - **decision: accepted — file-only (no tracker connected)**
 - copy-paste block (Description follows the 4-block canon — frontmatter/task-4block.md):
   ```
   Title:    Ask legal about the annual-plan wording
-  Assignee: Petrov
+  Assignee: Brooks
   Priority: Medium
   Description:
     ## 📌 Context

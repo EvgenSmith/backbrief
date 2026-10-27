@@ -6,7 +6,7 @@ topic: "Onboarding emails rework"
 date: 2026-10-09
 time: "11:00"
 duration_min: 31
-participants: [Ivanova, Kim]
+participants: [Carter, Kim]
 language: en
 source: zoom
 digest_version: v1
@@ -17,9 +17,10 @@ source_id: "DEMOuuid0003x=="
 platform: zoom
 call_type: planning
 tags: [onboarding, email]
+transcript_file: "2026-10-09 1100 onboarding emails rework w Carter,Kim.vtt"
 action_items:
   - title: "Rewrite the second onboarding email around connecting a calendar"
-    owner: Ivanova
+    owner: Carter
     helpers: []
     status: post-call
     priority: high
@@ -31,9 +32,9 @@ action_items:
     status: post-call
     priority: medium
     ts: "19:45"
-    tracker_ref: null
+    tracker_ref: GRW-221
   - title: "Removed the outdated video link from email three"
-    owner: Ivanova
+    owner: Carter
     helpers: []
     status: done-on-call
     priority: low
@@ -59,18 +60,18 @@ action_items:
 
 ## Agreements
 
-1. Ivanova ↔ Kim: copy and checklist use the same three step names so emails and the app match (21:30)
+1. Carter ↔ Kim: copy and checklist use the same three step names so emails and the app match (21:30)
 
 ## Next steps
 
 ### 📋 Post-call
-1. Rewrite the second onboarding email around connecting a calendar — **Ivanova** _[high]_ (08:20)
+1. Rewrite the second onboarding email around connecting a calendar — **Carter** _[high]_ (08:20)
    > "I'll rewrite email two this week, calendar first"
 2. Mock up an in-app checklist for the first three steps — **Kim** _[medium]_ (19:45)
    > "let me sketch a checklist, three items, nothing more"
 
 ### ✅ Done on call
-1. Removed the outdated video link from email three — **Ivanova** (24:10)
+1. Removed the outdated video link from email three — **Carter** (24:10)
 
 ### 👀 Monitoring
 None.
@@ -85,4 +86,4 @@ None.
 
 ## Transcript
 
-Raw transcript: not retained · Recording: not retained
+Raw transcript: [2026-10-09 1100 onboarding emails rework w Carter,Kim.vtt](2026-10-09%201100%20onboarding%20emails%20rework%20w%20Carter,Kim.vtt) · Recording: not retained

@@ -1,0 +1,49 @@
+WEBVTT
+
+1
+00:12:04.000 --> 00:12:13.000
+Nathan B.: Our $49 floor blocks single-practitioner clinics. I'd add a $19 entry tier with a 60-day trial.
+
+2
+00:12:40.000 --> 00:12:49.000
+Smith: Competitors anchor at $25 to $29, so $19 reads as an entry offer, not a discount.
+
+3
+00:14:32.000 --> 00:14:37.000
+Emma C.: Then we need to rewrite pricing for self-serve by Friday.
+
+4
+00:16:38.000 --> 00:16:40.000
+Nathan B.: The creative already assumes $19. We can't move it.
+
+5
+00:16:40.000 --> 00:16:44.000
+Emma C.: Agreed. We ship the $19 tier before the Q4 campaign.
+
+6
+00:18:05.000 --> 00:18:10.000
+Emma C.: Wait, this is basically the pricing ticket we already have.
+
+7
+00:22:15.000 --> 00:22:27.000
+Nathan B.: Existing annual plans are the open risk; no customer should pay more after the change. If the pricing copy freezes Friday, engineering can cut the release on Monday.
+
+8
+00:22:28.000 --> 00:22:31.000
+Emma C.: Copy freezes Friday. Deal.
+
+9
+00:22:40.000 --> 00:22:46.000
+Nathan B.: I'll keep an eye on the annual-plan migration until the release branch is cut.
+
+10
+00:28:10.000 --> 00:28:18.000
+Smith: Clinics compare per-practitioner price, not per-site. I'd lead the page with that unit.
+
+11
+00:33:50.000 --> 00:33:56.000
+Emma C.: Does the 60-day trial apply to clinics that churned in the last year?
+
+12
+00:41:10.000 --> 00:41:16.000
+Nathan B.: Okay, let's get legal to look at the annual wording before it goes live.

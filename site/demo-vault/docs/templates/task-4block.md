@@ -65,10 +65,10 @@ metric proves completion. Observable definition of done.]
 
 - **Header strings are per-language**: this file is the English canon; each
   language pack carries the translation under `task_block_headers`
-  (`ru` ships the production-verbatim «📌 Контекст / ✅ Задача /
-  🎯 Ожидаемый результат / 📎 Дополнительная информация»). The pipeline picks
-  the tenant's `primary_language`; issue bodies live in the tracker in the
-  team's working language — headers do not mirror per call.
+  (`ru` ships production-verbatim translations of all four headers, emoji
+  kept). The pipeline picks the tenant's `primary_language`; issue bodies
+  live in the tracker in the team's working language — headers do not
+  mirror per call.
 - **Narrative text** (block contents, title) follows the language-mirroring
   clause: the team's working language, mirroring the
   transcript when its dominant language is another of the tenant's languages.

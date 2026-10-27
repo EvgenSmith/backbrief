@@ -6,7 +6,7 @@ topic: "API rate limit incident review"
 date: 2026-10-12
 time: "10:00"
 duration_min: 42
-participants: [Okafor, Sidorova]
+participants: [Hughes, Okafor]
 language: en
 source: zoom
 digest_version: v1
@@ -17,6 +17,7 @@ source_id: "DEMOuuid0004x=="
 platform: zoom
 call_type: review
 tags: [incident, api, postmortem]
+transcript_file: "2026-10-12 1000 api rate limit incident review w Hughes,Okafor.vtt"
 action_items:
   - title: "Add per-clinic rate limits to the public booking API"
     owner: Okafor
@@ -33,8 +34,8 @@ action_items:
     ts: "26:15"
     tracker_ref: ENG-302
   - title: "Write the customer-facing incident note"
-    owner: Sidorova
-    helpers: []
+    owner: Hughes
+    helpers: [Shah]
     status: post-call
     priority: high
     ts: "33:40"
@@ -48,6 +49,7 @@ action_items:
 ### What happened (01:45)
 - Saturday 09:10–09:52: one clinic chain's integration retried in a loop and exhausted the **global** API rate limit
 - **212** clinics saw booking errors for 42 minutes; no data was lost
+- Shah (support): **31** clinics wrote in during the outage; every ticket was answered within the hour
 
 ### Root cause (08:00)
 - Rate limits are global, not per clinic, so one noisy client affects everyone
@@ -59,7 +61,7 @@ action_items:
 
 ## Agreements
 
-1. Sidorova ↔ Okafor: the per-clinic limit ships before any new API feature (14:05)
+1. Hughes ↔ Okafor: the per-clinic limit ships before any new API feature (14:05)
 
 ## Next steps
 
@@ -68,7 +70,7 @@ action_items:
    > "per-clinic limits, this week, nothing else goes in first"
 2. Alert when booking API 429s exceed 1% for five minutes — **Okafor** _[high]_ (26:15)
    > "we need a five-minute alert, not the hourly one"
-3. Write the customer-facing incident note — **Sidorova** _[high]_ (33:40)
+3. Write the customer-facing incident note — **Hughes** (helpers: Shah) _[high]_ (33:40)
    > "I'll write the note to the affected clinics today"
 
 ### ✅ Done on call
@@ -87,4 +89,4 @@ None.
 
 ## Transcript
 
-Raw transcript: not retained · Recording: not retained
+Raw transcript: [2026-10-12 1000 api rate limit incident review w Hughes,Okafor.vtt](2026-10-12%201000%20api%20rate%20limit%20incident%20review%20w%20Hughes,Okafor.vtt) · Recording: not retained

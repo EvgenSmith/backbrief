@@ -15,32 +15,32 @@
 # ============================================================================
 type: member
 schema_version: 1
-lastname: Ivanova                 # canonical token — must match filename, roster, action_items.owner
-first_names: [Maria]
+lastname: Carter                  # canonical token — must match filename, roster, action_items.owner
+first_names: [Emma]
 aliases:                          # * everything speech/transcripts/chat call this person:
-  - Masha                         #   nicknames / diminutives
-  - Маша                          #   native-script spellings
-  - Маше                          #   declined forms (inflected languages: list the cases that
-  - Маши                          #   actually appear in speech — typically 3–4)
-  - "Maria I."                    #   display-name variants (Zoom, calendar)
-  - "@maria"                      #   chat handle as typed
+  - Em                            #   nicknames / diminutives
+  - Emmy                          #   spellings ASR actually produces; for teams that speak an
+                                  #   inflected language, also native-script and declined forms
+                                  #   (the cases that actually appear in speech — typically 3–4)
+  - "Emma C."                     #   display-name variants (Zoom, calendar)
+  - "@emma"                       #   chat handle as typed
 role: "Growth Lead"
 team: growth                      # must match a vault.teams[].tag in tenant.yaml
 zones: [onboarding-emails, paid-acquisition, landing-pages]   # kebab-case EN responsibility areas;
                                   # optional — the AI fills these from transcripts, leave empty on manual fill
-typical_partners: [Petrov, Sidorova]   # lastnames this person most often works/decides with
-languages: [en, ru]
-email: "maria@acme.dev"           # optional; corp email — resolves Slack/tracker identity and Zoom
+typical_partners: [Brooks, Kim]        # lastnames this person most often works/decides with
+languages: [en]
+email: "emma@acme.dev"            # optional; corp email — resolves Slack/tracker identity and Zoom
                                   # attendance; leave empty if unknown (deploy pulls it from Slack
                                   # where scopes allow, or asks once — never required)
 slack_user_id: "U0XXXXXXX"        # optional; enables task-button assignee resolution
-tracker_handle: "maria@acme.com"  # optional; tracker (Linear) user key
+tracker_handle: "emma@acme.com"   # optional; tracker (Linear) user key
 status: draft                     # draft -> confirmed (person reviewed it) -> stale (departed; never delete)
 sources: [slack, transcripts]     # where A2 pulled this from: slack|tracker|docs|survey|transcripts|web
 last_updated: 2026-07-10
 ---
 
-# Maria Ivanova — Growth Lead
+# Emma Carter — Growth Lead
 
 ## Role
 <!-- 2–3 lines: mandate, who they report to if known, seniority signal. -->
@@ -48,7 +48,7 @@ last_updated: 2026-07-10
 ## Responsibility zones
 <!-- One bullet per zone with EVIDENCE — a transcript quote or source line.
      Zones without evidence are marked "(inferred — pending review)". -->
-- **onboarding-emails** — owns the sequence; evidence: "я перепишу второе письмо" (2026-07-03 call, 14:32)
+- **onboarding-emails** — owns the sequence; evidence: "I'll rewrite email two this week" (2026-07-03 call, 14:32)
 - **paid-acquisition** — (inferred from Slack title — pending review)
 
 ## Typical topics
@@ -59,14 +59,14 @@ last_updated: 2026-07-10
 
 ## Typical partners
 <!-- Who they decide with, and on what — one line each. -->
-- **Petrov** — landing pages handoff (design → copy)
+- **Kim** — landing pages handoff (design → copy)
 
 ## Notes
 <!-- Optional free-form: working preferences, decision style, time zone. -->
 
 <!-- Rules (validator-enforced):
      1. `aliases` is the name-map: every form ASR and chat actually produce.
-        It is what resolves "Маше" / "Masha" / "@maria" to one owner token;
+        It is what resolves "Em" / "Emma C." / "@emma" to one owner token;
         A2 transcript enrichment appends observed variants automatically.
      2. Alias collisions across profiles are a validator ERROR (ambiguous
         assignee resolution).
@@ -75,7 +75,7 @@ last_updated: 2026-07-10
 
 <!-- WHY THIS SHAPE (decision → because):
      1. `lastname` is THE canonical token — the same string keys filenames
-        ("w Ivanova"), transcript participants, action_items.owner,
+        ("w Carter"), transcript participants, action_items.owner,
         and tracker assignees; change it here and
         everything stops resolving. Surname collision: use "Lastname-F"
         consistently everywhere, including this filename.
