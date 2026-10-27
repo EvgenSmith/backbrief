@@ -187,8 +187,7 @@ section { padding-block: 104px; }
 .section-lede { color: var(--muted); font-size: 1.08rem; max-width: 40rem; margin: 0; }
 .note { color: var(--muted); max-width: 46rem; margin: 40px 0 0; padding-top: 18px; border-top: 1px solid var(--rule); }
 .eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font: 500 .8rem/1.4 var(--mono); color: var(--muted); margin: 0 0 22px; }
-.beta-tag, .soon-tag { background: var(--mark); color: var(--mark-ink); padding: 3px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }
-.soon-tag { font: 500 .66rem/1.5 var(--mono); margin-right: 6px; vertical-align: 1px; }
+.soon-tag { background: var(--mark); color: var(--mark-ink); padding: 3px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: .08em; font: 500 .66rem/1.5 var(--mono); margin-right: 6px; vertical-align: 1px; }
 .k { font: 500 .72rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--faint); margin: 0 0 12px; }
 
 /* Hero */
